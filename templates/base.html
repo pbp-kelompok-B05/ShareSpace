@@ -1,0 +1,44 @@
+{% load static %}
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f7f1">
+    <meta name="description" content="ShareSpace menghubungkan tetangga untuk saling meminjam barang, menghemat biaya, dan mengurangi limbah.">
+    <title>{% block title %}ShareSpace — Pakai bersama, lebih bermakna{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#konten">Lewati ke konten</a>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a class="brand" href="{% url 'landing_page' %}" aria-label="ShareSpace, kembali ke beranda">
+                <span class="brand-mark" aria-hidden="true">✳</span>
+                <span>share<span class="brand-accent">space</span><span class="brand-dot">.</span></span>
+            </a>
+            <nav class="main-nav" aria-label="Navigasi utama">
+                <a href="{% url 'landing_page' %}#tentang">Tentang</a>
+                <a href="{% url 'landing_page' %}#cara-kerja">Cara kerja</a>
+                <a href="{% url 'landing_page' %}#manfaat">Manfaat</a>
+            </nav>
+            <a class="header-cta" href="{% url 'landing_page' %}#cara-kerja">Mulai jelajahi <span aria-hidden="true">↗</span></a>
+        </div>
+    </header>
+    <main id="konten">{% block content %}{% endblock %}</main>
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <a class="brand footer-brand" href="{% url 'landing_page' %}" aria-label="ShareSpace, kembali ke beranda">
+                <span class="brand-mark" aria-hidden="true">✳</span>
+                <span>share<span class="brand-accent">space</span><span class="brand-dot">.</span></span>
+            </a>
+            <p>Lebih sedikit membeli. Lebih banyak berbagi.</p>
+            <span>Proyek kelompok PBP 5 · ShareSpace</span>
+        </div>
+    </footer>
+</body>
+</html>

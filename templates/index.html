@@ -1,1 +1,60 @@
-{% extends base.html %}
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="hero" aria-labelledby="hero-title">
+    <div class="container hero-grid">
+        <div class="hero-copy">
+            <span class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> BERBAGI BARANG, BERBAGI DAMPAK</span>
+            <h1 id="hero-title">Barangmu jarang dipakai? <em>Manfaatnya</em> jangan berhenti.</h1>
+            <p class="hero-description">Kenalan dengan ShareSpace, tempat komunitas saling meminjamkan barang. Temukan yang kamu butuhkan tanpa harus membeli baru, atau beri barangmu kesempatan untuk berguna lagi.</p>
+            <div class="hero-actions">
+                <a class="button button-primary" href="#cara-kerja">Lihat cara kerjanya <span aria-hidden="true">↗</span></a>
+                <a class="text-link" href="#tentang">Kenali ShareSpace <span aria-hidden="true">↓</span></a>
+            </div>
+            <div class="hero-note"><span aria-hidden="true">✳</span> Untuk mahasiswa dan warga sekitar</div>
+        </div>
+        <div class="hero-art" aria-label="Ilustrasi barang yang dapat dipinjam: buku, raket, dan peralatan" role="img">
+            <div class="orbit orbit-one" aria-hidden="true"></div>
+            <div class="orbit orbit-two" aria-hidden="true"></div>
+            <div class="art-card art-card-book" aria-hidden="true"><span class="art-icon">📚</span><span>Buku referensi</span></div>
+            <div class="art-card art-card-racket" aria-hidden="true"><span class="art-icon">🏸</span><span>Raket badminton</span></div>
+            <div class="art-card art-card-tool" aria-hidden="true"><span class="art-icon">🛠️</span><span>Peralatan</span></div>
+            <div class="art-center" aria-hidden="true"><span>pinjam.</span><span>pakai.</span><span>balikin.</span><span class="art-spark">✳</span></div>
+            <span class="art-star art-star-one" aria-hidden="true">✳</span>
+            <span class="art-star art-star-two" aria-hidden="true">✳</span>
+        </div>
+    </div>
+</section>
+
+<section class="intro section-space" id="tentang" aria-labelledby="intro-title">
+    <div class="container intro-grid">
+        <div><span class="section-label">01 / KENAPA SHARESPACE?</span><h2 id="intro-title">Butuh barangnya.<br><em>Bukan harus punya.</em></h2></div>
+        <div class="intro-copy"><p>Sering kali kita membeli barang hanya untuk dipakai sekali atau dua kali. Setelah itu, barangnya menumpuk di rumah. ShareSpace hadir untuk menghubungkan orang yang membutuhkan dengan orang yang punya barang untuk dibagikan.</p><p>Lebih hemat untuk kamu, lebih ringan untuk bumi, dan lebih dekat dengan komunitasmu.</p></div>
+    </div>
+</section>
+
+<section class="how section-space" id="cara-kerja" aria-labelledby="how-title">
+    <div class="container">
+        <div class="section-heading"><div><span class="section-label">02 / CARA KERJA</span><h2 id="how-title">Gampang untuk mulai <em>berbagi.</em></h2></div><p>Satu komunitas, dua cara untuk saling membantu.</p></div>
+        <div class="steps">
+            <article class="step-card"><span class="step-number">01</span><span class="step-icon" aria-hidden="true">⌕</span><h3>Temukan barang</h3><p>Cari barang yang kamu perlukan di katalog komunitas, dari buku hingga perlengkapan olahraga.</p></article>
+            <article class="step-card"><span class="step-number">02</span><span class="step-icon" aria-hidden="true">↗</span><h3>Ajukan pinjaman</h3><p>Kirim permintaan kepada pemilik barang dan sepakati waktu serta lokasi pengambilan.</p></article>
+            <article class="step-card"><span class="step-number">03</span><span class="step-icon" aria-hidden="true">↺</span><h3>Pakai, lalu kembalikan</h3><p>Gunakan dengan bertanggung jawab, kemudian kembalikan sesuai kesepakatan. Punya barang? Kamu juga bisa meminjamkannya.</p></article>
+        </div>
+        <p class="coming-soon">Katalog dan fitur peminjaman sedang disiapkan. Nantikan pembaruannya di sini.</p>
+    </div>
+</section>
+
+<section class="benefits section-space" id="manfaat" aria-labelledby="benefits-title">
+    <div class="container benefits-grid">
+        <div><span class="section-label">03 / DAMPAK KECIL, ARTI BESAR</span><h2 id="benefits-title">Berbagi itu <em>lebih dari</em> sekadar meminjam.</h2><p>Saat satu barang bisa digunakan banyak orang, kita ikut mengubah kebiasaan konsumsi menjadi lebih bijak.</p></div>
+        <div class="benefit-list">
+            <div class="benefit-item"><span aria-hidden="true">♻</span><div><h3>Kurangi limbah</h3><p>Perpanjang umur pakai barang dan kurangi pembelian yang tidak perlu.</p></div></div>
+            <div class="benefit-item"><span aria-hidden="true">◈</span><div><h3>Hemat pengeluaran</h3><p>Akses barang yang dibutuhkan tanpa harus selalu memilikinya.</p></div></div>
+            <div class="benefit-item"><span aria-hidden="true">♡</span><div><h3>Dekatkan komunitas</h3><p>Bangun rasa percaya lewat kebiasaan saling membantu di sekitar kita.</p></div></div>
+        </div>
+    </div>
+</section>
+
+<section class="closing" aria-labelledby="closing-title"><div class="container closing-inner"><span class="section-label">MULAI DARI SEKITAR KITA</span><h2 id="closing-title">Punya barang yang bisa dibagi?<br><em>Suatu hari, seseorang membutuhkannya.</em></h2><a class="button button-light" href="#konten">Kembali ke atas <span aria-hidden="true">↑</span></a><span class="closing-decoration" aria-hidden="true">✳</span></div></section>
+{% endblock %}
