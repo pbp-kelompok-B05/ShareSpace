@@ -66,7 +66,6 @@ Google Identity Services digunakan untuk mengautentikasi pengguna melalui akun G
 
 *Penanggung jawab:* Matthew Raeann Alexandra
 *Model utama:* Item
-*Public API:* Open Library API
 
 Modul ini menjadi pusat katalog barang yang tersedia untuk dipinjamkan oleh pengguna ShareSpace.
 
@@ -79,13 +78,6 @@ Modul ini menjadi pusat katalog barang yang tersedia untuk dipinjamkan oleh peng
 - Filter berdasarkan kategori, kondisi barang, dan status ketersediaan.
 - Pemilik barang hanya dapat mengubah atau menghapus barang miliknya sendiri.
 - Barang yang memiliki transaksi aktif tidak dapat ditawarkan kepada borrower lain.
-
-### Pemanfaatan Public API
-Untuk barang berkategori buku, pengguna dapat mencari metadata buku menggunakan Open Library API melalui judul atau ISBN. Hasil API, seperti judul, penulis, sampul, tahun terbit, dan subjek buku, akan ditampilkan sebelum pengguna memilih buku yang sesuai untuk dimasukkan ke katalog.
-
-Hasil pencarian dari API dapat difilter berdasarkan judul, penulis, tahun terbit, atau subjek buku.
-
-*Dokumentasi:* <https://openlibrary.org/developers/api>
 
 ---
 
@@ -158,7 +150,6 @@ Pengguna dapat memilih salah satu hasil lokasi tersebut sebagai titik COD.
 
 *Penanggung jawab:* Maximus Quinn Hertada
 *Model utama:* Review, Report
-*Public API:* Hugging Face Inference API
 
 Modul ini membangun rasa aman dan kepercayaan antaranggota ShareSpace melalui ulasan transaksi, reputasi pengguna, serta laporan masalah.
 
@@ -173,21 +164,6 @@ Modul ini membangun rasa aman dan kepercayaan antaranggota ShareSpace melalui ul
 - Admin dapat mengubah status laporan:
 
   Menunggu → Ditinjau → Selesai / Ditolak
-
-### Pemanfaatan Public API
-Hugging Face Inference API digunakan untuk melakukan analisis sentimen terhadap isi ulasan pengguna. Sistem menerima hasil klasifikasi sentimen, seperti positif, netral, atau negatif, beserta confidence score dari model.
-
-Hasil analisis API ditampilkan pada daftar ulasan dan dapat difilter berdasarkan:
-
-- semua ulasan;
-- sentimen positif;
-- sentimen netral;
-- sentimen negatif;
-- ulasan yang perlu ditinjau admin.
-
-Ulasan dengan sentimen negatif atau confidence rendah dapat ditandai sebagai needs_review, tetapi keputusan akhir untuk menyembunyikan atau menolak ulasan tetap dilakukan oleh admin.
-
-*Dokumentasi:* <https://huggingface.co/docs/inference-providers/index>
 
 ## 🔗 Tautan Penting
 *   **Tautan Deployment (PWS):** `https://pws.cs.ui.ac.id/maximus.quinn/sharespace`
