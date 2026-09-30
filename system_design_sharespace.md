@@ -12,7 +12,7 @@ Aplikasi ShareSpace dirancang menggunakan pola arsitektur **MTV (Model-Template-
 flowchart TD
     Client[Client Browser]
     
-    subgraph Django Application
+    subgraph DjangoApp [Django Application]
         Views[Django Views]
         Templates[Django Templates\nHTML/CSS]
         Models[Django Models\nORM]
@@ -20,7 +20,7 @@ flowchart TD
     
     DB[(Database\ne.g., PostgreSQL/SQLite)]
     
-    subgraph External APIs
+    subgraph ExtAPI [External APIs]
         Auth[Google OAuth 2.0]
         Captcha[Google reCAPTCHA]
         Maps[OSM / Overpass API]
@@ -31,7 +31,7 @@ flowchart TD
     Views <--> Models
     Models <--> DB
     
-    Views <-->|API Calls| External APIs
+    Views <-->|API Calls| ExtAPI
 ```
 
 - **Frontend:** HTML5, CSS3, dan JavaScript (Leaflet.js untuk peta). Desain UI sudah mengadopsi pendekatan responsif dan aksesibilitas (terlihat dari `base.html` dan `style.css`).
