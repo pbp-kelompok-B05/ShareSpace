@@ -9,6 +9,9 @@ from authentication.models import UserProfile
 
 # Create your views here.
 def register(request):
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
     form = UserCreationForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -24,6 +27,9 @@ def register(request):
 
 
 def login_user(request):
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
     form = AuthenticationForm(request, data=request.POST or None)
 
     if request.method == "POST" and form.is_valid():
