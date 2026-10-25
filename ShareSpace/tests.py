@@ -1,12 +1,15 @@
 import re
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.shortcuts import redirect, render, resolve_url
-from django.test import Client, TestCase, override_settings
+from django.template.loader import render_to_string
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import include, path, reverse
 
 from ShareSpace.views import landing_page
@@ -376,3 +379,112 @@ class ForbiddenPageTest(TestCase):
         self.client.login(username="warga_403", password="PasswordUji123!")
         response = self.client.get("/_test/forbidden/")
         self.assertNotContains(response, "?next=", status_code=403)
+
+
+class _SampleItemForm(forms.Form):
+    name = forms.CharField(label="Nama barang", min_length=3, help_text="Minimal 3 karakter.")
+    notes = forms.CharField(label="Catatan", required=False, widget=forms.Textarea)
+
+
+class PaginationPartialTest(TestCase):
+    """partials/pagination.html: query filter tetap terbawa, status halaman aksesibel, opsi HTMX."""
+
+    def render(self, page_number, query="q=raket&category=Olahraga", **extra):
+        request = RequestFactory().get(f"/items/?{query}&page={page_number}")
+        page_obj = Paginator(range(100), 10).page(page_number)
+        return render_to_string("partials/pagination.html", {"page_obj": page_obj, **extra}, request=request)
+
+    def test_links_keep_filters_and_replace_page(self):
+        html = self.render(5)
+        self.assertIn('href="?q=raket&amp;category=Olahraga&amp;page=6"', html)
+        self.assertIn('href="?q=raket&amp;category=Olahraga&amp;page=4"', html)
+        self.assertNotIn("page=5&amp;page", html)
+
+    def test_current_page_marked_and_landmark_labelled(self):
+        html = self.render(5)
+        self.assertIn('<nav class="pagination" aria-label="Navigasi halaman">', html)
+        self.assertRegex(html, r'aria-current="page"[^>]*>\s*5\s*<')
+
+    def test_far_pages_elided(self):
+        html = self.render(5)
+        self.assertIn("page=1", html)
+        self.assertIn("page=10", html)
+        self.assertNotIn("page=8", html)
+        self.assertIn("…", html)
+
+    def test_previous_disabled_on_first_page(self):
+        html = self.render(1)
+        self.assertRegex(html, r'<span[^>]*aria-disabled="true"[^>]*>.*?Sebelumnya</span>')
+        self.assertNotIn('rel="prev"', html)
+        self.assertIn('rel="next"', html)
+
+    def test_htmx_attributes_when_target_given(self):
+        html = self.render(2, hx_target="#item-list")
+        self.assertIn('hx-get="?q=raket&amp;category=Olahraga&amp;page=3"', html)
+        self.assertIn('hx-target="#item-list"', html)
+        self.assertIn('hx-push-url="true"', html)
+
+    def test_renders_nothing_for_single_page(self):
+        request = RequestFactory().get("/items/")
+        page_obj = Paginator(range(5), 10).page(1)
+        html = render_to_string("partials/pagination.html", {"page_obj": page_obj}, request=request)
+        self.assertEqual(html.strip(), "")
+
+
+class FormFieldPartialTest(TestCase):
+    """partials/form_field.html: label, help text, dan error terhubung lewat id yang dipakai aria-describedby Django."""
+
+    def test_valid_field_has_label_and_help(self):
+        form = _SampleItemForm()
+        html = render_to_string("partials/form_field.html", {"field": form["name"]})
+        self.assertIn('<label class="form-label" for="id_name">', html)
+        self.assertIn('id="id_name_helptext"', html)
+        self.assertIn('class="form-required" aria-hidden="true"', html)
+        self.assertIn(" required ", html)  # atribut required pada input diumumkan pembaca layar
+        self.assertNotIn("has-error", html)
+
+    def test_invalid_field_shows_errors_with_matching_id(self):
+        form = _SampleItemForm(data={"name": "ab"})
+        form.is_valid()
+        html = render_to_string("partials/form_field.html", {"field": form["name"]})
+        self.assertIn("form-field has-error", html)
+        self.assertIn('aria-invalid="true"', html)
+        # Isi pesan mengikuti LANGUAGE_CODE; cukup pastikan pesan validasi ada di dalam elemen ber-id error.
+        self.assertRegex(html, r'id="id_name_error"[^>]*>\s*<p[^>]*>[^<]*3')
+
+    def test_optional_field_has_no_required_marker(self):
+        html = render_to_string("partials/form_field.html", {"field": _SampleItemForm()["notes"]})
+        self.assertNotIn("form-required", html)
+
+
+class EmptyStatePartialTest(TestCase):
+    """partials/empty_state.html: judul, teks, dan aksi opsional."""
+
+    def test_with_action(self):
+        html = render_to_string("partials/empty_state.html", {
+            "title": "Belum ada barang", "text": "Tambahkan barang pertamamu.",
+            "action_url": "/items/new/", "action_label": "Tambah barang",
+        })
+        self.assertIn('class="empty-state"', html)
+        self.assertIn("<h2", html)
+        self.assertIn("Belum ada barang", html)
+        self.assertIn('href="/items/new/"', html)
+
+    def test_without_action_and_escaped(self):
+        html = render_to_string("partials/empty_state.html", {"title": "<b>Kosong</b>"})
+        self.assertIn("&lt;b&gt;Kosong&lt;/b&gt;", html)
+        self.assertNotIn("<a ", html)
+
+
+class DesignTokensTest(TestCase):
+    """Fokus terlihat (kontras cukup) dan prefers-reduced-motion berlaku global."""
+
+    def test_focus_token_and_reduced_motion(self):
+        with open(finders.find("css/style.css"), encoding="utf-8") as f:
+            css = f.read().replace(" ", "")
+        self.assertIn("--focus:", css)
+        self.assertIn("a:focus-visible{outline-color:var(--focus)}", css)
+        self.assertIn("transition-duration:.01ms!important", css)
+        for component in (".button-secondary", ".button-danger", ".card", ".badge", ".form-input", ".empty-state", ".pagination"):
+            with self.subTest(component=component):
+                self.assertIn(component, css)
