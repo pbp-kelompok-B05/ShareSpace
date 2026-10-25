@@ -164,7 +164,7 @@ button.button{border:0;font-family:inherit;cursor:pointer}
 .form-label{color:var(--ink);font-size:13px;font-weight:700}
 .form-required{color:var(--danger)}
 /* :where() menurunkan spesifisitas agar state :focus dan .has-error di bawah bisa menimpa border. */
-.form-input,.form-field :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea){width:100%;padding:11px 14px;border:1px solid var(--input-border);border-radius:8px;background:var(--cream);color:var(--ink);font:400 14px/1.5 var(--font-body);transition:border-color .2s,background-color .2s}
+.form-input,.form-field :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea){width:100%;padding:11px 14px;border:1px solid var(--input-border);border-radius:10px;background:var(--cream);color:var(--ink);font:400 14px/1.5 var(--font-body);transition:border-color .2s,background-color .2s}
 .form-input:focus,.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--green);background:var(--surface)}
 .form-field textarea{min-height:120px;resize:vertical}
 .form-field input[type="checkbox"],.form-field input[type="radio"]{width:18px;height:18px;margin:0;accent-color:var(--green)}
@@ -182,11 +182,15 @@ button.button{border:0;font-family:inherit;cursor:pointer}
 /* Pagination (partials/pagination.html) */
 .pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin-top:32px}
 .pagination-pages{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
-.pagination-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;height:40px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:700;transition:background .2s,border-color .2s}
+.pagination-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:700;transition:background .2s,border-color .2s}
 .pagination-link:hover{background:var(--surface-muted)}
 .pagination-link.is-current{border-color:var(--green);background:var(--green);color:var(--on-primary)}
 .pagination-link.is-disabled{opacity:.5;cursor:not-allowed}
 .pagination-ellipsis{display:grid;place-items:center;min-width:24px;color:var(--muted)}
+/* Ringkasan opsional di kiri, tombol halaman di kanan (Figma); di layar sempit ringkasan pindah ke atas. */
+.pagination-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.pagination-summary{margin:0;margin-right:auto;color:var(--muted);font-size:13px}
+@media(max-width:600px){.pagination-summary{flex-basis:100%;margin-right:0;text-align:center}}
 /* Layar sempit: hanya panah yang tampil; teks tetap dibaca pembaca layar (pola .sr-only). */
 @media(max-width:480px){.pagination-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}}
 
