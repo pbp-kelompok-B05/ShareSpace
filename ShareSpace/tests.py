@@ -1,10 +1,10 @@
 import re
 
 from django.conf import settings
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
-from django.shortcuts import render, resolve_url
+from django.shortcuts import redirect, render, resolve_url
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
 
@@ -13,6 +13,18 @@ from ShareSpace.views import landing_page
 
 def _base_page(request):
     return render(request, "base.html")
+
+
+def _message_page(request):
+    messages.success(request, "Barang berhasil disimpan.")
+    messages.error(request, "Gagal menghapus barang.")
+    messages.info(request, "<script>alert(1)</script>")
+    return render(request, "base.html")
+
+
+def _message_then_login(request):
+    messages.success(request, "Pesan menuju login.")
+    return redirect("authentication:login")
 
 
 # Urlconf khusus test: URL modul tiruan agar link navbar yang bergantung pada
@@ -28,6 +40,8 @@ urlpatterns = [
     path("loans/", include(([path("", _base_page, name="loan_list")], "loans"))),
     path("cod/", include(([path("", _base_page, name="location_list")], "cod_location"))),
     path("reports/", include(([path("", _base_page, name="report_list")], "review"))),
+    path("_test/messages/", _message_page),
+    path("_test/messages-login/", _message_then_login),
 ]
 
 
@@ -255,3 +269,57 @@ class LoginUrlSettingTest(TestCase):
     def test_login_url_points_to_authentication_login(self):
         self.assertEqual(settings.LOGIN_URL, "authentication:login")
         self.assertEqual(resolve_url(settings.LOGIN_URL), reverse("authentication:login"))
+
+
+@override_settings(ROOT_URLCONF=__name__)
+class MessagesToastTest(TestCase):
+    """Django messages dirender sebagai toast di base.html, tidak ganda di halaman auth, dan di-escape."""
+
+    def test_toast_region_present_on_every_page(self):
+        for url in ("/", "/auth/login/", "/auth/register/"):
+            with self.subTest(url=url):
+                self.assertRegex(
+                    self.client.get(url).content.decode(),
+                    r'<div[^>]*id="toast-region"[^>]*aria-live="polite"',
+                )
+
+    def test_messages_rendered_as_toasts_with_level(self):
+        response = self.client.get("/_test/messages/")
+        self.assertTemplateUsed(response, "partials/messages.html")
+        html = response.content.decode()
+        self.assertRegex(html, r'class="toast toast-success"[^>]*data-toast')
+        self.assertRegex(html, r'class="toast toast-error"[^>]*data-toast')
+        self.assertEqual(html.count("Barang berhasil disimpan."), 1)
+        self.assertIn('aria-label="Tutup notifikasi"', html)
+
+    def test_message_content_is_escaped(self):
+        html = self.client.get("/_test/messages/").content.decode()
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+        self.assertNotIn("<script>alert(1)</script>", html)
+
+    def test_auth_pages_show_message_once(self):
+        # login.html/register.html merender messages sendiri; base tidak boleh merender ulang.
+        response = self.client.get("/_test/messages-login/", follow=True)
+        html = response.content.decode()
+        self.assertEqual(html.count("Pesan menuju login."), 1)
+        self.assertNotIn('class="toast ', html)
+
+    def test_register_success_message_shown_once(self):
+        response = self.client.post(
+            reverse("authentication:register"),
+            {"username": "warga_baru", "password1": "PasswordUji123!", "password2": "PasswordUji123!"},
+            follow=True,
+        )
+        self.assertEqual(response.content.decode().count("Akun berhasil dibuat"), 1)
+
+    def test_toast_script_loaded_and_avoids_innerhtml(self):
+        self.assertRegex(self.client.get("/").content.decode(), r'<script defer src="[^"]*js/toast\.js"')
+        path = finders.find("js/toast.js")
+        self.assertIsNotNone(path)
+        with open(path, encoding="utf-8") as f:
+            script = f.read()
+        # Teks toast dari server/HTMX harus lewat textContent agar tidak bisa menyisipkan HTML.
+        self.assertIn("textContent", script)
+        self.assertNotIn("innerHTML", script)
+        self.assertIn("htmx:responseError", script)
+        self.assertIn("showToast", script)
