@@ -88,3 +88,49 @@ class GlobalCsrfHeaderTest(TestCase):
         client.get(reverse("landing_page"))
         response = client.post(reverse("authentication:logout"))
         self.assertEqual(response.status_code, 403)
+
+
+class DarkModeTest(TestCase):
+    """Dark mode berbasis class: init sinkron sebelum CSS, toggle aksesibel, token tersedia."""
+
+    def setUp(self):
+        self.html = self.client.get(reverse("landing_page")).content.decode()
+
+    def _read_static(self, path):
+        found = finders.find(path)
+        self.assertIsNotNone(found, f"{path} tidak ditemukan")
+        with open(found, encoding="utf-8") as f:
+            return f.read()
+
+    def test_theme_init_runs_synchronously_before_stylesheet(self):
+        tag = re.search(r'<script[^>]*js/theme-init\.js[^>]*>', self.html)
+        self.assertIsNotNone(tag)
+        self.assertNotIn("defer", tag.group(0))
+        self.assertNotIn("async", tag.group(0))
+        self.assertLess(tag.start(), self.html.find("css/style.css"))
+
+    def test_theme_script_deferred(self):
+        self.assertRegex(self.html, r'<script defer src="[^"]*js/theme\.js"')
+
+    def test_theme_toggle_button_accessible(self):
+        tag = re.search(r"<button[^>]*data-theme-toggle[^>]*>", self.html)
+        self.assertIsNotNone(tag)
+        self.assertIn('type="button"', tag.group(0))
+        self.assertIn('aria-pressed="false"', tag.group(0))
+        self.assertIn('aria-label="Mode gelap"', tag.group(0))
+
+    def test_theme_preference_storage_is_failsafe(self):
+        for path in ("js/theme-init.js", "js/theme.js"):
+            with self.subTest(path=path):
+                script = self._read_static(path)
+                self.assertIn("localStorage", script)
+                self.assertIn("catch", script)
+
+    def test_dark_tokens_defined(self):
+        css = self._read_static("css/style.css")
+        self.assertIn("--surface:", css)
+        self.assertIn("--on-primary:", css)
+        self.assertIn(".dark{", css.replace(" ", ""))
+        config = self._read_static("js/tailwind.config.js")
+        self.assertIn("surface: 'var(--surface)'", config)
+        self.assertIn("'on-primary': 'var(--on-primary)'", config)
