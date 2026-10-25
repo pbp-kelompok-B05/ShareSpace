@@ -474,6 +474,26 @@ class PaginationPartialTest(TestCase):
         self.assertIn('hx-target="#item-list"', html)
         self.assertIn('hx-push-url="true"', html)
 
+    def test_next_label_follows_figma(self):
+        html = self.render(5)
+        self.assertRegex(html, r'(?s)rel="next"[^>]*>.*?Selanjutnya</span>')
+        self.assertNotIn("Berikutnya", html)
+
+    def test_summary_shown_when_item_label_given(self):
+        html = self.render(5, item_label="barang")
+        self.assertRegex(html, r'<p class="pagination-summary">\s*Menampilkan 41–50 dari 100 barang\s*</p>')
+        # Ringkasan di dalam landmark nav, sebelum tombol halaman (urutan baca kiri ke kanan seperti Figma).
+        self.assertLess(html.find("pagination-summary"), html.find('class="pagination-controls"'))
+
+    def test_summary_on_last_partial_page(self):
+        request = RequestFactory().get("/items/?page=3")
+        page_obj = Paginator(range(25), 10).page(3)
+        html = render_to_string("partials/pagination.html", {"page_obj": page_obj, "item_label": "barang"}, request=request)
+        self.assertIn("Menampilkan 21–25 dari 25 barang", html)
+
+    def test_no_summary_without_item_label(self):
+        self.assertNotIn("pagination-summary", self.render(5))
+
     def test_renders_nothing_for_single_page(self):
         request = RequestFactory().get("/items/")
         page_obj = Paginator(range(5), 10).page(1)
@@ -597,6 +617,15 @@ class FigmaComponentVariantsTest(TestCase):
                 self.assertIn("background:var(--green)", self.decl(selector))
         # Input radio/checkbox disembunyikan secara visual, jadi fokusnya ditampilkan di chip.
         self.assertIn("outline:3pxsolidvar(--focus)", self.decl(".chip:has(input:focus-visible)"))
+
+    def test_form_input_radius_follows_figma(self):
+        body = self.decl(".form-input")
+        self.assertIn("border-radius:10px", body)
+        self.assertNotIn("border-radius:8px", body)
+
+    def test_pagination_summary_styles(self):
+        self.assertIn("margin-right:auto", self.decl(".pagination-summary"))
+        self.assertTrue(self.decl(".pagination-controls"))
 
     def test_danger_outline_button_added_without_replacing_solid(self):
         outline = self.decl(".button-danger-outline")
