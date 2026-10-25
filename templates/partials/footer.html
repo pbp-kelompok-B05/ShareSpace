@@ -1,10 +1,12 @@
 <footer class="site-footer">
     <div class="container footer-inner">
-        <a class="brand footer-brand" href="{% url 'landing_page' %}" aria-label="ShareSpace, kembali ke beranda">
-            <span class="brand-mark" aria-hidden="true">✳</span>
-            <span>share<span class="brand-accent">space</span><span class="brand-dot">.</span></span>
-        </a>
-        <p>Lebih sedikit membeli. Lebih banyak berbagi.</p>
-        <span>Proyek kelompok PBP B05 · ShareSpace</span>
+        <div class="footer-brand-group">
+            <a class="brand footer-brand" href="{% url 'landing_page' %}" aria-label="ShareSpace, kembali ke beranda">
+                <span class="brand-logo" aria-hidden="true">SS</span>
+                <span class="brand-name">ShareSpace</span>
+            </a>
+            <span class="footer-tagline">Community Lending Library</span>
+        </div>
+        <p>© {% now "Y" %} ShareSpace · Proyek kelompok PBP B05</p>
     </div>
 </footer>

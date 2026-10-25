@@ -10,11 +10,12 @@ items:catalog, items:my_items, loans:loan_list, cod_location:location_list, revi
 {% url 'cod_location:location_list' as cod_url %}
 {% url 'review:report_list' as reports_url %}
 {% url 'landing_page' as landing_url %}
+{% url 'authentication:register' as register_url %}
 <header class="site-header">
     <div class="container header-inner">
         <a class="brand" href="{{ landing_url }}" aria-label="ShareSpace, kembali ke beranda">
-            <span class="brand-mark" aria-hidden="true">✳</span>
-            <span>share<span class="brand-accent">space</span><span class="brand-dot">.</span></span>
+            <span class="brand-logo" aria-hidden="true">SS</span>
+            <span class="brand-name">ShareSpace</span>
         </a>
 
         <div class="site-menu" id="site-menu">
@@ -24,7 +25,7 @@ items:catalog, items:my_items, loans:loan_list, cod_location:location_list, revi
                     <a href="{{ landing_url }}#cara-kerja">Cara kerja</a>
                     <a href="{{ landing_url }}#manfaat">Manfaat</a>
                 {% endif %}
-                {% if catalog_url %}<a href="{{ catalog_url }}"{% if request.path == catalog_url %} aria-current="page"{% endif %}>Katalog</a>{% endif %}
+                {% if catalog_url %}<a href="{{ catalog_url }}"{% if request.path == catalog_url %} aria-current="page"{% endif %}>Katalog Komunitas <span class="badge badge-new">Baru</span></a>{% endif %}
                 {% if cod_url %}<a href="{{ cod_url }}"{% if request.path == cod_url %} aria-current="page"{% endif %}>Lokasi COD</a>{% endif %}
             </nav>
 
@@ -53,7 +54,8 @@ items:catalog, items:my_items, loans:loan_list, cod_location:location_list, revi
                     </details>
                 {% else %}
                     <a class="header-login" href="{% url 'authentication:login' %}">Masuk</a>
-                    <a class="header-cta" href="{% url 'authentication:register' %}">Daftar <span aria-hidden="true">↗</span></a>
+                    {# Sesuai Figma; selama URL katalog belum ada, tombol mengarah ke halaman daftar. #}
+                    <a class="button button-primary button-sm header-start" href="{{ catalog_url|default:register_url }}">Mulai jelajahi <span aria-hidden="true">→</span></a>
                 {% endif %}
             </div>
         </div>

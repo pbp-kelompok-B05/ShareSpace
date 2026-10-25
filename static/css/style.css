@@ -194,5 +194,22 @@ button.button{border:0;font-family:inherit;cursor:pointer}
 .spinner{display:inline-block;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ===== Penyesuaian desain Figma (mockup design system, Page 1) ===== */
+/* Logo: kotak "SS" + teks ShareSpace. .brand-mark/.brand-accent/.brand-dot lama tetap ada untuk kompatibilitas. */
+.brand-logo{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:8px;background:var(--green);color:var(--lime);font:800 13px/1 var(--font-heading);letter-spacing:0}
+.dark .brand-logo{color:var(--on-primary)}
+.brand-name{font:800 19px/1 var(--font-heading);letter-spacing:-.03em}
+/* Badge "Baru" di link navbar; teks hijau tua tetap di dark mode karena --lime tidak dipetakan ulang. */
+.badge-new{margin-left:4px;padding:1px 7px;border:0;background:var(--lime);color:#184c38;font-size:10px;letter-spacing:.02em;vertical-align:middle}
+/* Footer satu baris: logo + tagline di kiri, hak cipta di kanan */
+.site-footer .footer-inner{min-height:88px}
+.footer-brand-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.footer-brand .brand-logo{width:26px;height:26px;border-radius:7px;font-size:11px}
+.footer-brand .brand-name{font-size:16px}
+.footer-tagline{padding-left:12px;border-left:1px solid #ffffff33;color:#b4cbbd;font-size:12px}
+@media(max-width:700px){.brand-name{font-size:17px}.footer-brand-group{gap:8px 12px}}
+/* Tombol "Mulai jelajahi" + badge "Baru" menambah lebar header; rapatkan nav sebelum berubah jadi menu hamburger. */
+@media(min-width:1025px) and (max-width:1180px){.site-menu .main-nav{gap:18px}}
+
 /* Hormati prefers-reduced-motion secara global (micro-interaction dimatikan, bukan disembunyikan) */
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.button:hover,.card-interactive:hover,.card-interactive:focus-within,.header-cta:hover{transform:none}.spinner{animation:spin 1.5s linear infinite!important}}
