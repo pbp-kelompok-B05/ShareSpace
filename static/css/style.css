@@ -100,3 +100,19 @@ h1,h2,h3,p{margin-top:0}h1,h2,h3{font-family:var(--font-heading)}h1{max-width:70
   .user-menu-panel{position:static;margin-top:8px;box-shadow:none}
 }
 @media(prefers-reduced-motion:reduce){.user-caret,.user-menu-trigger{transition:none}}
+
+/* Toast/messages: region tetap di pojok kanan atas; item dibuat server (partials/messages.html) atau toast.js */
+.toast-region{position:fixed;top:16px;right:16px;z-index:50;display:grid;gap:10px;width:min(380px,calc(100% - 32px));pointer-events:none}
+.toast{display:flex;align-items:flex-start;gap:12px;padding:14px 12px 14px 14px;border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 16px 40px #1c302926;pointer-events:auto;animation:toast-in .25s ease-out;transition:opacity .2s,transform .2s}
+.toast.is-leaving{opacity:0;transform:translateY(-6px)}
+.toast-icon{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:var(--muted);color:var(--surface);font:800 13px/1 var(--font-body)}
+.toast-text{flex:1;margin:2px 0 0;color:var(--ink);font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.toast-close{display:grid;place-items:center;flex:none;width:32px;height:32px;margin:-4px -2px 0 0;padding:0;border:0;border-radius:8px;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+.toast-close:hover{background:var(--surface-muted);color:var(--ink)}
+.toast-close:focus-visible{outline:3px solid var(--green);outline-offset:2px}
+.toast-success{border-left-color:var(--green)}.toast-success .toast-icon{background:var(--green);color:var(--on-primary)}
+.toast-error{border-left-color:var(--danger)}.toast-error .toast-icon{background:var(--danger);color:var(--surface)}
+.toast-warning{border-left-color:#b7791f}.toast-warning .toast-icon{background:#b7791f;color:#fff}
+@keyframes toast-in{from{opacity:0;transform:translateY(-8px)}}
+@media(max-width:700px){.toast-region{top:auto;bottom:16px;right:16px}}
+@media(prefers-reduced-motion:reduce){.toast{animation:none;transition:none}}
