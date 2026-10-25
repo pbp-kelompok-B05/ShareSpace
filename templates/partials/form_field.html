@@ -1,0 +1,21 @@
+{% comment %}
+Field form bersama. Pakai: {% include "partials/form_field.html" with field=form.name %}
+Django 5.x otomatis menambah aria-invalid dan aria-describedby="<id>_helptext <id>_error" pada input;
+id help text dan error di bawah ini sengaja mengikuti pola itu agar pembaca layar membacakannya.
+Untuk checkbox, tambahkan with ... inline=True agar label berada di samping input.
+{% endcomment %}
+<div class="form-field{% if inline %} form-field-inline{% endif %}{% if field.errors %} has-error{% endif %}">
+    {% if inline %}{{ field }}{% endif %}
+    <label class="form-label" for="{{ field.id_for_label }}">
+        {{ field.label }}{% if field.field.required %} <span class="form-required" aria-hidden="true">*</span>{% endif %}
+    </label>
+    {% if not inline %}{{ field }}{% endif %}
+    {% if field.help_text %}
+        <p class="form-help" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>
+    {% endif %}
+    {% if field.errors %}
+        <div class="form-errors" id="{{ field.auto_id }}_error">
+            {% for error in field.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+</div>

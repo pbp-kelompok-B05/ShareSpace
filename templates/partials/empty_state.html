@@ -1,0 +1,13 @@
+{% comment %}
+Empty state bersama. Pakai:
+{% include "partials/empty_state.html" with title="Belum ada barang" text="Tambahkan barang pertamamu." action_url=create_url action_label="Tambah barang" icon="📦" %}
+Semua parameter selain title opsional. heading_level default 2 (isi 3 jika di bawah h2 lain).
+{% endcomment %}
+<div class="empty-state">
+    <span class="empty-state-icon" aria-hidden="true">{{ icon|default:"✳" }}</span>
+    {% if heading_level == 3 %}<h3 class="empty-state-title">{{ title }}</h3>{% else %}<h2 class="empty-state-title">{{ title }}</h2>{% endif %}
+    {% if text %}<p class="empty-state-text">{{ text }}</p>{% endif %}
+    {% if action_url and action_label %}
+        <a class="button button-primary" href="{{ action_url }}">{{ action_label }}</a>
+    {% endif %}
+</div>

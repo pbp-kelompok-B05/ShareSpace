@@ -1,0 +1,43 @@
+{% comment %}
+Pagination bersama. Pakai: {% include "partials/pagination.html" with page_obj=page_obj %}
+Opsional HTMX: tambahkan hx_target="#id-container" agar pindah halaman tanpa full reload
+(container di-swap, URL ikut diperbarui lewat hx-push-url).
+Query string lain (filter, search, sort) tetap terbawa lewat {% querystring %} (Django >= 5.1).
+Tidak merender apa pun jika hanya ada satu halaman.
+{% endcomment %}
+{% if page_obj.has_other_pages %}
+{% with current=page_obj.number last=page_obj.paginator.num_pages %}
+<nav class="pagination" aria-label="Navigasi halaman">
+    {% if page_obj.has_previous %}
+        {% querystring page=page_obj.previous_page_number as prev_qs %}
+        <a class="pagination-link" href="{{ prev_qs }}" rel="prev"{% if hx_target %} hx-get="{{ prev_qs }}" hx-target="{{ hx_target }}" hx-push-url="true"{% endif %}><span aria-hidden="true">←</span> <span class="pagination-label">Sebelumnya</span></a>
+    {% else %}
+        <span class="pagination-link is-disabled" aria-disabled="true"><span aria-hidden="true">←</span> <span class="pagination-label">Sebelumnya</span></span>
+    {% endif %}
+
+    <ul class="pagination-pages">
+        {% for n in page_obj.paginator.page_range %}
+            {% if n == 1 or n == last or n|add:1 >= current and n <= current|add:1 %}
+                {% querystring page=n as page_qs %}
+                <li>
+                    {% if n == current %}
+                        <a class="pagination-link is-current" href="{{ page_qs }}" aria-current="page" aria-label="Halaman {{ n }}, halaman saat ini">{{ n }}</a>
+                    {% else %}
+                        <a class="pagination-link" href="{{ page_qs }}" aria-label="Halaman {{ n }}"{% if hx_target %} hx-get="{{ page_qs }}" hx-target="{{ hx_target }}" hx-push-url="true"{% endif %}>{{ n }}</a>
+                    {% endif %}
+                </li>
+            {% elif n|add:2 == current or n == current|add:2 %}
+                <li class="pagination-ellipsis" aria-hidden="true">…</li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+
+    {% if page_obj.has_next %}
+        {% querystring page=page_obj.next_page_number as next_qs %}
+        <a class="pagination-link" href="{{ next_qs }}" rel="next"{% if hx_target %} hx-get="{{ next_qs }}" hx-target="{{ hx_target }}" hx-push-url="true"{% endif %}><span class="pagination-label">Berikutnya</span> <span aria-hidden="true">→</span></a>
+    {% else %}
+        <span class="pagination-link is-disabled" aria-disabled="true"><span class="pagination-label">Berikutnya</span> <span aria-hidden="true">→</span></span>
+    {% endif %}
+</nav>
+{% endwith %}
+{% endif %}
