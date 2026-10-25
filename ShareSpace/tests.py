@@ -538,3 +538,68 @@ class DesignTokensTest(TestCase):
         for component in (".button-secondary", ".button-danger", ".card", ".badge", ".form-input", ".empty-state", ".pagination"):
             with self.subTest(component=component):
                 self.assertIn(component, css)
+
+
+class FigmaComponentVariantsTest(TestCase):
+    """Varian badge, chip, dan button dari sheet komponen Figma; warnanya lewat token agar ikut dark mode."""
+
+    STATUS = ("pending", "approved", "active", "done", "rejected", "cancelled")
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with open(finders.find("css/style.css"), encoding="utf-8") as f:
+            css = re.sub(r"/\*.*?\*/", "", f.read(), flags=re.S)
+        # Pasangan (daftar selector, deklarasi); rule di dalam @media ikut terbaca sebagai rule biasa.
+        cls.rules = [
+            ([s.strip() for s in selectors.split(",")], body.replace(" ", ""))
+            for selectors, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
+        ]
+
+    def decl(self, selector):
+        """Gabungan deklarasi semua rule yang selector-nya persis `selector`."""
+        return ";".join(body for selectors, body in self.rules if selector in selectors)
+
+    def test_availability_badges_are_solid(self):
+        # Figma: "Tersedia" hijau solid, "Sedang Dipinjam" amber solid.
+        available = self.decl(".badge-available")
+        self.assertIn("background:var(--green)", available)
+        self.assertIn("color:var(--on-primary)", available)
+        self.assertIn("background:var(--amber)", self.decl(".badge-unavailable"))
+        self.assertIn("color:var(--on-amber)", self.decl(".badge-unavailable"))
+
+    def test_category_badge_is_outlined(self):
+        category = self.decl(".badge-category")
+        self.assertIn("background:var(--surface)", category)
+        self.assertIn("border-color:var(--line)", category)
+
+    def test_status_badges_defined_with_tokens(self):
+        self.assertIn("content:", self.decl(".badge-status::before"))  # titik warna di depan label
+        for status in self.STATUS:
+            with self.subTest(status=status):
+                body = self.decl(f".badge-status-{status}")
+                self.assertIn("background:var(--", body)
+                self.assertNotIn("#", body)
+
+    def test_new_status_tokens_have_dark_values(self):
+        light, dark = self.decl(":root"), self.decl(".dark")
+        for token in ("--info:", "--info-bg:", "--neutral:", "--neutral-bg:", "--slate:", "--slate-bg:"):
+            with self.subTest(token=token):
+                self.assertIn(token, light)
+                self.assertIn(token, dark)
+        self.assertIn("--amber:", light)
+        self.assertIn("--on-amber:", light)
+
+    def test_chip_states(self):
+        self.assertTrue(self.decl(".chip"))
+        for selector in ('.chip:has(input:checked)', '.chip[aria-pressed="true"]'):
+            with self.subTest(selector=selector):
+                self.assertIn("background:var(--green)", self.decl(selector))
+        # Input radio/checkbox disembunyikan secara visual, jadi fokusnya ditampilkan di chip.
+        self.assertIn("outline:3pxsolidvar(--focus)", self.decl(".chip:has(input:focus-visible)"))
+
+    def test_danger_outline_button_added_without_replacing_solid(self):
+        outline = self.decl(".button-danger-outline")
+        self.assertIn("color:var(--danger)", outline)
+        self.assertIn("background:var(--surface)", outline)
+        self.assertIn("background:var(--danger)", self.decl(".button-danger"))
