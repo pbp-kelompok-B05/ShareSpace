@@ -120,6 +120,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Tujuan redirect @login_required (standar kelompok)
+LOGIN_URL = 'authentication:login'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
