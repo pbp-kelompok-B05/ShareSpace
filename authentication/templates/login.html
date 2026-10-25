@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="section-space auth-wrapper">
+    <div class="container auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <span class="eyebrow">MASUK KE AKUN</span>
+                <h1 class="auth-title">Selamat Datang</h1>
+                <p class="auth-subtitle">Masuk untuk mulai berbagi dan meminjam barang.</p>
+            </div>
+
+            {% if messages %}
+                <div class="auth-messages">
+                    {% for message in messages %}
+                        <div class="auth-message">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'authentication:login' %}">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="auth-alert-error">
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% for field in form %}
+                    <div class="auth-field">
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <p class="auth-error">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="button button-primary auth-submit-btn">
+                    Masuk Sekarang
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                Belum punya akun? <a href="{% url 'authentication:register' %}">Daftar di sini</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
