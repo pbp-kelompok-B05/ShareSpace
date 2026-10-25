@@ -24,3 +24,40 @@ h1,h2,h3,p{margin-top:0}h1,h2,h3{font-family:var(--font-heading)}h1{max-width:70
 @media(max-width:700px){.container{width:min(100% - 36px,540px)}.header-inner{min-height:72px;flex-wrap:wrap;justify-content:center;padding-block:15px}.brand{font-size:21px}.main-nav{order:3;width:100%;justify-content:center;gap:20px;font-size:12px}.header-cta{margin-left:auto;padding:9px 12px;font-size:11px}.hero-grid{padding-block:55px 60px}.hero-description{font-size:15px}.hero-note{margin-top:32px}.hero-art{height:370px;margin-top:30px}.art-center{width:160px;height:160px;font-size:20px}.art-card{padding:8px;font-size:11px}.art-icon{width:31px;height:31px;font-size:17px}.art-card-racket{right:0}.intro-grid,.benefits-grid,.steps{grid-template-columns:1fr;gap:20px}.intro-copy{padding-top:0}.section-heading{display:block}.section-heading>p{max-width:none;margin-top:15px}.step-card{min-height:0}.step-icon{margin-bottom:24px}.benefits-grid{gap:30px}.footer-inner{flex-direction:column;align-items:start;justify-content:center;padding-block:25px}.closing-inner{padding-block:75px}}
 @media(max-width:390px){.header-cta{display:none}.header-inner{justify-content:center}.hero-art{height:310px}.art-card{font-size:10px}.art-card-book{left:0}.art-card-tool{left:0}.art-card-racket{right:-5px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.button,.header-cta{transition:none}}
+
+/* ===== Design system global (base template) — hanya menambah, class/variabel lama tidak diubah ===== */
+/* Token tambahan. Komponen baru memakai token ini, bukan warna hardcoded, agar otomatis ikut dark mode. */
+:root{--surface:#fff;--surface-muted:#f0f3e9;--surface-soft:#edf4e5;--on-primary:#fff;--danger:#9b1c1c;--danger-bg:#fde8e8;--danger-line:#f8b4b4;--success-bg:#eaf4e5;--success-line:#d4e5cb}
+
+/* Dark mode: class .dark di <html> dipasang theme-init.js. Variabel lama ikut dipetakan ulang. */
+.dark{color-scheme:dark;--ink:#e4ece6;--muted:#a3b5aa;--green:#7ccfa3;--green-dark:#5fb88a;--cream:#0f1a16;--line:#2a3c35;--white:#16241f;--surface:#16241f;--surface-muted:#12201b;--surface-soft:#1f332b;--on-primary:#0c1f16;--danger:#f3a6a6;--danger-bg:#3a1a1a;--danger-line:#6b2b2b;--success-bg:#183327;--success-line:#2b5140}
+
+/* Override warna hardcoded di landing page (index.html) untuk dark mode */
+.dark .skip-link{background:var(--surface);color:var(--ink)}
+.dark .header-cta{background:var(--surface-muted)}.dark .header-cta:hover{color:#13261d}
+.dark .hero{background:linear-gradient(155deg,#0f1a16 55%,#13241c)}
+.dark .eyebrow{border-color:var(--line);background:var(--surface-soft)}
+.dark .hero-art{background:radial-gradient(circle at center,#1c3328 0 32%,#16271f 32% 59%,transparent 59%)}
+.dark .orbit{border-color:#35574a}.dark .orbit-two{border-color:#263d34}
+.dark .art-card{border-color:var(--line);background:var(--surface);box-shadow:0 15px 35px #00000066}
+.dark .art-icon,.dark .step-icon,.dark .benefit-item>span{background:var(--surface-soft)}
+.dark .art-center,.dark .brand-mark,.dark .button-primary{color:var(--on-primary)}
+.dark .art-center span:nth-child(2),.dark .art-spark,.dark .footer-brand .brand-mark{color:#184c38}
+.dark .intro,.dark .benefits{background:var(--surface)}.dark .how{background:var(--surface-muted)}
+.dark .step-card{border-color:var(--line);background:var(--surface)}
+.dark .closing{background:#10291f}.dark .button-light{color:#13261d}
+
+/* Override warna hardcoded di auth.css (login/register) untuk dark mode */
+.dark .auth-message{background:var(--success-bg);color:var(--green);border-color:var(--success-line)}
+.dark .auth-alert-error{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-line)}
+.dark .auth-alert-error p,.dark .auth-error{color:var(--danger)}
+
+/* Header actions + toggle tema */
+.header-actions{display:flex;align-items:center;gap:12px}
+.theme-toggle{display:none;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);cursor:pointer;transition:background .2s,transform .2s}
+.js .theme-toggle{display:inline-grid}
+.theme-toggle:hover{background:var(--surface-muted);transform:translateY(-2px)}
+.theme-toggle:focus-visible{outline:3px solid var(--green);outline-offset:3px}
+.theme-icon-sun,.dark .theme-icon-moon{display:none}.dark .theme-icon-sun{display:block}
+@media(max-width:700px){.header-actions{margin-left:auto;gap:8px}.theme-toggle{width:36px;height:36px}}
+@media(prefers-reduced-motion:reduce){.theme-toggle{transition:none}.theme-toggle:hover{transform:none}}

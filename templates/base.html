@@ -7,6 +7,8 @@
     <meta name="theme-color" content="#f6f7f1">
     <meta name="description" content="ShareSpace menghubungkan tetangga untuk saling meminjam barang, menghemat biaya, dan mengurangi limbah.">
     <title>{% block title %}ShareSpace — Pakai bersama, lebih bermakna{% endblock %}</title>
+    {# Sengaja tanpa defer: tema harus terpasang sebelum CSS dan halaman digambar. #}
+    <script src="{% static 'js/theme-init.js' %}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,6 +27,7 @@
     {% block messages %}{% endblock %}
     <main id="konten">{% block content %}{% endblock %}</main>
     {% include "partials/footer.html" %}
+    <script defer src="{% static 'js/theme.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

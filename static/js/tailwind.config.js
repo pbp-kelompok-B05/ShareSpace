@@ -15,6 +15,9 @@ if (window.tailwind) tailwind.config = {
         muted: 'var(--muted)',
         cream: 'var(--cream)',
         line: 'var(--line)',
+        surface: 'var(--surface)',
+        'surface-muted': 'var(--surface-muted)',
+        'on-primary': 'var(--on-primary)',
         primary: {
           DEFAULT: 'var(--green)',
           dark: 'var(--green-dark)',
