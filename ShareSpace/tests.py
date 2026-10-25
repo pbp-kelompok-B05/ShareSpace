@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 from django import forms
 from django.conf import settings
@@ -87,6 +88,33 @@ class BaseTemplateStructureTest(TestCase):
     def test_footer_shows_group_name(self):
         response = self.client.get(reverse("landing_page"))
         self.assertContains(response, "Proyek kelompok PBP B05")
+
+
+class BrandFigmaTest(TestCase):
+    """Logo, tagline footer, dan hak cipta mengikuti mockup design system di Figma."""
+
+    def setUp(self):
+        self.html = self.client.get(reverse("landing_page")).content.decode()
+
+    def test_logo_in_header_and_footer(self):
+        # Logo Figma: kotak hijau "SS" + teks "ShareSpace"; kotak hanya dekorasi.
+        self.assertEqual(self.html.count('<span class="brand-logo" aria-hidden="true">SS</span>'), 2)
+        self.assertEqual(self.html.count('<span class="brand-name">ShareSpace</span>'), 2)
+        self.assertEqual(self.html.count('aria-label="ShareSpace, kembali ke beranda"'), 2)
+        self.assertNotIn("brand-dot", self.html)
+
+    def test_footer_tagline_and_copyright(self):
+        footer = re.search(r'<footer class="site-footer">(.*?)</footer>', self.html, re.S).group(1)
+        self.assertIn("Community Lending Library", footer)
+        self.assertIn(f"© {date.today().year} ShareSpace", footer)
+        self.assertIn("Proyek kelompok PBP B05", footer)
+
+    def test_brand_styles_defined(self):
+        with open(finders.find("css/style.css"), encoding="utf-8") as f:
+            css = f.read()
+        for selector in (".brand-logo", ".brand-name", ".badge-new"):
+            with self.subTest(selector=selector):
+                self.assertIn(selector, css)
 
 
 class BaseTemplateAssetsTest(TestCase):
@@ -197,11 +225,20 @@ class NavbarTest(TestCase):
         self.user = User.objects.create_user(username="warga_nav", password=self.password)
         self.staff = User.objects.create_user(username="admin_nav", password=self.password, is_staff=True)
 
-    def test_anonymous_sees_login_and_register(self):
-        response = self.client.get(reverse("landing_page"))
-        self.assertContains(response, f'href="{reverse("authentication:login")}"')
-        self.assertContains(response, f'href="{reverse("authentication:register")}"')
-        self.assertNotContains(response, reverse("authentication:logout"))
+    def test_anonymous_sees_login_and_start_button(self):
+        html = self.client.get(reverse("landing_page")).content.decode()
+        self.assertIn(f'href="{reverse("authentication:login")}"', html)
+        # Katalog belum ada di urlconf proyek: tombol "Mulai jelajahi" sementara mengarah ke daftar.
+        self.assertRegex(
+            html,
+            r'<a class="button button-primary button-sm header-start" href="%s">\s*Mulai jelajahi'
+            % re.escape(reverse("authentication:register")),
+        )
+        self.assertNotIn(reverse("authentication:logout"), html)
+
+    def test_authenticated_does_not_see_start_button(self):
+        self.client.login(username="warga_nav", password=self.password)
+        self.assertNotContains(self.client.get(reverse("landing_page")), "Mulai jelajahi")
 
     def test_authenticated_sees_user_menu_with_post_logout(self):
         self.client.login(username="warga_nav", password=self.password)
@@ -232,6 +269,7 @@ class NavbarTest(TestCase):
         response = self.client.get(reverse("authentication:login"))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, ">Katalog<")
+        self.assertNotContains(response, "Katalog Komunitas")
 
     def test_mobile_menu_toggle_accessible(self):
         html = self.client.get(reverse("landing_page")).content.decode()
@@ -270,6 +308,18 @@ class NavbarModuleLinksTest(TestCase):
     def test_report_link_only_for_staff(self):
         self.client.login(username="admin_mod", password=self.password)
         self.assertContains(self.client.get("/"), 'href="/reports/"')
+
+    def test_catalog_link_labelled_with_new_badge(self):
+        html = self.client.get("/").content.decode()
+        self.assertRegex(
+            html,
+            r'(?s)<nav class="main-nav"[^>]*>.*?<a href="/items/"[^>]*>Katalog Komunitas\s*<span class="badge badge-new">Baru</span></a>',
+        )
+
+    def test_start_button_points_to_catalog_when_available(self):
+        html = self.client.get("/").content.decode()
+        self.assertRegex(html, r'<a class="button button-primary button-sm header-start" href="/items/">\s*Mulai jelajahi')
+        self.assertNotIn(f'href="{reverse("authentication:register")}"', html)
 
     def test_active_link_marked_with_aria_current(self):
         html = self.client.get("/items/").content.decode()
