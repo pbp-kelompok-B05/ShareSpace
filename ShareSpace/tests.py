@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.models import User
 from django.contrib.staticfiles import finders
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render, resolve_url
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
@@ -20,6 +21,14 @@ def _message_page(request):
     messages.error(request, "Gagal menghapus barang.")
     messages.info(request, "<script>alert(1)</script>")
     return render(request, "base.html")
+
+
+def _forbidden_with_message(request):
+    raise PermissionDenied("Hanya pemilik barang yang dapat mengubah barang ini.")
+
+
+def _forbidden_plain(request):
+    raise PermissionDenied
 
 
 def _message_then_login(request):
@@ -42,6 +51,8 @@ urlpatterns = [
     path("reports/", include(([path("", _base_page, name="report_list")], "review"))),
     path("_test/messages/", _message_page),
     path("_test/messages-login/", _message_then_login),
+    path("_test/forbidden/", _forbidden_with_message),
+    path("_test/forbidden-plain/", _forbidden_plain),
 ]
 
 
@@ -323,3 +334,45 @@ class MessagesToastTest(TestCase):
         self.assertNotIn("innerHTML", script)
         self.assertIn("htmx:responseError", script)
         self.assertIn("showToast", script)
+
+
+class NotFoundPageTest(TestCase):
+    """404 bersama dirender handler bawaan Django (DEBUG=False saat test) dengan base template."""
+
+    def test_unknown_url_uses_shared_404_template(self):
+        response = self.client.get("/halaman-yang-tidak-ada/")
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "404.html")
+        self.assertTemplateUsed(response, "base.html")
+        self.assertContains(response, "Halaman tidak ditemukan", status_code=404)
+        self.assertContains(response, f'href="{reverse("landing_page")}"', status_code=404)
+
+    def test_404_title(self):
+        response = self.client.get("/halaman-yang-tidak-ada/")
+        self.assertContains(response, "<title>Halaman tidak ditemukan — ShareSpace</title>", status_code=404)
+
+
+@override_settings(ROOT_URLCONF=__name__)
+class ForbiddenPageTest(TestCase):
+    """403 bersama: menampilkan pesan dari PermissionDenied dan ajakan login bila belum masuk."""
+
+    def test_permission_denied_message_shown(self):
+        response = self.client.get("/_test/forbidden/")
+        self.assertEqual(response.status_code, 403)
+        self.assertTemplateUsed(response, "403.html")
+        self.assertTemplateUsed(response, "base.html")
+        self.assertContains(response, "Hanya pemilik barang yang dapat mengubah barang ini.", status_code=403)
+
+    def test_default_message_when_exception_empty(self):
+        response = self.client.get("/_test/forbidden-plain/")
+        self.assertContains(response, "Kamu tidak punya izin untuk membuka halaman ini.", status_code=403)
+
+    def test_anonymous_gets_login_link_with_next(self):
+        response = self.client.get("/_test/forbidden/")
+        self.assertContains(response, 'href="/auth/login/?next=/_test/forbidden/"', status_code=403)
+
+    def test_authenticated_does_not_get_login_link(self):
+        User.objects.create_user(username="warga_403", password="PasswordUji123!")
+        self.client.login(username="warga_403", password="PasswordUji123!")
+        response = self.client.get("/_test/forbidden/")
+        self.assertNotContains(response, "?next=", status_code=403)
