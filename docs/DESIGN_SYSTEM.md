@@ -4,11 +4,13 @@ Panduan singkat memakai base template dan komponen bersama. Tujuannya: semua mod
 
 Penanggung jawab: Matthew (Modul 2 + base template). Pertanyaan atau usulan komponen baru: kabari di grup sebelum menambah CSS global.
 
+**Acuan desain:** file Figma kelompok, bagian *mockup design system* di Page 1 (artboard token, Landing, Auth, Katalog, Detail, Transaksi, Profil, Admin, dan sheet komponen). Token warna dan font di sana sama dengan `style.css`. Frame di Page 2 memakai gaya dan fitur yang berbeda dari spesifikasi, jadi hanya dipakai sebagai inspirasi. Figma hanya berisi desktop mode terang; versi mobile dan dark mode diturunkan dari token di dokumen ini.
+
 ## Aturan utama
 
 1. **Extend `base.html`** di setiap halaman. Jangan menulis `<html>`, `<head>`, navbar, atau footer sendiri.
 2. **Pakai token warna**, jangan hex hardcoded. Token otomatis berganti saat dark mode.
-3. **Pakai komponen bersama** (button, card, badge, form field, empty state, pagination, toast) sebelum membuat yang baru.
+3. **Pakai komponen bersama** (button, card, badge, chip, form field, empty state, pagination, toast) sebelum membuat yang baru.
 4. **Tanpa `<script>` inline.** Taruh JS modul di `static/js/` (atau `static/<app>/js/`) lalu muat lewat `{% block extra_js %}`.
 5. **Jangan pakai `|safe`** pada data dari pengguna. Django sudah meng-escape otomatis.
 6. **Tolak akses dengan `raise PermissionDenied("pesan jelas")`**, bukan `HttpResponseForbidden()`, agar halaman 403 bersama dan toast HTMX dipakai.
@@ -69,6 +71,8 @@ File terkait:
 | `--lime` | `text-accent`, `bg-accent` | Aksen |
 | `--danger`, `--danger-bg` | — | Error, aksi hapus |
 | `--success-bg`, `--warning`, `--warning-bg` | — | Badge/alert status |
+| `--amber`, `--on-amber` | — | Badge solid "Sedang Dipinjam" (teks gelap di kedua tema) |
+| `--info`, `--neutral`, `--slate` (+ `-bg`, `-line`) | — | Badge status transaksi Disetujui, Selesai, Dibatalkan |
 | `--input-border` | — | Border input (kontras ≥ 3:1) |
 | `--focus` | — | Cincin fokus keyboard |
 
@@ -91,6 +95,7 @@ File terkait:
 <button type="button" class="button button-secondary">Batal</button>
 <button type="button" class="button button-ghost">Lihat detail</button>
 <button type="submit" class="button button-danger">Hapus</button>
+<button type="button" class="button button-danger-outline">Hapus</button>  {# aksi berisiko yang bukan aksi utama #}
 <button type="button" class="button button-primary button-sm">Kecil</button>
 <button type="button" class="button button-secondary" disabled>Nonaktif</button>
 ```
@@ -119,12 +124,47 @@ Ikon di dalam tombol diberi `aria-hidden="true"`. Tombol yang hanya berisi ikon 
 ```html
 <span class="badge">Netral</span>
 <span class="badge badge-verified">✓ Terverifikasi</span>
-<span class="badge badge-available">Tersedia</span>
-<span class="badge badge-unavailable">Sedang dipinjam</span>
+<span class="badge badge-available">Tersedia</span>          {# hijau solid #}
+<span class="badge badge-unavailable">Sedang Dipinjam</span>  {# amber solid #}
+<span class="badge badge-category">Elektronik</span>         {# putih bergaris #}
+<span class="badge badge-new">Baru</span>                    {# lime kecil, mis. di link navbar #}
 <span class="badge badge-warning">Menunggu</span>
 ```
 
+Badge status transaksi (Figma: "Status Token Transaksi"), dengan titik warna otomatis di depan label:
+
+```html
+<span class="badge badge-status badge-status-pending">Menunggu Konfirmasi</span>
+```
+
+| Modifier | Warna | Label Figma |
+|---|---|---|
+| `badge-status-pending` | Kuning | Menunggu Konfirmasi |
+| `badge-status-approved` | Biru | Disetujui |
+| `badge-status-active` | Hijau | Sedang Dipinjam |
+| `badge-status-done` | Abu | Selesai |
+| `badge-status-rejected` | Merah | Ditolak |
+| `badge-status-cancelled` | Slate | Dibatalkan |
+
+Pemetaan nilai status di model `LoanRequest` ke modifier di atas disepakati dengan pemilik modul transaksi.
+
 Jangan menyampaikan status hanya lewat warna; teks badge harus menjelaskan statusnya.
+
+### Chip filter
+
+Chip membungkus radio/checkbox, sehingga filter tetap jalan tanpa JS dan bisa dikirim lewat form biasa maupun HTMX. Input disembunyikan secara visual; status aktif dan cincin fokus ditampilkan pada chip.
+
+```django
+<fieldset class="chip-group">
+  <legend class="sr-only">Kategori</legend>
+  <label class="chip"><input type="radio" name="category" value="" {% if not current %}checked{% endif %}>Semua</label>
+  {% for value, label in categories %}
+    <label class="chip"><input type="radio" name="category" value="{{ value }}" {% if current == value %}checked{% endif %}>{{ label }}</label>
+  {% endfor %}
+</fieldset>
+```
+
+Untuk toggle tanpa form: `<button type="button" class="chip" aria-pressed="false">Tersedia saja</button>`; ubah `aria-pressed` dari JS.
 
 ### Form field
 
@@ -156,9 +196,11 @@ Semua parameter selain `title` opsional. Pakai `heading_level=3` jika berada di 
 {% include "partials/pagination.html" with page_obj=page_obj %}
 {# dengan HTMX: container #item-list di-swap tanpa full reload, URL ikut berubah #}
 {% include "partials/pagination.html" with page_obj=page_obj hx_target="#item-list" %}
+{# dengan ringkasan di kiri seperti Figma: "Menampilkan 1–6 dari 48 barang" #}
+{% include "partials/pagination.html" with page_obj=page_obj item_label="barang" hx_target="#item-list" %}
 ```
 
-Parameter query lain (search, filter, sort) otomatis tetap terbawa (`{% querystring %}`, butuh Django ≥ 5.1). Tidak merender apa pun jika hanya satu halaman.
+Parameter query lain (search, filter, sort) otomatis tetap terbawa (`{% querystring %}`, butuh Django ≥ 5.1). Tidak merender apa pun jika hanya satu halaman. Taruh partial di **dalam** container yang di-swap agar ringkasan ikut diperbarui.
 
 ### Toast / messages
 
@@ -205,7 +247,7 @@ Link modul diambil dengan `{% url ... as var %}` dan hanya tampil jika URL-nya a
 
 | Link | Nama URL | Tampil untuk |
 |---|---|---|
-| Katalog | `items:catalog` | Semua |
+| Katalog Komunitas (badge "Baru") | `items:catalog` | Semua |
 | Lokasi COD | `cod_location:location_list` | Semua |
 | Barang saya | `items:my_items` | User login (menu akun) |
 | Peminjaman saya | `loans:loan_list` | User login (menu akun) |
@@ -213,6 +255,8 @@ Link modul diambil dengan `{% url ... as var %}` dan hanya tampil jika URL-nya a
 | Admin | `admin:index` | Staff (menu akun) |
 
 Link aktif diberi `aria-current="page"` jika `request.path` sama dengan URL link. Logout memakai form POST.
+
+Logo (header dan footer) mengikuti Figma: kotak hijau "SS" + teks "ShareSpace" (`.brand-logo`, `.brand-name`). Pengunjung yang belum login melihat "Masuk" dan tombol "Mulai jelajahi →" yang mengarah ke katalog; selama `items:catalog` belum ada, tombol itu mengarah ke halaman daftar.
 
 ## Halaman 403 dan 404
 
