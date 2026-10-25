@@ -211,5 +211,37 @@ button.button{border:0;font-family:inherit;cursor:pointer}
 /* Tombol "Mulai jelajahi" + badge "Baru" menambah lebar header; rapatkan nav sebelum berubah jadi menu hamburger. */
 @media(min-width:1025px) and (max-width:1180px){.site-menu .main-nav{gap:18px}}
 
+/* Token status tambahan (sheet komponen Figma). Amber dipakai solid dengan teks gelap di kedua tema. */
+:root{--amber:#f2b632;--on-amber:#3b2a04;--info:#1d4ed8;--info-bg:#e8f0fe;--info-line:#bfd3fb;--neutral:#4b5563;--neutral-bg:#f1f2f4;--neutral-line:#d5d9df;--slate:#334155;--slate-bg:#eef1f6;--slate-line:#cbd3e1}
+.dark{--info:#9dbcf7;--info-bg:#172338;--info-line:#2b4166;--neutral:#c4cad3;--neutral-bg:#22272e;--neutral-line:#3b424c;--slate:#b5c2d6;--slate-bg:#1c2330;--slate-line:#334155}
+
+/* Badge ketersediaan solid (Figma: "Tersedia" hijau, "Sedang Dipinjam" amber) dan badge kategori bergaris. */
+.badge-available{border-color:transparent;background:var(--green);color:var(--on-primary)}
+.badge-unavailable{border-color:transparent;background:var(--amber);color:var(--on-amber)}
+.badge-category{border-color:var(--line);background:var(--surface);color:var(--ink);font-weight:600}
+.badge-available,.badge-unavailable,.badge-category{border-radius:6px}
+
+/* Badge status transaksi: <span class="badge badge-status badge-status-pending">Menunggu Konfirmasi</span> */
+.badge-status{border-radius:8px}
+.badge-status::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor}
+.badge-status-pending{border-color:var(--warning-line);background:var(--warning-bg);color:var(--warning)}
+.badge-status-approved{border-color:var(--info-line);background:var(--info-bg);color:var(--info)}
+.badge-status-active{border-color:var(--success-line);background:var(--success-bg);color:var(--green)}
+.badge-status-done{border-color:var(--neutral-line);background:var(--neutral-bg);color:var(--neutral)}
+.badge-status-rejected{border-color:var(--danger-line);background:var(--danger-bg);color:var(--danger)}
+.badge-status-cancelled{border-color:var(--slate-line);background:var(--slate-bg);color:var(--slate)}
+
+/* Chip filter: membungkus radio/checkbox (tetap jalan tanpa JS) atau <button aria-pressed>. */
+.chip-group{display:flex;flex-wrap:wrap;gap:8px}
+.chip{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 14px;border:0;border-radius:8px;background:var(--surface-muted);color:var(--ink);font:600 13px/1.2 var(--font-body);cursor:pointer;transition:background .2s,color .2s}
+.chip input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.chip:hover{background:var(--surface-soft)}
+.chip:has(input:checked),.chip[aria-pressed="true"]{background:var(--green);color:var(--on-primary)}
+.chip:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+
+/* Button danger outline untuk aksi berisiko yang bukan aksi utama (mis. Hapus di kartu). */
+.button-danger-outline{background:var(--surface);color:var(--danger);box-shadow:inset 0 0 0 1px var(--danger-line)}
+.button-danger-outline:hover{background:var(--danger-bg)}
+
 /* Hormati prefers-reduced-motion secara global (micro-interaction dimatikan, bukan disembunyikan) */
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.button:hover,.card-interactive:hover,.card-interactive:focus-within,.header-cta:hover{transform:none}.spinner{animation:spin 1.5s linear infinite!important}}
