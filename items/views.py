@@ -156,3 +156,25 @@ def item_edit(request, item):
     else:
         template = "items/partials/item_form.html"
     return render(request, template, context)
+
+
+@require_http_methods(["GET", "POST"])
+@item_owner_required
+def item_delete(request, item):
+    if request.method == "POST":
+        # Soft delete: baris tetap ada untuk riwayat peminjaman (FK loans PROTECT).
+        # Tanpa force: barang dipinjam sudah ditolak decorator dengan 403.
+        item.soft_delete()
+        messages.success(request, f"{item.name} berhasil dihapus dari katalog.")
+        # TODO: arahkan ke items:my_items setelah halaman "Barang saya" dibuat.
+        catalog_url = reverse("items:catalog")
+        # Detail barang sudah 404, jadi HTMX juga pindah halaman; toast tampil dari messages.
+        return hx_redirect(catalog_url) if is_htmx(request) else redirect(catalog_url)
+
+    context = {
+        "item": item,
+        "form_action": reverse("items:delete", args=[item.pk]),
+        "cancel_url": reverse("items:detail", args=[item.pk]),
+    }
+    template = "items/partials/item_delete_dialog.html" if is_htmx(request) else "items/item_confirm_delete.html"
+    return render(request, template, context)

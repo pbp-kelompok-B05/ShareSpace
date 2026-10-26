@@ -75,9 +75,9 @@ Context: item, can_manage.
                     {% if item.is_available %}
                         {% if edit_url or delete_url %}
                             <div class="item-detail-manage">
-                                {# Tanpa JS: link ke halaman edit. Dengan HTMX: form dimuat ke dialog (detail.html). #}
+                                {# Tanpa JS: link ke halaman edit/konfirmasi hapus. Dengan HTMX: isinya dimuat ke dialog (detail.html). #}
                                 {% if edit_url %}<a class="button button-secondary" href="{{ edit_url }}" hx-get="{{ edit_url }}" hx-target="#item-dialog-body">Edit Barang</a>{% endif %}
-                                {% if delete_url %}<a class="button button-danger-outline" href="{{ delete_url }}">Hapus Barang</a>{% endif %}
+                                {% if delete_url %}<a class="button button-danger-outline" href="{{ delete_url }}" hx-get="{{ delete_url }}" hx-target="#item-dialog-body">Hapus Barang</a>{% endif %}
                             </div>
                         {% endif %}
                     {% elif edit_url or delete_url %}

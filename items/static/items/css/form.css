@@ -18,3 +18,6 @@
     .item-form-row{grid-template-columns:minmax(0,1fr)}
     .item-form-actions .button{flex:1 1 100%}
 }
+
+/* Konfirmasi hapus (halaman dan dialog). */
+.item-delete-text{margin:0 0 18px;color:var(--ink);font-size:14px;line-height:1.7;overflow-wrap:anywhere}

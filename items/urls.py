@@ -11,4 +11,5 @@ urlpatterns = [
     path("<int:pk>/", views.item_detail, name="detail"),
     path("<int:pk>/json/", views.item_detail_json, name="detail_json"),
     path("<int:pk>/edit/", views.item_edit, name="edit"),
+    path("<int:pk>/hapus/", views.item_delete, name="delete"),
 ]
