@@ -1,0 +1,46 @@
+/* Detail barang (Modul 2). Hanya token dari style.css agar ikut dark mode. */
+
+.item-detail{padding-block:32px 72px}
+
+/* Breadcrumb */
+.breadcrumb ol{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 20px;padding:0;color:var(--muted);font-size:13px;list-style:none}
+.breadcrumb li{min-width:0;overflow-wrap:anywhere}
+.breadcrumb li+li::before{content:"/";margin-right:6px}
+.breadcrumb a{color:var(--muted);text-decoration:none}
+.breadcrumb a:hover{color:var(--green);text-decoration:underline}
+.breadcrumb [aria-current]{color:var(--ink);font-weight:700}
+
+/* Layout: foto lebar di kiri, panel info di kanan; bertumpuk di layar sempit. */
+.item-detail-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:24px;align-items:start}
+.item-detail-main{display:grid;gap:24px;min-width:0}
+.item-detail-media{display:grid;place-items:center;aspect-ratio:4/3;background:var(--surface-muted)}
+.item-detail-media img{display:block;width:100%;height:100%;object-fit:cover}
+.item-detail-media .item-detail-placeholder{width:160px;height:160px;object-fit:contain}
+.item-detail-condition{position:absolute;bottom:16px;left:16px}
+
+/* Panel info */
+.item-detail-panel{gap:18px;padding:24px}
+.item-detail-tags{display:flex;flex-wrap:wrap;gap:8px}
+.item-detail-title{margin:0;font:800 clamp(24px,2.6vw,30px)/1.25 var(--font-heading);letter-spacing:-.02em;overflow-wrap:anywhere}
+.item-detail-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:14px 0;border-block:1px solid var(--line)}
+.item-detail-facts dt{color:var(--muted);font-size:12px}
+.item-detail-facts dd{margin:4px 0 0;color:var(--ink);font-size:14px;font-weight:700}
+.item-detail-label{margin:0 0 8px;color:var(--muted);font:700 11px/1.4 var(--font-body);letter-spacing:.08em;text-transform:uppercase}
+.item-detail-owner{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-muted)}
+.item-detail-owner-info{display:flex;align-items:center;gap:10px;min-width:0;margin:0;color:var(--ink);font-weight:700;overflow-wrap:anywhere}
+.item-detail-avatar{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;background:var(--green);color:var(--on-primary);font-size:14px;font-weight:800}
+.item-detail-description p{margin:0;color:var(--ink);font-size:14px;line-height:1.7;overflow-wrap:anywhere}
+
+/* Aksi */
+.item-detail-actions{display:grid;gap:10px}
+.item-detail-actions .button{width:100%}
+.item-detail-manage{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.item-detail-note{margin:0;padding:12px 14px;border:1px solid var(--warning-line);border-radius:10px;background:var(--warning-bg);color:var(--warning);font-size:13px}
+
+@media(max-width:900px){.item-detail-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){
+  .item-detail{padding-block:20px 56px}
+  .item-detail-panel{padding:18px}
+  .item-detail-facts{grid-template-columns:1fr 1fr}
+  .item-detail-manage{grid-template-columns:1fr}
+}

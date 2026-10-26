@@ -97,6 +97,10 @@ class Item(models.Model):
         """Path static gambar pengganti jika image_url kosong (per kategori)."""
         return f"items/img/placeholders/{self.category}.svg"
 
+    def can_be_managed_by(self, user):
+        """Pemilik atau admin (is_staff) boleh mengubah/menghapus barang ini."""
+        return user.is_authenticated and (user.is_staff or self.owner_id == user.pk)
+
     def soft_delete(self, force=False):
         """Sembunyikan barang. force=True hanya untuk jalur moderasi admin."""
         if self.is_deleted:

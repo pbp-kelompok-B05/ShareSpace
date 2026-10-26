@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ item.name }} — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'items/css/detail.css' %}">
+{% endblock %}
+
+{% block content %}
+{% comment %}
+Detail barang (Figma Page 1, artboard Detail M2+M5). Tombol aksi memakai {% url ... as %}:
+hanya tampil jika URL-nya sudah ada (items:edit, items:delete, loans:create, review:report_item_create).
+{% endcomment %}
+{% url 'items:catalog' as catalog_url %}
+{% url 'items:edit' item.pk as edit_url %}
+{% url 'items:delete' item.pk as delete_url %}
+{% url 'loans:create' item.pk as loan_url %}
+{% url 'review:report_item_create' item.pk as report_url %}
+<div class="item-detail container">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+            <li><a href="{% url 'landing_page' %}">Beranda</a></li>
+            <li><a href="{{ catalog_url }}">Katalog</a></li>
+            <li><a href="{{ catalog_url }}?category={{ item.category|urlencode }}">{{ item.get_category_display }}</a></li>
+            <li><span aria-current="page">{{ item.name }}</span></li>
+        </ol>
+    </nav>
+
+    <div class="item-detail-layout">
+        <div class="item-detail-main">
+            <div class="card item-detail-media">
+                {% if item.image_url %}
+                    <img src="{{ item.image_url }}" alt="{{ item.name }}">
+                {% else %}
+                    <img class="item-detail-placeholder" src="{% static item.placeholder_path %}" alt="">
+                {% endif %}
+                <span class="badge badge-category item-detail-condition">Kondisi {{ item.get_condition_display }}</span>
+            </div>
+            {# Slot ulasan peminjaman (Modul 5): include partial ulasan di sini setelah app review siap. #}
+        </div>
+
+        <section class="card item-detail-panel" aria-labelledby="item-title">
+            <div class="item-detail-tags">
+                <span class="badge badge-category">{{ item.get_category_display }}</span>
+                {% if item.is_verified %}<span class="badge badge-verified">✓ Terverifikasi</span>{% endif %}
+            </div>
+            <h1 id="item-title" class="item-detail-title">{{ item.name }}</h1>
+
+            <dl class="item-detail-facts">
+                <div><dt>Kondisi</dt><dd>{{ item.get_condition_display }}</dd></div>
+                <div>
+                    <dt>Status</dt>
+                    <dd>
+                        {% if item.is_available %}
+                            <span class="badge badge-available">Tersedia</span>
+                        {% else %}
+                            <span class="badge badge-unavailable">Sedang Dipinjam</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div><dt>Ditambahkan</dt><dd><time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"d/m/Y" }}</time></dd></div>
+            </dl>
+
+            <div class="item-detail-owner">
+                <p class="item-detail-label">Pemilik barang</p>
+                <p class="item-detail-owner-info">
+                    <span class="item-detail-avatar" aria-hidden="true">{{ item.owner.get_username|slice:":2"|upper }}</span>
+                    <span>{{ item.owner.get_username }}</span>
+                </p>
+            </div>
+
+            <div class="item-detail-description">
+                <h2 class="item-detail-label">Deskripsi barang</h2>
+                {# linebreaksbr meng-escape isi terlebih dahulu, jadi aman untuk input pengguna. #}
+                <p>{{ item.description|linebreaksbr }}</p>
+            </div>
+
+            <div class="item-detail-actions">
+                {% if can_manage %}
+                    {% if item.is_available %}
+                        {% if edit_url or delete_url %}
+                            <div class="item-detail-manage">
+                                {% if edit_url %}<a class="button button-secondary" href="{{ edit_url }}">Edit Barang</a>{% endif %}
+                                {% if delete_url %}<a class="button button-danger-outline" href="{{ delete_url }}">Hapus Barang</a>{% endif %}
+                            </div>
+                        {% endif %}
+                    {% elif edit_url or delete_url %}
+                        <p class="item-detail-note">Barang sedang dipinjam, tidak dapat diubah atau dihapus.</p>
+                    {% endif %}
+                {% endif %}
+
+                {% if item.owner_id != user.pk %}
+                    {% if not item.is_available %}
+                        <p class="item-detail-note">Barang ini sedang dipinjam. Coba cek lagi nanti.</p>
+                    {% elif loan_url %}
+                        {% if user.is_authenticated %}
+                            <a class="button button-primary" href="{{ loan_url }}">Ajukan Peminjaman</a>
+                        {% else %}
+                            {% url 'authentication:login' as login_url %}
+                            <a class="button button-primary" href="{{ login_url }}?next={{ request.path|urlencode }}">Masuk untuk meminjam</a>
+                        {% endif %}
+                    {% endif %}
+                    {% if report_url %}<a class="button button-danger-outline button-sm" href="{{ report_url }}">Laporkan barang</a>{% endif %}
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
