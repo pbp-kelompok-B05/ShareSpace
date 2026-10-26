@@ -1,32 +1,88 @@
-<section class="container py-8" id="profile-container">
-    <div class="card p-6">
-        <div class="profile-header flex items-center gap-4 mb-6">
-            <div class="user-avatar text-xl font-bold">
-                {% if profile.full_name %}{{ profile.full_name|first|upper }}{% else %}{{ user.username|first|upper }}{% endif %}
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold text-ink">{% if profile.full_name %}{{ profile.full_name }}{% else %}{{ user.username }}{% endif %}</h1>
-                <p class="text-muted">@{{ user.username }}</p>
-            </div>
+{% comment %}
+Partial profil sendiri. Dirender penuh lewat profile.html, atau langsung di-swap ke #konten oleh HTMX.
+Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait di-merge.
+{% endcomment %}
+{% firstof profile.full_name user.username as display_name %}
+<section class="container py-10 md:py-14" id="profile-container">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <span class="section-label">PROFIL</span>
+            <h1 class="m-0 text-3xl md:text-4xl">Profil saya</h1>
         </div>
-
-        <div class="profile-details space-y-3 mb-6">
-            <p><strong>Nama Lengkap:</strong> {{ profile.full_name|default:"Belum diatur" }}</p>
-            <p><strong>Nomor Telepon:</strong> {{ profile.phone_number|default:"Belum diatur" }}</p>
-            <p><strong>Alamat:</strong> {{ profile.address|default:"Belum diatur" }}</p>
-            <p><strong>URL Foto Profil:</strong> {{ profile.profile_picture_url|default:"Belum diatur" }}</p>
-            <p class="text-sm text-muted"><strong>Sesi Terakhir Login:</strong> {{ last_login }}</p>
-        </div>
-
-        <div class="profile-actions">
-            <a href="{% url 'authentication:edit_profile' %}" 
-               hx-get="{% url 'authentication:edit_profile' %}" 
-               hx-target="#konten" 
-               hx-swap="innerHTML" 
-               hx-push-url="true" 
-               class="button button-primary">
-                Edit Profil
+        <div class="flex items-center gap-3">
+            <a class="button button-primary button-sm"
+               href="{% url 'authentication:edit_profile' %}"
+               hx-get="{% url 'authentication:edit_profile' %}"
+               hx-target="#konten"
+               hx-swap="innerHTML"
+               hx-push-url="true">
+                <span aria-hidden="true">✎</span> Ubah profil
             </a>
         </div>
     </div>
+
+    <div class="grid gap-6 md:grid-cols-3">
+        <article class="card md:col-span-2">
+            <div class="card-body gap-6 p-6 md:p-8">
+                <!-- Header Profil: Avatar, Nama, Status -->
+                <div class="flex flex-wrap items-center gap-5">
+                    <div class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-surface-soft font-heading text-3xl font-bold text-primary shadow-sm">
+                        {% if profile.profile_picture_url %}
+                            <img class="h-full w-full object-cover" src="{{ profile.profile_picture_url }}" alt="Foto profil {{ display_name }}">
+                        {% else %}
+                            <span aria-hidden="true">{{ display_name|first|upper }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                            <span class="badge badge-verified">✓ Terverifikasi</span>
+                        </div>
+                        <p class="card-meta m-0">@{{ user.username }} · Anggota sejak {{ user.date_joined|date:"j M Y" }}</p>
+                    </div>
+                </div>
+
+                <hr class="m-0 border-line">
+
+                <!-- Detail Informasi Pengguna -->
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="rounded-xl border border-line bg-surface-muted p-4">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Nomor Telepon</span>
+                        <span class="font-medium text-ink">{{ profile.phone_number|default:"Belum diatur" }}</span>
+                    </div>
+                    <div class="rounded-xl border border-line bg-surface-muted p-4">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Domisili / Alamat Kost</span>
+                        <span class="font-medium text-ink">{{ profile.address|default:"Belum diatur" }}</span>
+                    </div>
+                    <div class="rounded-xl border border-line bg-surface-muted p-4 sm:col-span-2">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Sesi Login Terakhir</span>
+                        <span class="font-medium text-ink">{{ last_login }}</span>
+                    </div>
+                </div>
+
+                <!-- Footer Aksi -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <a class="button button-primary"
+                       href="{% url 'authentication:edit_profile' %}"
+                       hx-get="{% url 'authentication:edit_profile' %}"
+                       hx-target="#konten"
+                       hx-swap="innerHTML"
+                       hx-push-url="true">Ubah profil</a>
+                    <a class="button button-danger-outline" href="{% url 'authentication:deactivate_account' %}">Nonaktifkan akun</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Sidebar Reputasi -->
+        <aside class="card">
+            <div class="card-body gap-4 p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title text-lg">Reputasi &amp; Ulasan</h2>
+                    <span class="badge badge-warning">⭐ Komunitas</span>
+                </div>
+                {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan dari peminjam atau pemilik barang akan muncul di sini setelah transaksi selesai." icon="⭐" heading_level=3 %}
+            </div>
+        </aside>
+    </div>
 </section>
+

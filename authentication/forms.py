@@ -27,14 +27,12 @@ class UserProfileForm(ModelForm):
                 attrs={
                     "placeholder": "Masukkan nama lengkap Anda",
                     "maxlength": 255,
-                    "class": "auth-input",
                 }
             ),
             "phone_number": TextInput(
                 attrs={
                     "placeholder": "Contoh: 081234567890",
                     "maxlength": 20,
-                    "class": "auth-input",
                 }
             ),
             "address": Textarea(
@@ -42,14 +40,12 @@ class UserProfileForm(ModelForm):
                     "placeholder": "Contoh: Kukusan Teknik, Beji, Depok",
                     "rows": 3,
                     "maxlength": 500,
-                    "class": "auth-input auth-textarea",
                 }
             ),
             "profile_picture_url": URLInput(
                 attrs={
                     "placeholder": "https://example.com/foto-profil.jpg",
                     "maxlength": 500,
-                    "class": "auth-input",
                 }
             ),
         }
