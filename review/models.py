@@ -120,7 +120,8 @@ class Report(models.Model):
                 .values("owner_id", "is_deleted")
                 .first()
             )
-            if target and target["is_deleted"]:
+            if target and target["is_deleted"] and self._state.adding:
+                # Hanya untuk laporan baru; laporan lama tetap bisa diedit walau barang dihapus.
                 errors["target_item"] = "Barang ini sudah dihapus dan tidak dapat dilaporkan."
             elif target and target["owner_id"] == self.reporter_id:
                 errors["target_item"] = "Kamu tidak dapat melaporkan barang milikmu sendiri."
