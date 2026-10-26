@@ -27,11 +27,33 @@ def toast_response(message, status, level="error"):
     return response
 
 
+def hx_redirect(url):
+    """Minta HTMX pindah halaman penuh ke url (redirect 302 akan diikuti HTMX diam-diam)."""
+    response = HttpResponse(status=204)
+    response["HX-Redirect"] = url
+    return response
+
+
 def _deny(request, message):
     if is_htmx(request):
         return toast_response(message, 403)
     # Dirender oleh handler 403 bawaan memakai templates/403.html.
     raise PermissionDenied(message)
+
+
+def htmx_login_required(view_func):
+    """Seperti login_required, tetapi request HTMX mendapat HX-Redirect ke halaman login."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            login_redirect = redirect_to_login(request.get_full_path())
+            if is_htmx(request):
+                return hx_redirect(login_redirect.url)
+            return login_redirect
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
 
 
 def item_owner_required(view_func):
@@ -40,17 +62,9 @@ def item_owner_required(view_func):
     View menerima argumen `item` (sudah beserta owner), bukan `pk`.
     """
 
+    @htmx_login_required
     @wraps(view_func)
     def wrapper(request, pk, *args, **kwargs):
-        if not request.user.is_authenticated:
-            login_redirect = redirect_to_login(request.get_full_path())
-            if is_htmx(request):
-                # Redirect 302 akan diikuti HTMX diam-diam; minta browser pindah halaman penuh.
-                response = HttpResponse(status=204)
-                response["HX-Redirect"] = login_redirect.url
-                return response
-            return login_redirect
-
         try:
             item = Item.objects.visible().select_related("owner").get(pk=pk)
         except Item.DoesNotExist:

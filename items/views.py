@@ -1,14 +1,18 @@
+from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.cache import patch_vary_headers
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 
-from items.forms import CatalogFilterForm
+from items.decorators import htmx_login_required, hx_redirect, is_htmx, rate_limit
+from items.forms import CatalogFilterForm, ItemForm
 from items.models import Item
 from items.serializers import serialize_item
 
 CATALOG_PAGE_SIZE = 12
+ITEM_CREATE_RATE_LIMIT = 10  # POST per jam per user
 
 
 def _visible_items():
@@ -74,3 +78,31 @@ def item_detail_json(request, pk):
         # Klien API (Flutter) selalu menerima JSON, bukan halaman 404 HTML.
         return JsonResponse({"detail": "Barang tidak ditemukan."}, status=404)
     return JsonResponse(serialize_item(item, request))
+
+
+@require_http_methods(["GET", "POST"])
+@htmx_login_required
+@rate_limit("item_create", limit=ITEM_CREATE_RATE_LIMIT, period=60 * 60)
+def item_create(request):
+    # request.POST kosong tetap harus jadi form terikat agar error "wajib diisi" muncul.
+    form = ItemForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        item = form.save(commit=False)
+        item.owner = request.user
+        item.save()
+        messages.success(request, f"{item.name} berhasil ditambahkan ke katalog.")
+        detail_url = reverse("items:detail", args=[item.pk])
+        # HTMX: pindah ke detail lewat HX-Redirect; pesan sukses tampil sebagai toast di sana.
+        return hx_redirect(detail_url) if is_htmx(request) else redirect(detail_url)
+
+    context = {
+        "form": form,
+        "page_title": "Pinjamkan Barang",
+        "page_subtitle": "Daftarkan barang yang bisa dipinjam tetangga di sekitarmu.",
+        "form_action": reverse("items:create"),
+        "submit_label": "Simpan Barang",
+        "cancel_url": reverse("items:catalog"),
+    }
+    # Error validasi via HTMX: hanya form yang diganti (hx-swap outerHTML).
+    template = "items/partials/item_form.html" if is_htmx(request) else "items/item_form.html"
+    return render(request, template, context)

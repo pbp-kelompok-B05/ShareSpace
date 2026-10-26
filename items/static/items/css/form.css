@@ -1,0 +1,20 @@
+/* Form tambah/edit barang (Modul 2). Hanya token dari style.css agar ikut dark mode. */
+
+.item-form-page{padding-block:40px 72px}
+.item-form-inner{max-width:720px;margin-inline:auto}
+.item-form-back{display:inline-block;margin-bottom:16px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}
+.item-form-back:hover{color:var(--green);text-decoration:underline}
+.item-form-title{max-width:none;margin:0 0 6px;font-size:clamp(28px,3.2vw,36px);line-height:1.2;letter-spacing:-.03em}
+.item-form-subtitle{margin:0 0 24px;color:var(--muted);font-size:14px}
+.item-form-card{padding:24px}
+.item-form-errors{margin-bottom:18px;padding:12px 14px;border:1px solid var(--danger-line);border-radius:10px;background:var(--danger-bg)}
+.item-form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px}
+.item-form-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:6px;padding-top:18px;border-top:1px solid var(--line)}
+/* Tombol submit dinonaktifkan HTMX (hx-disabled-elt) selama request berjalan. */
+.item-form-actions .button[disabled]{opacity:.55;cursor:progress;transform:none}
+
+@media(max-width:600px){
+    .item-form-card{padding:18px}
+    .item-form-row{grid-template-columns:minmax(0,1fr)}
+    .item-form-actions .button{flex:1 1 100%}
+}
