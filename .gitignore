@@ -5,6 +5,7 @@
 __pycache__/
 db.sqlite3
 media
+staticfiles/
 
 # Backup files
 *.bak
@@ -125,4 +126,5 @@ sftp-config.json
 .agents/
 
 # Dokumen Tugas
-File Deskripsi Proyek Tengah Semester.pdf
+Deskripsi Proyek Tengah Semester.pdf
+Panduan Tugas Kelompok.pdf

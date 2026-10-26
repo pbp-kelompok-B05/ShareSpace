@@ -1,0 +1,12 @@
+{% comment %}
+Item toast dari Django messages. Dirender di dalam #toast-region (base.html).
+Teks pesan selalu di-escape otomatis; jangan tambahkan |safe.
+Level: success, info, warning, error (debug diperlakukan seperti info).
+{% endcomment %}
+{% for message in messages %}
+    <div class="toast toast-{% if message.level_tag == 'debug' or not message.level_tag %}info{% else %}{{ message.level_tag }}{% endif %}" data-toast>
+        <span class="toast-icon" aria-hidden="true">{% if message.level_tag == 'success' %}✓{% elif message.level_tag == 'error' %}✕{% elif message.level_tag == 'warning' %}!{% else %}i{% endif %}</span>
+        <p class="toast-text">{{ message }}</p>
+        <button type="button" class="toast-close" data-toast-close aria-label="Tutup notifikasi">×</button>
+    </div>
+{% endfor %}
