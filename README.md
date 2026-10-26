@@ -30,10 +30,10 @@ Aplikasi ini menggunakan satu jenis akun terpadu di mana setiap pengguna bisa be
 | No. | Modul | Penanggung Jawab | Model/Data Utama | Public API |
 |---|---|---|---|---|
 | 1 | Autentikasi & Manajemen Akun | Azka Nur Jauhar | User, UserProfile | Google OAuth / Google Identity Services |
-| 2 | Katalog & Manajemen Barang | Matthew Raeann Alexandra | Item | Open Library API |
+| 2 | Katalog & Manajemen Barang | Matthew Raeann Alexandra | Item ||
 | 3 | Transaksi Peminjaman | Fadhil Abdurrohman | LoanRequest | Google reCAPTCHA |
 | 4 | Lokasi COD & Jadwal Pengambilan | Muhammad Taufiq Ramadhan  | CODLocation, PickupSchedule | OpenStreetMap / Overpass API |
-| 5 | Review, Reputasi & Laporan | Maximus Quinn Hertada | Review, Report | Hugging Face Inference API |
+| 5 | Review, Reputasi & Laporan | Maximus Quinn Hertada | Review, Report ||
 
 ---
 

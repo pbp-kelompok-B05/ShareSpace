@@ -24,3 +24,228 @@ h1,h2,h3,p{margin-top:0}h1,h2,h3{font-family:var(--font-heading)}h1{max-width:70
 @media(max-width:700px){.container{width:min(100% - 36px,540px)}.header-inner{min-height:72px;flex-wrap:wrap;justify-content:center;padding-block:15px}.brand{font-size:21px}.main-nav{order:3;width:100%;justify-content:center;gap:20px;font-size:12px}.header-cta{margin-left:auto;padding:9px 12px;font-size:11px}.hero-grid{padding-block:55px 60px}.hero-description{font-size:15px}.hero-note{margin-top:32px}.hero-art{height:370px;margin-top:30px}.art-center{width:160px;height:160px;font-size:20px}.art-card{padding:8px;font-size:11px}.art-icon{width:31px;height:31px;font-size:17px}.art-card-racket{right:0}.intro-grid,.benefits-grid,.steps{grid-template-columns:1fr;gap:20px}.intro-copy{padding-top:0}.section-heading{display:block}.section-heading>p{max-width:none;margin-top:15px}.step-card{min-height:0}.step-icon{margin-bottom:24px}.benefits-grid{gap:30px}.footer-inner{flex-direction:column;align-items:start;justify-content:center;padding-block:25px}.closing-inner{padding-block:75px}}
 @media(max-width:390px){.header-cta{display:none}.header-inner{justify-content:center}.hero-art{height:310px}.art-card{font-size:10px}.art-card-book{left:0}.art-card-tool{left:0}.art-card-racket{right:-5px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.button,.header-cta{transition:none}}
+
+/* ===== Design system global (base template) — hanya menambah, class/variabel lama tidak diubah ===== */
+/* Token tambahan. Komponen baru memakai token ini, bukan warna hardcoded, agar otomatis ikut dark mode. */
+:root{--surface:#fff;--surface-muted:#f0f3e9;--surface-soft:#edf4e5;--on-primary:#fff;--danger:#9b1c1c;--danger-bg:#fde8e8;--danger-line:#f8b4b4;--success-bg:#eaf4e5;--success-line:#d4e5cb}
+
+/* Dark mode: class .dark di <html> dipasang theme-init.js. Variabel lama ikut dipetakan ulang. */
+.dark{color-scheme:dark;--ink:#e4ece6;--muted:#a3b5aa;--green:#7ccfa3;--green-dark:#5fb88a;--cream:#0f1a16;--line:#2a3c35;--white:#16241f;--surface:#16241f;--surface-muted:#12201b;--surface-soft:#1f332b;--on-primary:#0c1f16;--danger:#f3a6a6;--danger-bg:#3a1a1a;--danger-line:#6b2b2b;--success-bg:#183327;--success-line:#2b5140}
+
+/* Override warna hardcoded di landing page (index.html) untuk dark mode */
+.dark .skip-link{background:var(--surface);color:var(--ink)}
+.dark .header-cta{background:var(--surface-muted)}.dark .header-cta:hover{color:#13261d}
+.dark .hero{background:linear-gradient(155deg,#0f1a16 55%,#13241c)}
+.dark .eyebrow{border-color:var(--line);background:var(--surface-soft)}
+.dark .hero-art{background:radial-gradient(circle at center,#1c3328 0 32%,#16271f 32% 59%,transparent 59%)}
+.dark .orbit{border-color:#35574a}.dark .orbit-two{border-color:#263d34}
+.dark .art-card{border-color:var(--line);background:var(--surface);box-shadow:0 15px 35px #00000066}
+.dark .art-icon,.dark .step-icon,.dark .benefit-item>span{background:var(--surface-soft)}
+.dark .art-center,.dark .brand-mark,.dark .button-primary{color:var(--on-primary)}
+.dark .art-center span:nth-child(2),.dark .art-spark,.dark .footer-brand .brand-mark{color:#184c38}
+.dark .intro,.dark .benefits{background:var(--surface)}.dark .how{background:var(--surface-muted)}
+.dark .step-card{border-color:var(--line);background:var(--surface)}
+.dark .closing{background:#10291f}.dark .button-light{color:#13261d}
+
+/* Override warna hardcoded di auth.css (login/register) untuk dark mode */
+.dark .auth-message{background:var(--success-bg);color:var(--green);border-color:var(--success-line)}
+.dark .auth-alert-error{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-line)}
+.dark .auth-alert-error p,.dark .auth-error{color:var(--danger)}
+
+/* Header actions + toggle tema */
+.header-actions{display:flex;align-items:center;gap:12px}
+.theme-toggle{display:none;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);cursor:pointer;transition:background .2s,transform .2s}
+.js .theme-toggle{display:inline-grid}
+.theme-toggle:hover{background:var(--surface-muted);transform:translateY(-2px)}
+.theme-toggle:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.theme-icon-sun,.dark .theme-icon-moon{display:none}.dark .theme-icon-sun{display:block}
+@media(max-width:700px){.header-actions{margin-left:auto;gap:8px}.theme-toggle{width:36px;height:36px}}
+@media(prefers-reduced-motion:reduce){.theme-toggle{transition:none}.theme-toggle:hover{transform:none}}
+
+/* Navbar global: nav modul + menu akun; di ≤1024px menjadi panel yang dibuka hamburger (nav.js) */
+.site-menu{display:flex;align-items:center;justify-content:space-between;gap:24px;flex:1;min-width:0}
+.site-menu .main-nav{gap:28px;margin-inline:auto}
+.main-nav a[aria-current="page"]{color:var(--green);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px}
+.header-auth{display:flex;align-items:center;gap:16px}
+.header-login{font-size:14px;font-weight:700}.header-login:hover{color:var(--green)}
+.nav-toggle{display:none;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);cursor:pointer}
+.nav-toggle:hover{background:var(--surface-muted)}
+.user-menu{position:relative}
+.user-menu-trigger{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px;font-weight:700;list-style:none;cursor:pointer;transition:background .2s}
+.user-menu-trigger::-webkit-details-marker{display:none}
+.user-menu-trigger:hover{background:var(--surface-muted)}
+.user-avatar{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--green);color:var(--on-primary);font-size:13px}
+.user-name{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-caret{font-size:11px;transition:transform .2s}.user-menu[open] .user-caret{transform:rotate(180deg)}
+.user-menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:30;display:grid;min-width:210px;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 16px 40px #1c302926}
+.user-menu-panel a,.user-menu-logout{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font:600 14px/1.4 var(--font-body);text-align:left;cursor:pointer}
+.user-menu-panel a:hover,.user-menu-logout:hover{background:var(--surface-muted)}
+.user-menu-panel a[aria-current="page"]{color:var(--green)}
+.user-menu-panel form{margin:4px 0 0;padding-top:4px;border-top:1px solid var(--line)}
+.user-menu-logout{color:var(--danger)}
+.user-menu-trigger:focus-visible,.user-menu-logout:focus-visible,.nav-toggle:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+@media(max-width:1024px){
+  .header-inner{flex-wrap:wrap}
+  .header-actions{margin-left:auto}
+  .js .nav-toggle{display:inline-grid}
+  .site-menu{order:3;flex-basis:100%;flex-direction:column;align-items:stretch;gap:14px;padding:4px 0 18px}
+  .js .site-menu{display:none}.js .site-menu.is-open{display:flex}
+  .site-menu .main-nav{order:0;width:auto;margin-inline:0;flex-direction:column;align-items:stretch;gap:0;font-size:15px}
+  .site-menu .main-nav a{padding:12px 4px;border-bottom:1px solid var(--line)}
+  .header-auth{flex-wrap:wrap;gap:12px}
+  .header-login{padding:10px 4px}
+  .site-menu .header-cta{display:inline-flex;margin-left:0}
+  .user-menu{width:100%}
+  .user-menu-trigger{width:fit-content}
+  .user-menu-panel{position:static;margin-top:8px;box-shadow:none}
+}
+@media(prefers-reduced-motion:reduce){.user-caret,.user-menu-trigger{transition:none}}
+
+/* Toast/messages: region tetap di pojok kanan atas; item dibuat server (partials/messages.html) atau toast.js */
+.toast-region{position:fixed;top:16px;right:16px;z-index:50;display:grid;gap:10px;width:min(380px,calc(100% - 32px));pointer-events:none}
+.toast{display:flex;align-items:flex-start;gap:12px;padding:14px 12px 14px 14px;border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 16px 40px #1c302926;pointer-events:auto;animation:toast-in .25s ease-out;transition:opacity .2s,transform .2s}
+.toast.is-leaving{opacity:0;transform:translateY(-6px)}
+.toast-icon{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:50%;background:var(--muted);color:var(--surface);font:800 13px/1 var(--font-body)}
+.toast-text{flex:1;margin:2px 0 0;color:var(--ink);font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.toast-close{display:grid;place-items:center;flex:none;width:32px;height:32px;margin:-4px -2px 0 0;padding:0;border:0;border-radius:8px;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+.toast-close:hover{background:var(--surface-muted);color:var(--ink)}
+.toast-close:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.toast-success{border-left-color:var(--green)}.toast-success .toast-icon{background:var(--green);color:var(--on-primary)}
+.toast-error{border-left-color:var(--danger)}.toast-error .toast-icon{background:var(--danger);color:var(--surface)}
+.toast-warning{border-left-color:#b7791f}.toast-warning .toast-icon{background:#b7791f;color:#fff}
+@keyframes toast-in{from{opacity:0;transform:translateY(-8px)}}
+@media(max-width:700px){.toast-region{top:auto;bottom:16px;right:16px}}
+@media(prefers-reduced-motion:reduce){.toast{animation:none;transition:none}}
+
+/* Halaman error bersama (403.html, 404.html) */
+.error-page{display:flex;align-items:center;min-height:calc(100vh - 200px);padding-block:80px;background:linear-gradient(155deg,var(--cream) 55%,var(--surface-muted))}
+.error-inner{text-align:center}
+.error-code{margin:0 0 8px;color:var(--green);font:800 clamp(80px,16vw,150px)/1 var(--font-heading);letter-spacing:-.06em}
+.error-title{max-width:none;margin:0 0 14px;font-size:clamp(30px,4vw,44px);line-height:1.2;letter-spacing:-.04em}
+.error-text{max-width:520px;margin:0 auto;font-size:16px;line-height:1.8}
+.error-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:24px;margin-top:32px}
+
+/* ===== Komponen bersama (dipakai semua modul; panduan di docs/DESIGN_SYSTEM.md) ===== */
+:root{--focus:#9a5b0f;--input-border:#7d8e83;--warning:#7a4a06;--warning-bg:#fdf3e1;--warning-line:#f0d9a8}
+.dark{--focus:#e4ab5a;--input-border:#5d7468;--warning:#f0c27a;--warning-bg:#3a2a10;--warning-line:#5c4419}
+
+/* Fokus: cincin amber kontras >=3:1 di kedua tema. :where() menjaga spesifisitas 0 agar mudah di-override. */
+a:focus-visible{outline-color:var(--focus)}
+:where(button,input,select,textarea,summary,[tabindex]):focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Button: .button + varian. .button-primary dan .button-light sudah ada di atas. */
+button.button{border:0;font-family:inherit;cursor:pointer}
+.button-secondary{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--input-border)}.button-secondary:hover{background:var(--surface-muted)}
+.button-ghost{background:transparent;color:var(--green)}.button-ghost:hover{background:var(--surface-muted)}
+.button-danger{background:var(--danger);color:var(--surface)}.button-danger:hover{opacity:.9}
+.button-sm{min-height:38px;gap:8px;padding:8px 14px;border-radius:8px;font-size:13px}
+.button:disabled,.button[aria-disabled="true"]{opacity:.55;cursor:not-allowed;transform:none}
+
+/* Card: .card-link membuat seluruh card bisa diklik (stretched link) tanpa membungkus card dengan <a>. */
+.card{position:relative;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);transition:transform .2s,box-shadow .2s}
+.card-interactive:hover,.card-interactive:focus-within{transform:translateY(-3px);box-shadow:0 18px 40px #1c30291f}
+.card-media{aspect-ratio:4/3;overflow:hidden;background:var(--surface-muted)}.card-media img{display:block;width:100%;height:100%;object-fit:cover}
+.card-body{display:grid;gap:8px;padding:18px}
+.card-title{margin:0;font:700 18px/1.3 var(--font-heading);letter-spacing:-.02em}
+.card-link::after{content:"";position:absolute;inset:0;border-radius:inherit}
+.card-link:focus-visible{outline:none}.card-link:focus-visible::after{outline:3px solid var(--focus);outline-offset:-3px}
+.card-meta{margin:0;color:var(--muted);font-size:13px}
+.card-footer{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding:0 18px 18px}
+
+/* Badge status */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface-muted);color:var(--ink);font-size:12px;font-weight:700;line-height:1.5;white-space:nowrap}
+.badge-verified,.badge-available{border-color:var(--success-line);background:var(--success-bg);color:var(--green)}
+.badge-unavailable{border-color:var(--danger-line);background:var(--danger-bg);color:var(--danger)}
+.badge-warning{border-color:var(--warning-line);background:var(--warning-bg);color:var(--warning)}
+
+/* Form field (partials/form_field.html). Border input memakai --input-border agar kontras >=3:1. */
+.form-field{display:grid;gap:6px;margin-bottom:18px}
+.form-label{color:var(--ink);font-size:13px;font-weight:700}
+.form-required{color:var(--danger)}
+/* :where() menurunkan spesifisitas agar state :focus dan .has-error di bawah bisa menimpa border. */
+.form-input,.form-field :where(input:not([type="checkbox"]):not([type="radio"]),select,textarea){width:100%;padding:11px 14px;border:1px solid var(--input-border);border-radius:10px;background:var(--cream);color:var(--ink);font:400 14px/1.5 var(--font-body);transition:border-color .2s,background-color .2s}
+.form-input:focus,.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--green);background:var(--surface)}
+.form-field textarea{min-height:120px;resize:vertical}
+.form-field input[type="checkbox"],.form-field input[type="radio"]{width:18px;height:18px;margin:0;accent-color:var(--green)}
+.form-help{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.form-errors{display:grid;gap:2px}.form-error{margin:0;color:var(--danger);font-size:12px;font-weight:600}
+.has-error input,.has-error select,.has-error textarea{border-color:var(--danger)}
+.form-field-inline{grid-template-columns:auto 1fr;align-items:center;column-gap:10px}.form-field-inline .form-help,.form-field-inline .form-errors{grid-column:2}
+
+/* Empty state (partials/empty_state.html) */
+.empty-state{display:grid;justify-items:center;gap:10px;padding:48px 24px;border:1px dashed var(--input-border);border-radius:16px;background:var(--surface);text-align:center}
+.empty-state-icon{display:grid;place-items:center;width:64px;height:64px;border-radius:18px;background:var(--surface-soft);font-size:30px}
+.empty-state-title{margin:6px 0 0;font-size:20px;line-height:1.3;letter-spacing:-.02em}
+.empty-state-text{max-width:420px;margin:0 0 8px;font-size:14px}
+
+/* Pagination (partials/pagination.html) */
+.pagination{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin-top:32px}
+.pagination-pages{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.pagination-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:40px;height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:700;transition:background .2s,border-color .2s}
+.pagination-link:hover{background:var(--surface-muted)}
+.pagination-link.is-current{border-color:var(--green);background:var(--green);color:var(--on-primary)}
+.pagination-link.is-disabled{opacity:.5;cursor:not-allowed}
+.pagination-ellipsis{display:grid;place-items:center;min-width:24px;color:var(--muted)}
+/* Ringkasan opsional di kiri, tombol halaman di kanan (Figma); di layar sempit ringkasan pindah ke atas. */
+.pagination-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.pagination-summary{margin:0;margin-right:auto;color:var(--muted);font-size:13px}
+@media(max-width:600px){.pagination-summary{flex-basis:100%;margin-right:0;text-align:center}}
+/* Layar sempit: hanya panah yang tampil; teks tetap dibaca pembaca layar (pola .sr-only). */
+@media(max-width:480px){.pagination-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}}
+
+/* Indikator loading untuk HTMX: <span class="spinner htmx-indicator" aria-hidden="true"></span> */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Penyesuaian desain Figma (mockup design system, Page 1) ===== */
+/* Logo: kotak "SS" + teks ShareSpace. .brand-mark/.brand-accent/.brand-dot lama tetap ada untuk kompatibilitas. */
+.brand-logo{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:8px;background:var(--green);color:var(--lime);font:800 13px/1 var(--font-heading);letter-spacing:0}
+.dark .brand-logo{color:var(--on-primary)}
+.brand-name{font:800 19px/1 var(--font-heading);letter-spacing:-.03em}
+/* Badge "Baru" di link navbar; teks hijau tua tetap di dark mode karena --lime tidak dipetakan ulang. */
+.badge-new{margin-left:4px;padding:1px 7px;border:0;background:var(--lime);color:#184c38;font-size:10px;letter-spacing:.02em;vertical-align:middle}
+/* Footer satu baris: logo + tagline di kiri, hak cipta di kanan */
+.site-footer .footer-inner{min-height:88px}
+.footer-brand-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.footer-brand .brand-logo{width:26px;height:26px;border-radius:7px;font-size:11px}
+.footer-brand .brand-name{font-size:16px}
+.footer-tagline{padding-left:12px;border-left:1px solid #ffffff33;color:#b4cbbd;font-size:12px}
+@media(max-width:700px){.brand-name{font-size:17px}.footer-brand-group{gap:8px 12px}}
+/* Tombol "Mulai jelajahi" + badge "Baru" menambah lebar header; rapatkan nav sebelum berubah jadi menu hamburger. */
+@media(min-width:1025px) and (max-width:1180px){.site-menu .main-nav{gap:18px}}
+
+/* Token status tambahan (sheet komponen Figma). Amber dipakai solid dengan teks gelap di kedua tema. */
+:root{--amber:#f2b632;--on-amber:#3b2a04;--info:#1d4ed8;--info-bg:#e8f0fe;--info-line:#bfd3fb;--neutral:#4b5563;--neutral-bg:#f1f2f4;--neutral-line:#d5d9df;--slate:#334155;--slate-bg:#eef1f6;--slate-line:#cbd3e1}
+.dark{--info:#9dbcf7;--info-bg:#172338;--info-line:#2b4166;--neutral:#c4cad3;--neutral-bg:#22272e;--neutral-line:#3b424c;--slate:#b5c2d6;--slate-bg:#1c2330;--slate-line:#334155}
+
+/* Badge ketersediaan solid (Figma: "Tersedia" hijau, "Sedang Dipinjam" amber) dan badge kategori bergaris. */
+.badge-available{border-color:transparent;background:var(--green);color:var(--on-primary)}
+.badge-unavailable{border-color:transparent;background:var(--amber);color:var(--on-amber)}
+.badge-category{border-color:var(--line);background:var(--surface);color:var(--ink);font-weight:600}
+.badge-available,.badge-unavailable,.badge-category{border-radius:6px}
+
+/* Badge status transaksi: <span class="badge badge-status badge-status-pending">Menunggu Konfirmasi</span> */
+.badge-status{border-radius:8px}
+.badge-status::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor}
+.badge-status-pending{border-color:var(--warning-line);background:var(--warning-bg);color:var(--warning)}
+.badge-status-approved{border-color:var(--info-line);background:var(--info-bg);color:var(--info)}
+.badge-status-active{border-color:var(--success-line);background:var(--success-bg);color:var(--green)}
+.badge-status-done{border-color:var(--neutral-line);background:var(--neutral-bg);color:var(--neutral)}
+.badge-status-rejected{border-color:var(--danger-line);background:var(--danger-bg);color:var(--danger)}
+.badge-status-cancelled{border-color:var(--slate-line);background:var(--slate-bg);color:var(--slate)}
+
+/* Chip filter: membungkus radio/checkbox (tetap jalan tanpa JS) atau <button aria-pressed>. */
+.chip-group{display:flex;flex-wrap:wrap;gap:8px}
+.chip{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 14px;border:0;border-radius:8px;background:var(--surface-muted);color:var(--ink);font:600 13px/1.2 var(--font-body);cursor:pointer;transition:background .2s,color .2s}
+.chip input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.chip:hover{background:var(--surface-soft)}
+.chip:has(input:checked),.chip[aria-pressed="true"]{background:var(--green);color:var(--on-primary)}
+.chip:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+
+/* Button danger outline untuk aksi berisiko yang bukan aksi utama (mis. Hapus di kartu). */
+.button-danger-outline{background:var(--surface);color:var(--danger);box-shadow:inset 0 0 0 1px var(--danger-line)}
+.button-danger-outline:hover{background:var(--danger-bg)}
+
+/* Hormati prefers-reduced-motion secara global (micro-interaction dimatikan, bukan disembunyikan) */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.button:hover,.card-interactive:hover,.card-interactive:focus-within,.header-cta:hover{transform:none}.spinner{animation:spin 1.5s linear infinite!important}}
