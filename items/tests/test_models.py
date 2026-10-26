@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
@@ -266,3 +267,21 @@ class ItemConstraintTest(ItemTestMixin, TestCase):
         self.make_item()
         with self.assertRaises(ProtectedError):
             self.owner.delete()
+
+
+class ItemPermissionTest(ItemTestMixin, TestCase):
+    """can_be_managed_by(): hanya pemilik atau admin (is_staff) yang boleh mengelola barang."""
+
+    def test_owner_can_manage(self):
+        self.assertTrue(self.make_item().can_be_managed_by(self.owner))
+
+    def test_staff_can_manage_other_users_item(self):
+        staff = User.objects.create_user(username="itemtest_staff", is_staff=True)
+        self.assertTrue(self.make_item().can_be_managed_by(staff))
+
+    def test_other_user_cannot_manage(self):
+        other = User.objects.create_user(username="itemtest_other")
+        self.assertFalse(self.make_item().can_be_managed_by(other))
+
+    def test_anonymous_cannot_manage(self):
+        self.assertFalse(self.make_item().can_be_managed_by(AnonymousUser()))

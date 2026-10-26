@@ -399,6 +399,11 @@ class ItemCardTest(ItemTestMixin, TestCase):
         html = self.render_card(self.make_item(category=Item.Category.SPORTS))
         self.assertIn(f'src="{static("items/img/placeholders/sports.svg")}"', html)
 
+    def test_title_links_to_detail(self):
+        item = self.make_item()
+        html = self.render_card(item)
+        self.assertIn(f'<a class="card-link" href="{reverse("items:detail", args=[item.pk])}">Kipas Angin Meja</a>', html)
+
     def test_placeholder_exists_for_every_category(self):
         for value, _ in Item.Category.choices:
             with self.subTest(category=value):
