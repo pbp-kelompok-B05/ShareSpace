@@ -19,3 +19,10 @@ class ReportForm(forms.ModelForm):
         widgets = {
             "description": forms.Textarea(attrs={"rows": 6, "maxlength": 1000}),
         }
+
+
+class ModerationForm(forms.Form):
+    """Aksi admin pada satu laporan. Status kosong berarti hanya menyimpan catatan."""
+
+    status = forms.ChoiceField(choices=[("", "")] + Report.Status.choices, required=False)
+    admin_note = forms.CharField(max_length=1000, required=False)
