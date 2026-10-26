@@ -2,11 +2,13 @@
 Navbar global. Link modul memakai {% url ... as var %}: jika URL belum ada (app belum di-merge),
 var kosong dan link tidak ditampilkan, sehingga halaman tidak error (NoReverseMatch).
 Nama URL yang dipakai (ganti di sini jika modul memakai nama lain):
-items:catalog, items:my_items, loans:loan_list, cod_location:location_list, review:report_list.
+items:catalog, items:my_items, loans:list, cod_location:location_list, review:report_list,
+authentication:profile.
 {% endcomment %}
 {% url 'items:catalog' as catalog_url %}
 {% url 'items:my_items' as my_items_url %}
-{% url 'loans:loan_list' as loans_url %}
+{% url 'loans:list' as loans_url %}
+{% url 'authentication:profile' as profile_url %}
 {% url 'cod_location:location_list' as cod_url %}
 {% url 'review:report_list' as reports_url %}
 {% url 'landing_page' as landing_url %}
@@ -39,6 +41,7 @@ items:catalog, items:my_items, loans:loan_list, cod_location:location_list, revi
                         </summary>
                         {# Link pribadi dan staff ada di sini agar nav utama tetap muat di desktop. #}
                         <div class="user-menu-panel">
+                            {% if profile_url %}<a href="{{ profile_url }}"{% if request.path == profile_url %} aria-current="page"{% endif %}>Profil saya</a>{% endif %}
                             {% if my_items_url %}<a href="{{ my_items_url }}"{% if request.path == my_items_url %} aria-current="page"{% endif %}>Barang saya</a>{% endif %}
                             {% if loans_url %}<a href="{{ loans_url }}"{% if request.path == loans_url %} aria-current="page"{% endif %}>Peminjaman saya</a>{% endif %}
                             {% if user.is_staff %}
