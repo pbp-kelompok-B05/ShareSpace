@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container">
+    <h1>Transaksi Saya</h1>
+
+    <label for="status-filter">Filter Status</label>
+    <select id="status-filter">
+        <option value="">Semua Status</option>
+        <option value="pending">Menunggu Konfirmasi</option>
+        <option value="approved">Disetujui</option>
+        <option value="borrowed">Sedang Dipinjam</option>
+        <option value="completed">Selesai</option>
+        <option value="rejected">Ditolak</option>
+        <option value="cancelled">Dibatalkan</option>
+    </select>
+
+    <div id="loan-list" data-url="{% url 'loans:data' %}">
+        Memuat transaksi...
+    </div>
+</section>
+{% endblock content %}
