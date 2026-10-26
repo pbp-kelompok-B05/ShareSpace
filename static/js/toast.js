@@ -61,6 +61,11 @@
     if (!target || !message) return null;
     level = LEVELS[level] ? level : 'info';
 
+    var existing = target.querySelectorAll('[data-toast]:not(.is-leaving) .toast-text');
+    for (var i = 0; i < existing.length; i++) {
+      if (existing[i].textContent === String(message)) return null;
+    }
+
     var toast = document.createElement('div');
     toast.className = 'toast toast-' + level;
     toast.setAttribute('data-toast', '');
