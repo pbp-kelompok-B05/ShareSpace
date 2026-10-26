@@ -13,6 +13,7 @@ from django.template.loader import render_to_string
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import include, path, reverse
 
+from authentication import urls as auth_urls
 from ShareSpace.views import landing_page
 
 
@@ -45,12 +46,16 @@ def _message_then_login(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", landing_page, name="landing_page"),
-    path("auth/", include("authentication.urls")),
+    # URL asli authentication ditambah halaman profil tiruan (view profil belum ada).
+    path("auth/", include((
+        auth_urls.urlpatterns + [path("profile/", _base_page, name="profile")],
+        "authentication",
+    ))),
     path("items/", include(([
         path("", _base_page, name="catalog"),
         path("mine/", _base_page, name="my_items"),
     ], "items"))),
-    path("loans/", include(([path("", _base_page, name="loan_list")], "loans"))),
+    path("loans/", include(([path("", _base_page, name="list")], "loans"))),
     path("cod/", include(([path("", _base_page, name="location_list")], "cod_location"))),
     path("reports/", include(([path("", _base_page, name="report_list")], "review"))),
     path("_test/messages/", _message_page),
@@ -304,6 +309,23 @@ class NavbarModuleLinksTest(TestCase):
         self.assertContains(response, 'href="/items/mine/"')
         self.assertContains(response, 'href="/loans/"')
         self.assertNotContains(response, 'href="/reports/"')
+
+    def test_profile_link_hidden_for_anonymous(self):
+        response = self.client.get("/")
+        self.assertNotContains(response, 'href="/auth/profile/"')
+
+    def test_profile_link_is_first_in_user_menu(self):
+        self.client.login(username="warga_mod", password=self.password)
+        html = self.client.get("/").content.decode()
+        self.assertRegex(
+            html,
+            r'<div class="user-menu-panel">\s*<a href="/auth/profile/">Profil saya</a>\s*<a href="/items/mine/"',
+        )
+
+    def test_profile_link_marked_active_on_profile_page(self):
+        self.client.login(username="warga_mod", password=self.password)
+        html = self.client.get("/auth/profile/").content.decode()
+        self.assertRegex(html, r'<a href="/auth/profile/" aria-current="page">Profil saya</a>')
 
     def test_report_link_only_for_staff(self):
         self.client.login(username="admin_mod", password=self.password)
