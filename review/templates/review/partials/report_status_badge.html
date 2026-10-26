@@ -1,0 +1,5 @@
+{% comment %}
+Badge status laporan. Pakai: {% include "review/partials/report_status_badge.html" with report=report %}
+Warna mengikuti token status transaksi; teks badge tetap menjelaskan status (tidak hanya warna).
+{% endcomment %}
+<span class="badge badge-status {% if report.status == 'pending' %}badge-status-pending{% elif report.status == 'reviewing' %}badge-status-approved{% elif report.status == 'resolved' %}badge-status-done{% else %}badge-status-rejected{% endif %}">{{ report.get_status_display }}</span>

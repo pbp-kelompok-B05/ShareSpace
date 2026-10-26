@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_create %}Buat laporan{% else %}Ubah laporan{% endif %} — ShareSpace{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <div class="mx-auto max-w-2xl">
+        <span class="section-label">LAPORAN</span>
+        <h1 class="m-0 mb-3 text-3xl md:text-4xl">{% if is_create %}Laporkan masalah{% else %}Ubah laporan{% endif %}</h1>
+        <p class="mb-6">Laporan dibaca admin ShareSpace dan tidak ditampilkan ke pihak yang dilaporkan. Kamu masih bisa mengubah atau membatalkannya selama statusnya <strong>Menunggu</strong>.</p>
+
+        <div class="card mb-6">
+            <div class="card-body">
+                <p class="card-meta m-0">Yang dilaporkan</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    {% include "review/partials/report_target.html" with report=report %}
+                </div>
+                {% if report.target_item_id %}
+                    <p class="card-meta m-0">Pemilik: {{ report.target_item.owner.username }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="post" novalidate class="grid gap-5">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="form-errors" role="alert">
+                    {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                </div>
+            {% endif %}
+            {% for field in form %}
+                {% include "partials/form_field.html" with field=field %}
+            {% endfor %}
+            <div class="flex flex-wrap items-center gap-3">
+                <button type="submit" class="button button-primary">{% if is_create %}Kirim laporan{% else %}Simpan perubahan{% endif %}</button>
+                <a class="button button-ghost" href="{% if is_create %}{% url 'review:my_reports' %}{% else %}{% url 'review:report_detail' report.pk %}{% endif %}">Batal</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

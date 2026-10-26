@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Detail laporan — ShareSpace{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <div class="mx-auto max-w-2xl">
+        <a class="text-link" href="{% url 'review:my_reports' %}"><span aria-hidden="true">←</span> Laporan saya</a>
+
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <h1 class="m-0 text-3xl md:text-4xl">{{ report.get_reason_display }}</h1>
+            {% include "review/partials/report_status_badge.html" with report=report %}
+        </div>
+
+        <dl class="card mt-6">
+            <div class="card-body">
+                <dt class="card-meta">Yang dilaporkan</dt>
+                <dd class="m-0 flex flex-wrap items-center gap-2">{% include "review/partials/report_target.html" with report=report %}</dd>
+
+                {% if request.user.is_staff %}
+                    <dt class="card-meta mt-3">Pelapor</dt>
+                    <dd class="m-0">{{ report.reporter.username }}</dd>
+                {% endif %}
+
+                <dt class="card-meta mt-3">Dikirim</dt>
+                <dd class="m-0">{{ report.created_at|date:"j M Y, H:i" }}</dd>
+
+                <dt class="card-meta mt-3">Kronologi</dt>
+                <dd class="m-0 text-ink">{{ report.description|linebreaksbr }}</dd>
+            </div>
+        </dl>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h2 class="m-0 text-lg">Tanggapan admin</h2>
+                {% if report.admin_note %}
+                    <p class="m-0 text-ink">{{ report.admin_note|linebreaksbr }}</p>
+                {% else %}
+                    <p class="m-0">Belum ada tanggapan. Admin akan meninjau laporanmu secepatnya.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if can_edit %}
+            <div class="mt-6 flex flex-wrap gap-3">
+                <a class="button button-secondary" href="{% url 'review:report_update' report.pk %}">Ubah laporan</a>
+                <a class="button button-danger-outline" href="{% url 'review:report_delete' report.pk %}">Batalkan laporan</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

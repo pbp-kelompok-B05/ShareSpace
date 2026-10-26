@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Laporan saya — ShareSpace{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <span class="section-label">LAPORAN</span>
+    <h1 class="m-0 mb-3 text-3xl md:text-4xl">Laporan saya</h1>
+    <p class="mb-6">Pantau status laporan yang kamu kirim ke admin.</p>
+
+    <form method="get" class="mb-6 flex flex-wrap items-center gap-3">
+        <fieldset class="chip-group">
+            <legend class="sr-only">Filter status</legend>
+            <label class="chip"><input type="radio" name="status" value=""{% if not current_status %} checked{% endif %}>Semua</label>
+            {% for value, label in statuses %}
+                <label class="chip"><input type="radio" name="status" value="{{ value }}"{% if current_status == value %} checked{% endif %}>{{ label }}</label>
+            {% endfor %}
+        </fieldset>
+        <button type="submit" class="button button-secondary button-sm">Terapkan</button>
+    </form>
+
+    <div id="report-list">
+        {% if page_obj %}
+            <ul class="m-0 grid list-none gap-4 p-0">
+                {% for report in page_obj %}
+                    <li>
+                        <article class="card card-interactive">
+                            <div class="card-body">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        {% include "review/partials/report_target.html" with report=report %}
+                                    </div>
+                                    {% include "review/partials/report_status_badge.html" with report=report %}
+                                </div>
+                                <h2 class="card-title m-0 text-lg">
+                                    <a class="card-link" href="{% url 'review:report_detail' report.pk %}">{{ report.get_reason_display }}</a>
+                                </h2>
+                                <p class="card-meta m-0">Dikirim {{ report.created_at|date:"j M Y, H:i" }}</p>
+                            </div>
+                        </article>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="mt-6">
+                {% include "partials/pagination.html" with page_obj=page_obj item_label="laporan" %}
+            </div>
+        {% elif current_status %}
+            {% include "partials/empty_state.html" with title="Tidak ada laporan dengan status ini" text="Coba pilih filter status lain." icon="🔎" %}
+        {% else %}
+            {% include "partials/empty_state.html" with title="Belum ada laporan" text="Jika ada masalah dengan barang atau pengguna, gunakan tombol Laporkan di halaman terkait." icon="🛡️" %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
