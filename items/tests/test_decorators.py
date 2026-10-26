@@ -198,6 +198,13 @@ class ItemOwnerRequiredTest(ItemTestMixin, TestCase):
         self.assertTemplateUsed(response, "403.html")
         self.assertContains(response, FORBIDDEN_MESSAGE, status_code=403)
 
+    def test_owner_passes_through_client(self):
+        item = self.make_item()
+        self.client.force_login(self.owner)
+        with override_settings(ROOT_URLCONF="items.tests.urls_decorators"):
+            response = self.client.get(f"/katalog/{item.pk}/edit/")
+        self.assertEqual(response.status_code, 200)
+
 
 @override_settings(CACHES=TEST_CACHES)
 class RateLimitTest(TestCase):
@@ -296,6 +303,14 @@ class RateLimitTest(TestCase):
             self.exhaust()
             response = self.call()
         self.assertEqual(int(response["Retry-After"]), self.PERIOD - 100)
+
+    def test_key_expiring_between_add_and_incr_starts_new_count(self):
+        with mock.patch("items.decorators.cache") as fake_cache:
+            fake_cache.incr.side_effect = ValueError
+            response = self.call()
+        self.assertEqual(response.status_code, 200)
+        fake_cache.set.assert_called_once()
+        self.assertEqual(fake_cache.set.call_args.args[1], 1)
 
     def test_wraps_preserves_view_name(self):
         @rate_limit("x", limit=1, period=60)
