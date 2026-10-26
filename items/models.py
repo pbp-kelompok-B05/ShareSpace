@@ -92,6 +92,11 @@ class Item(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def placeholder_path(self):
+        """Path static gambar pengganti jika image_url kosong (per kategori)."""
+        return f"items/img/placeholders/{self.category}.svg"
+
     def soft_delete(self, force=False):
         """Sembunyikan barang. force=True hanya untuk jalur moderasi admin."""
         if self.is_deleted:

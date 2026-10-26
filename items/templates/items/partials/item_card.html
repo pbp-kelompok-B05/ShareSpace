@@ -9,9 +9,7 @@ Seluruh card bisa diklik lewat .card-link jika halaman detail sudah ada.
         {% if item.image_url %}
             <img src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">
         {% else %}
-            {% with "items/img/placeholders/"|add:item.category|add:".svg" as placeholder %}
-                <img class="item-card-placeholder" src="{% static placeholder %}" alt="" loading="lazy">
-            {% endwith %}
+            <img class="item-card-placeholder" src="{% static item.placeholder_path %}" alt="" loading="lazy">
         {% endif %}
         {% if item.is_available %}
             <span class="badge badge-available">Tersedia</span>
