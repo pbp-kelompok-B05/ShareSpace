@@ -1,0 +1,30 @@
+{% load static %}
+
+{% if user.is_authenticated and item.owner_id != user.pk and item.is_available and item.is_verified %}
+<button type="button" id="open-loan-modal">Ajukan Peminjaman</button>
+
+<dialog id="loan-modal">
+    <h2>Ajukan Peminjaman</h2>
+    <p>Nama barang: {{ item.name }}</p>
+
+    <form id="loan-form" method="post" action="{% url 'loans:create' item.pk %}">
+        {% csrf_token %}
+
+        <label for="start-date">Tanggal Mulai</label>
+        <input type="date" id="start-date" name="start_date" required>
+
+        <label for="due-date">Tanggal Pengembalian</label>
+        <input type="date" id="due-date" name="due_date" required>
+
+        <label for="notes">Catatan</label>
+        <textarea id="notes" name="notes" rows="3"></textarea>
+
+        <button type="submit">Kirim Pengajuan</button>
+        <button type="button" id="close-loan-modal">Batal</button>
+    </form>
+
+    <p id="loan-message" role="alert" style="white-space: pre-line;"></p>
+</dialog>
+
+<script src="{% static 'loans/loan_create.js' %}" defer></script>
+{% endif %}

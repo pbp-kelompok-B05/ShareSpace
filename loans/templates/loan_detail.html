@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="container">
+    <h1>Detail Peminjaman</h1>
+
+    <p><strong>ID Transaksi:</strong> {{ loan.pk }}</p>
+    <p><strong>Barang:</strong> {{ loan.item.name }}</p>
+    <p><strong>Peminjam:</strong> {{ loan.borrower.username }}</p>
+    <p><strong>Pemilik:</strong> {{ loan.item.owner.username }}</p>
+    <p><strong>Tanggal Mulai:</strong> {{ loan.start_date }}</p>
+    <p><strong>Tanggal Pengembalian:</strong> {{ loan.due_date }}</p>
+    <p><strong>Status:</strong> {{ loan.get_status_display }}</p>
+    <p><strong>Catatan:</strong> {{ loan.notes|default:"-" }}</p>
+
+    <a href="{% url 'loans:list' %}">Kembali</a>
+</section>
+{% endblock content %}
