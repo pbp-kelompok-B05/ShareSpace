@@ -8,7 +8,14 @@ from django.utils import timezone
 from items.validators import StrippedMinLengthValidator
 
 
-class ActiveItemManager(models.Manager):
+class ItemQuerySet(models.QuerySet):
+
+    def visible(self):
+        """Barang yang boleh tampil di katalog: pemiliknya masih aktif."""
+        return self.filter(owner__is_active=True)
+
+
+class ActiveItemManager(models.Manager.from_queryset(ItemQuerySet)):
     """Manager default: menyembunyikan barang yang sudah di-soft delete."""
 
     def get_queryset(self):

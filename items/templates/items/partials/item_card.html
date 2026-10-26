@@ -1,0 +1,40 @@
+{% load static %}
+{% comment %}
+Card barang (Figma Page 1, artboard Katalog). Pakai: {% include "items/partials/item_card.html" with item=item %}
+Seluruh card bisa diklik lewat .card-link jika halaman detail sudah ada.
+{% endcomment %}
+{% url 'items:detail' item.pk as detail_url %}
+<article class="card card-interactive item-card">
+    <div class="card-media item-card-media">
+        {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">
+        {% else %}
+            {% with "items/img/placeholders/"|add:item.category|add:".svg" as placeholder %}
+                <img class="item-card-placeholder" src="{% static placeholder %}" alt="" loading="lazy">
+            {% endwith %}
+        {% endif %}
+        {% if item.is_available %}
+            <span class="badge badge-available">Tersedia</span>
+        {% else %}
+            <span class="badge badge-unavailable">Sedang Dipinjam</span>
+        {% endif %}
+        <span class="badge badge-category">{{ item.get_category_display }}</span>
+    </div>
+    <div class="card-body">
+        <p class="card-meta item-card-meta">
+            <span>Kondisi {{ item.get_condition_display }}</span>
+            {% if item.is_verified %}<span class="badge badge-verified">✓ Terverifikasi</span>{% endif %}
+        </p>
+        <h2 class="card-title item-card-title">
+            {% if detail_url %}<a class="card-link" href="{{ detail_url }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}
+        </h2>
+        <p class="item-card-description">{{ item.description }}</p>
+    </div>
+    <div class="card-footer item-card-footer">
+        <span class="item-card-owner">
+            <span class="item-card-avatar" aria-hidden="true">{{ item.owner.get_username|slice:":2"|upper }}</span>
+            <span><span class="sr-only">Pemilik: </span>{{ item.owner.get_username }}</span>
+        </span>
+        {% if detail_url %}<span class="item-card-more" aria-hidden="true">Detail →</span>{% endif %}
+    </div>
+</article>

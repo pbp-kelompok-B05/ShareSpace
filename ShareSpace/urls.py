@@ -23,4 +23,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', landing_page, name='landing_page'),
     path('auth/', include('authentication.urls')),
+    path('katalog/', include('items.urls')),
 ]
