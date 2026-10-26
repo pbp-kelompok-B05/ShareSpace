@@ -86,6 +86,24 @@ File terkait:
 - Varian `dark:` tersedia (`dark:bg-surface`), tetapi biasanya tidak perlu karena token sudah berganti sendiri.
 - Play CDN menampilkan warning "should not be used in production" di console; ini diketahui dan sesuai keputusan kelompok.
 
+### Trade-off Play CDN
+
+Dipilih karena tanpa build step: tidak perlu Node/npm di laptop anggota maupun di pipeline deploy PWS, dan class baru langsung berlaku tanpa kompilasi ulang.
+
+Konsekuensinya:
+
+- **CSS dibuat di browser saat runtime.** Script CDN memindai DOM lalu menyisipkan `<style>`, jadi ada biaya JS di setiap halaman dan utility bisa terlambat diterapkan sesaat setelah halaman tampil.
+- **Butuh JavaScript dan koneksi ke `cdn.tailwindcss.com`.** Jika JS mati atau CDN tidak bisa diakses, utility Tailwind tidak berlaku sama sekali.
+- **Tidak ada purge/minify** seperti build Tailwind biasa, dan tidak cocok jika nanti proyek memasang Content Security Policy yang ketat.
+
+Mitigasi yang sudah dipakai:
+
+- Komponen inti (button, card, badge, chip, form, toast, pagination, navbar) dan token warna ada di `style.css`, bukan di utility Tailwind. Halaman tetap terbaca dan bisa dipakai walau Tailwind gagal dimuat; yang hilang hanya penataan layout dari utility.
+- Versi di-pin (`3.4.17`) agar tampilan tidak berubah tiba-tiba.
+- Karena itu, **pakai Tailwind untuk layout dan spacing**, sedangkan tampilan komponen tetap lewat class bersama.
+
+Jika kelompok nanti butuh performa produksi, jalur migrasinya adalah build CSS dengan Tailwind CLI ke `static/css/` dengan config yang sama. Class di template tidak perlu diubah, tetapi ini menambah build step dan harus disepakati dulu.
+
 ## Komponen
 
 ### Button
@@ -273,6 +291,14 @@ if item.owner != request.user and not request.user.is_staff:
 ```
 
 Pesan `PermissionDenied` ditampilkan di halaman 403. Pengguna yang belum login mendapat tombol masuk dengan `?next=`.
+
+## Catatan sementara
+
+**Guard namespace `authentication` di `base.html`.** Saat ini `base.html` tidak merender toast messages di halaman ber-namespace `authentication`, karena `login.html` dan `register.html` masih merender messages sendiri (agar pesan tidak tampil dua kali). Guard ini dihapus setelah modul Autentikasi siap:
+
+1. Pemilik modul Autentikasi menambahkan `{% block messages %}{% endblock %}` di `login.html` dan `register.html`.
+2. Penanggung jawab base template menghapus kondisi `{% if request.resolver_match.namespace != 'authentication' %}` di `templates/base.html`, sehingga isi block `messages` tinggal `{% include "partials/messages.html" %}`.
+3. Jalankan seluruh test proyek. `test_auth_pages_show_message_once` dan `test_register_success_message_shown_once` di `ShareSpace/tests.py` harus tetap lulus.
 
 ## Dark mode
 
