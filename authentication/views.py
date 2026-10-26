@@ -1,10 +1,13 @@
 import datetime
+import json
 
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.shortcuts import redirect, render
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_http_methods
 
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
@@ -55,20 +58,19 @@ def logout_user(request):
     return response
 
 
+def build_profile_context(request, profile):
+    last_login = request.COOKIES.get("last_login", "Belum ada sesi login / Cookie tidak ditemukan")
+
+    return {
+        "profile": profile,
+        "last_login": last_login,
+    }
+
+
 @login_required(login_url="/auth/login/")
 def show_profile(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
-    last_login = request.COOKIES.get("last_login", "Belum ada sesi login / Cookie tidak ditemukan")
-
-    context = {
-        "profile": profile,
-        "last_login": last_login,
-        # Placeholder integrasi Modul 5
-        "trust_score": None,
-        "average_rating": None,
-        "review_count": 0,
-        "completed_transactions_count": 0,
-    }
+    context = build_profile_context(request, profile)
 
     if request.headers.get("HX-Request"):
         return render(request, "profile_content.html", context)
@@ -84,21 +86,19 @@ def edit_profile(request):
     if request.method == "POST":
         if form.is_valid():
             form.save()
-            messages.success(request, "Profil berhasil diperbarui!")
 
+            # Respons HTMX tidak me-reload halaman, jadi toast dikirim lewat header HX-Trigger
             if request.headers.get("HX-Request"):
-                context = {
-                    "profile": profile,
-                    "last_login": request.COOKIES.get("last_login", "Belum ada sesi login / Cookie tidak ditemukan"),
-                    "trust_score": None,
-                    "average_rating": None,
-                    "review_count": 0,
-                    "completed_transactions_count": 0,
-                }
-                return render(request, "profile_content.html", context)
+                context = build_profile_context(request, profile)
+                response = render(request, "profile_content.html", context)
+                response["HX-Trigger"] = json.dumps(
+                    {"showToast": {"message": "Profil berhasil diperbarui!", "level": "success"}}
+                )
+                return response
 
+            messages.success(request, "Profil berhasil diperbarui!")
             return redirect("authentication:profile")
-        else:
+        elif not request.headers.get("HX-Request"):
             messages.error(request, "Terdapat kesalahan pengisian form. Silakan periksa kembali.")
 
     context = {
@@ -108,4 +108,37 @@ def edit_profile(request):
 
     template = "edit_profile_content.html" if request.headers.get("HX-Request") else "edit_profile.html"
     return render(request, template, context)
+
+
+@login_required(login_url="/auth/login/")
+@require_http_methods(["GET", "POST"])
+def deactivate_account(request):
+    if request.method == "POST":
+        user = request.user
+        user.is_active = False
+        user.save()
+        logout(request)
+        messages.success(request, "Akun Anda telah berhasil dinonaktifkan.")
+        response = redirect("landing_page")
+        response.delete_cookie("last_login")
+        return response
+
+    return render(request, "deactivate_account.html")
+
+
+@login_required(login_url="/auth/login/")
+def public_profile(request, username):
+    target_user = get_object_or_404(User, username=username, is_active=True)
+
+    if target_user.pk == request.user.pk:
+        return redirect("authentication:profile")
+
+    # Profil publik hanya menampilkan identitas, nomor telepon dan alamat tidak ikut dikirim ke template
+    profile = UserProfile.objects.filter(user=target_user).first()
+
+    context = {
+        "target_user": target_user,
+        "profile": profile,
+    }
+    return render(request, "public_profile.html", context)
 
