@@ -10,4 +10,5 @@ urlpatterns = [
     path("tambah/", views.item_create, name="create"),
     path("<int:pk>/", views.item_detail, name="detail"),
     path("<int:pk>/json/", views.item_detail_json, name="detail_json"),
+    path("<int:pk>/edit/", views.item_edit, name="edit"),
 ]

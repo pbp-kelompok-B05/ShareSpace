@@ -1,3 +1,5 @@
+import json
+
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import JsonResponse
@@ -6,13 +8,14 @@ from django.urls import reverse
 from django.utils.cache import patch_vary_headers
 from django.views.decorators.http import require_GET, require_http_methods
 
-from items.decorators import htmx_login_required, hx_redirect, is_htmx, rate_limit
+from items.decorators import htmx_login_required, hx_redirect, is_htmx, item_owner_required, rate_limit
 from items.forms import CatalogFilterForm, ItemForm
 from items.models import Item
 from items.serializers import serialize_item
 
 CATALOG_PAGE_SIZE = 12
 ITEM_CREATE_RATE_LIMIT = 10  # POST per jam per user
+ITEM_UPDATE_RATE_LIMIT = 30  # POST per jam per user
 
 
 def _visible_items():
@@ -66,7 +69,13 @@ def catalog_json(request):
 def item_detail(request, pk):
     # Soft delete disaring manager default; visible() menyaring pemilik nonaktif. Keduanya 404.
     item = get_object_or_404(_visible_items(), pk=pk)
-    context = {"item": item, "can_manage": item.can_be_managed_by(request.user)}
+    can_manage = item.can_be_managed_by(request.user)
+    context = {
+        "item": item,
+        "can_manage": can_manage,
+        # Dialog edit/hapus hanya dipasang jika aksinya memang boleh dilakukan.
+        "show_item_dialog": can_manage and item.is_available,
+    }
     return render(request, "items/detail.html", context)
 
 
@@ -105,4 +114,45 @@ def item_create(request):
     }
     # Error validasi via HTMX: hanya form yang diganti (hx-swap outerHTML).
     template = "items/partials/item_form.html" if is_htmx(request) else "items/item_form.html"
+    return render(request, template, context)
+
+
+@require_http_methods(["GET", "POST"])
+@item_owner_required
+@rate_limit("item_update", limit=ITEM_UPDATE_RATE_LIMIT, period=60 * 60)
+def item_edit(request, item):
+    detail_url = reverse("items:detail", args=[item.pk])
+    form = ItemForm(request.POST if request.method == "POST" else None, instance=item)
+    if request.method == "POST" and form.is_valid():
+        item = form.save()
+        message = f"Perubahan pada {item.name} berhasil disimpan."
+        if not is_htmx(request):
+            messages.success(request, message)
+            return redirect(detail_url)
+        # HTMX (dari dialog di detail): ganti isi detail di tempat, tutup dialog, tampilkan toast.
+        context = {"item": item, "can_manage": item.can_be_managed_by(request.user)}
+        response = render(request, "items/partials/item_detail_updated.html", context)
+        response["HX-Retarget"] = "#item-detail"
+        response["HX-Reswap"] = "outerHTML"
+        response["HX-Trigger"] = json.dumps({
+            "showToast": {"message": message, "level": "success"},
+            "closeItemDialog": True,
+        })
+        return response
+
+    context = {
+        "form": form,
+        "item": item,
+        "page_title": "Edit Barang",
+        "page_subtitle": "Perbarui informasi barang. Status ketersediaan diatur otomatis oleh sistem peminjaman.",
+        "form_action": reverse("items:edit", args=[item.pk]),
+        "submit_label": "Simpan Perubahan",
+        "cancel_url": detail_url,
+    }
+    if not is_htmx(request):
+        template = "items/item_form.html"
+    elif request.method == "GET":
+        template = "items/partials/item_edit_dialog.html"
+    else:
+        template = "items/partials/item_form.html"
     return render(request, template, context)

@@ -44,3 +44,15 @@
   .item-detail-facts{grid-template-columns:1fr 1fr}
   .item-detail-manage{grid-template-columns:1fr}
 }
+
+/* Dialog edit/hapus (pemilik/admin). Padding ada di .item-dialog-body agar klik di luar kotak = backdrop. */
+.item-dialog{width:min(640px,calc(100% - 32px));max-width:none;max-height:calc(100dvh - 48px);margin:auto;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);box-shadow:0 20px 40px #1c302926}
+.item-dialog::backdrop{background:#0c1a1499}
+.item-dialog[open]{animation:item-dialog-in .2s ease-out}
+.item-dialog-body{padding:20px 24px 24px}
+.item-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.item-dialog-title{margin:0;font:800 20px/1.3 var(--font-heading);letter-spacing:-.01em}
+.item-dialog-close{display:grid;place-items:center;flex:none;width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;transition:background-color .2s,color .2s}
+.item-dialog-close:hover{background:var(--surface-muted);color:var(--ink)}
+@keyframes item-dialog-in{from{opacity:0;transform:translateY(8px)}}
+@media(max-width:600px){.item-dialog-body{padding:16px}}

@@ -21,7 +21,8 @@ Form barang. Tanpa JS: POST biasa. Dengan HTMX: error validasi mengganti form in
     {% include "partials/form_field.html" with field=form.image_url %}
 
     <div class="item-form-actions">
-        <a class="button button-secondary" href="{{ cancel_url }}">Batal</a>
+        {# Di dalam dialog, item-dialog.js menutup dialog alih-alih pindah halaman. #}
+        <a class="button button-secondary" href="{{ cancel_url }}" data-dialog-close>Batal</a>
         <button type="submit" class="button button-primary">{{ submit_label }}</button>
     </div>
 </form>
