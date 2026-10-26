@@ -125,6 +125,12 @@ class ReportTargetTest(ReportTestMixin, TestCase):
         self.item.soft_delete()
         self.assertInvalid("target_item")
 
+    def test_existing_report_stays_valid_after_item_soft_deleted(self):
+        report = self.make_report()
+        self.item.soft_delete()
+        report.description = "Deskripsi diperbarui setelah barang dihapus pemilik."
+        report.full_clean()
+
 
 class ReportFieldValidationTest(ReportTestMixin, TestCase):
     def test_valid_report_passes_full_clean(self):
