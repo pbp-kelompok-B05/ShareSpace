@@ -233,11 +233,11 @@ class NavbarTest(TestCase):
     def test_anonymous_sees_login_and_start_button(self):
         html = self.client.get(reverse("landing_page")).content.decode()
         self.assertIn(f'href="{reverse("authentication:login")}"', html)
-        # Katalog belum ada di urlconf proyek: tombol "Mulai jelajahi" sementara mengarah ke daftar.
+        # Katalog sudah ada di urlconf proyek: tombol "Mulai jelajahi" mengarah ke katalog.
         self.assertRegex(
             html,
             r'<a class="button button-primary button-sm header-start" href="%s">\s*Mulai jelajahi'
-            % re.escape(reverse("authentication:register")),
+            % re.escape(reverse("items:catalog")),
         )
         self.assertNotIn(reverse("authentication:logout"), html)
 
