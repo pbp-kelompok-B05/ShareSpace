@@ -76,11 +76,15 @@ def my_reports(request):
         reports = reports.filter(status=current_status)
 
     page_obj = Paginator(reports, REPORTS_PER_PAGE).get_page(request.GET.get("page"))
-    return render(request, "review/my_reports.html", {
+    context = {
         "page_obj": page_obj,
         "current_status": current_status,
         "statuses": Report.Status.choices,
-    })
+    }
+    # HTMX (filter/pagination) cukup menerima isi daftar, bukan halaman penuh.
+    if request.headers.get("HX-Request") == "true":
+        return render(request, "review/partials/my_report_list.html", context)
+    return render(request, "review/my_reports.html", context)
 
 
 @login_required
