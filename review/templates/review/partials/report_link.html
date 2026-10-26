@@ -1,0 +1,15 @@
+{% comment %}
+Tombol "Laporkan" untuk dipakai modul lain (detail barang, profil, transaksi).
+  Barang:   {% include "review/partials/report_link.html" with item=item %}
+  Pengguna: {% include "review/partials/report_link.html" with target_user=profile_user %}
+Tidak tampil untuk pemilik barang sendiri atau profil sendiri.
+{% endcomment %}
+{% if item %}
+    {% if item.owner_id != user.pk %}
+        <a class="button button-danger-outline button-sm" href="{% url 'review:report_item_create' item.pk %}">Laporkan barang</a>
+    {% endif %}
+{% elif target_user %}
+    {% if target_user.pk != user.pk %}
+        <a class="button button-danger-outline button-sm" href="{% url 'review:report_user_create' target_user.username %}">Laporkan pengguna</a>
+    {% endif %}
+{% endif %}
