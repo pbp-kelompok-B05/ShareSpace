@@ -147,6 +147,11 @@ class Report(models.Model):
     def can_transition_to(self, status):
         return status in self.ALLOWED_TRANSITIONS.get(self.status, set())
 
+    @property
+    def next_statuses(self):
+        """Status tujuan yang valid, urut sesuai alur (untuk tombol aksi admin)."""
+        return [status for status in self.Status if self.can_transition_to(status)]
+
     def transition_to(self, status, note=None):
         """Ubah status sesuai alur moderasi. note=None mempertahankan catatan admin lama."""
         if not self.can_transition_to(status):
