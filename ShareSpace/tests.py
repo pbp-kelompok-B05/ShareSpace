@@ -270,11 +270,11 @@ class NavbarTest(TestCase):
         self.assertNotContains(self.client.get(reverse("authentication:login")), anchor)
 
     def test_module_links_hidden_when_urls_missing(self):
-        # Urlconf proyek di branch ini belum punya URL modul; halaman tetap render tanpa error.
+        # Urlconf proyek di branch ini belum punya URL Lokasi COD; halaman tetap render tanpa error.
+        # Jika cod_location sudah di-merge, ganti dengan modul lain yang belum ada atau pakai urlconf test.
         response = self.client.get(reverse("authentication:login"))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, ">Katalog<")
-        self.assertNotContains(response, "Katalog Komunitas")
+        self.assertNotContains(response, "Lokasi COD")
 
     def test_mobile_menu_toggle_accessible(self):
         html = self.client.get(reverse("landing_page")).content.decode()

@@ -10,6 +10,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 
 from items.forms import CatalogFilterForm
 from items.models import Item
@@ -144,7 +145,7 @@ class CatalogPageTest(CatalogTestMixin, TestCase):
         for value, label in Item.Category.choices:
             with self.subTest(category=value):
                 self.assertContains(response, f'value="{value}"')
-                self.assertContains(response, label)
+                self.assertContains(response, escape(label))
 
     def test_available_only_checkbox(self):
         response = self.client.get(self.url)
