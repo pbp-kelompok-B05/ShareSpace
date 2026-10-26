@@ -1,0 +1,32 @@
+<section class="container py-8" id="profile-container">
+    <div class="card p-6">
+        <div class="profile-header flex items-center gap-4 mb-6">
+            <div class="user-avatar text-xl font-bold">
+                {% if profile.full_name %}{{ profile.full_name|first|upper }}{% else %}{{ user.username|first|upper }}{% endif %}
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-ink">{% if profile.full_name %}{{ profile.full_name }}{% else %}{{ user.username }}{% endif %}</h1>
+                <p class="text-muted">@{{ user.username }}</p>
+            </div>
+        </div>
+
+        <div class="profile-details space-y-3 mb-6">
+            <p><strong>Nama Lengkap:</strong> {{ profile.full_name|default:"Belum diatur" }}</p>
+            <p><strong>Nomor Telepon:</strong> {{ profile.phone_number|default:"Belum diatur" }}</p>
+            <p><strong>Alamat:</strong> {{ profile.address|default:"Belum diatur" }}</p>
+            <p><strong>URL Foto Profil:</strong> {{ profile.profile_picture_url|default:"Belum diatur" }}</p>
+            <p class="text-sm text-muted"><strong>Sesi Terakhir Login:</strong> {{ last_login }}</p>
+        </div>
+
+        <div class="profile-actions">
+            <a href="{% url 'authentication:edit_profile' %}" 
+               hx-get="{% url 'authentication:edit_profile' %}" 
+               hx-target="#konten" 
+               hx-swap="innerHTML" 
+               hx-push-url="true" 
+               class="button button-primary">
+                Edit Profil
+            </a>
+        </div>
+    </div>
+</section>
