@@ -198,3 +198,119 @@ class AuthenticationTest(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.full_name, "Frieren The Slayer")
 
+    def test_deactivate_account_anonymous_redirect(self):
+        response = self.client.get(reverse("authentication:deactivate_account"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/auth/login/", response.url)
+
+    def test_deactivate_account_get_authenticated(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:deactivate_account"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "deactivate_account.html")
+        self.assertContains(response, self.username)
+
+    def test_deactivate_account_post_success(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.post(reverse("authentication:deactivate_account"))
+        self.assertRedirects(response, reverse("landing_page"))
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
+    def test_deactivated_user_cannot_login(self):
+        self.user.is_active = False
+        self.user.save()
+        login_success = self.client.login(username=self.username, password=self.password)
+        self.assertFalse(login_success)
+
+    def test_profile_page_has_deactivate_link(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertContains(response, reverse("authentication:deactivate_account"))
+
+    def test_profile_page_has_no_dummy_metrics(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertNotContains(response, "Rp 1,45 Jt")
+        self.assertNotContains(response, "18.4 kg")
+
+    def test_edit_profile_htmx_success_sends_toast_header(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.post(
+            reverse("authentication:edit_profile"),
+            {
+                "full_name": "Frieren Grand Mage",
+                "phone_number": "089876543210",
+                "address": "Kutek, Beji, Depok",
+                "profile_picture_url": "https://example.com/frieren.png",
+            },
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertIn("showToast", response["HX-Trigger"])
+
+    def create_other_user(self):
+        other_user = User.objects.create_user(
+            username="fern",
+            password="PasswordnyaFern69.",
+        )
+        UserProfile.objects.create(
+            user=other_user,
+            full_name="Fern Mage",
+            phone_number="089999999999",
+            address="Rahasia Street",
+        )
+        return other_user
+
+    def test_public_profile_redirect_anonymous(self):
+        self.create_other_user()
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/auth/login/", response.url)
+
+    def test_public_profile_shows_other_user(self):
+        self.create_other_user()
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "public_profile.html")
+        self.assertContains(response, "Fern Mage")
+
+    def test_public_profile_hides_private_contact(self):
+        self.create_other_user()
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertNotContains(response, "089999999999")
+        self.assertNotContains(response, "Rahasia Street")
+
+    def test_public_profile_has_report_link(self):
+        self.create_other_user()
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertContains(response, reverse("review:report_user_create", args=["fern"]))
+
+    def test_public_profile_own_username_redirects_to_profile(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=[self.username]))
+        self.assertRedirects(response, reverse("authentication:profile"))
+
+    def test_public_profile_user_without_profile_row(self):
+        User.objects.create_user(username="ghost", password="PasswordnyaGhost69.")
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["ghost"]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ghost")
+
+    def test_public_profile_unknown_user_returns_404(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["tidakada"]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_profile_inactive_user_returns_404(self):
+        other_user = self.create_other_user()
+        other_user.is_active = False
+        other_user.save()
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertEqual(response.status_code, 404)
+
+
