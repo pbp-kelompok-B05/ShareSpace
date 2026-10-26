@@ -8,6 +8,7 @@ from .models import CODLocation, PickupSchedule
 class CODLocationForm(forms.ModelForm):
     class Meta:
         model = CODLocation
+
         fields = [
             "name",
             "address",
@@ -15,26 +16,33 @@ class CODLocationForm(forms.ModelForm):
             "longitude",
             "notes",
         ]
+
         widgets = {
             "name": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "Contoh: Perpustakaan UI",
             }),
+
             "address": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 3,
-                "placeholder": "Alamat atau deskripsi lokasi",
+                "placeholder": "Alamat lokasi COD",
             }),
+
             "latitude": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "any",
                 "id": "id_latitude",
+                "readonly": True,
             }),
+
             "longitude": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "any",
                 "id": "id_longitude",
+                "readonly": True,
             }),
+
             "notes": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 2,
@@ -43,52 +51,60 @@ class CODLocationForm(forms.ModelForm):
         }
 
 
-# class PickupScheduleForm(forms.ModelForm):
-#     class Meta:
-#         model = PickupSchedule
-#         fields = [
-#             "cod_location",
-#             "pickup_time",
-#             "return_time",
-#             "notes",
-#         ]
-#         widgets = {
-#             "pickup_time": forms.DateTimeInput(attrs={
-#                 "type": "datetime-local",
-#                 "class": "form-control",
-#             }),
-#             "return_time": forms.DateTimeInput(attrs={
-#                 "type": "datetime-local",
-#                 "class": "form-control",
-#             }),
-#             "notes": forms.Textarea(attrs={
-#                 "class": "form-control",
-#                 "rows": 3,
-#             }),
-#         }
+class PickupScheduleForm(forms.ModelForm):
+    class Meta:
+        model = PickupSchedule
 
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.fields["cod_location"].queryset = (
-#             CODLocation.objects.all()
-#         )
+        fields = [
+            "cod_location",
+            "schedule_type",
+            "scheduled_time",
+            "notes",
+        ]
 
-#     def clean(self):
-#         cleaned_data = super().clean()
-#         pickup = cleaned_data.get("pickup_time")
-#         returned = cleaned_data.get("return_time")
+        widgets = {
+            "cod_location": forms.Select(attrs={
+                "class": "form-control",
+            }),
 
-#         if pickup and returned:
-#             if returned <= pickup:
-#                 self.add_error(
-#                     "return_time",
-#                     "Waktu pengembalian harus setelah pengambilan.",
-#                 )
+            "schedule_type": forms.Select(attrs={
+                "class": "form-control",
+            }),
 
-#             if pickup < timezone.now():
-#                 self.add_error(
-#                     "pickup_time",
-#                     "Jadwal pengambilan tidak boleh di masa lalu.",
-#                 )
+            "scheduled_time": forms.DateTimeInput(
+                format="%Y-%m-%dT%H:%M",
+                attrs={
+                    "type": "datetime-local",
+                    "class": "form-control",
+                }
+            ),
 
-#         return cleaned_data
+            "notes": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Catatan pertemuan (opsional)",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["cod_location"].queryset = (
+            CODLocation.objects.all()
+        )
+
+        self.fields["scheduled_time"].input_formats = [
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%dT%H:%M:%S",
+        ]
+
+    def clean_scheduled_time(self):
+        scheduled_time = self.cleaned_data["scheduled_time"]
+
+        if scheduled_time < timezone.now():
+            raise forms.ValidationError(
+                "Jadwal tidak boleh berada di masa lalu."
+            )
+
+        return scheduled_time
+

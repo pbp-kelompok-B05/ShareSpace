@@ -37,7 +37,7 @@ PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
 # Application definition
 
 INSTALLED_APPS = [
-    'cod_location',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'loans',
     'authentication',
     'items',
+    'cod_location',
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,373 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Peta Titik COD - ShareSpace</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #173f39;
+        }
+
+        .cod-header {
+            background: #ffffff;
+            padding: 20px 6%;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .cod-header h1 {
+            margin: 0;
+            font-size: 25px;
+        }
+
+        .cod-container {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+
+        .cod-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .cod-heading h2 {
+            margin: 0 0 8px;
+            font-size: 28px;
+        }
+
+        .cod-heading p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        .btn-primary {
+            background: #07594f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 18px;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #06463f;
+        }
+
+        .cod-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        .cod-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .cod-panel h3 {
+            margin-top: 0;
+        }
+
+        .cod-search {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .cod-location-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 480px;
+            overflow-y: auto;
+        }
+
+        .location-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .location-card h4 {
+            margin: 0 0 8px;
+        }
+
+        .location-card p {
+            margin: 0;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .location-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .location-actions button {
+            padding: 7px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .map-panel {
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        #cod-map {
+            width: 100%;
+            height: 550px;
+            border-radius: 8px;
+            background: #e2e8f0;
+        }
+
+        .cod-form-panel {
+            margin-top: 25px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 25px;
+        }
+
+        .cod-form-panel[hidden] {
+            display: none;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 18px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 800px) {
+            .cod-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .cod-heading {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            #cod-map {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="cod-header">
+    <h1>ShareSpace ♻️</h1>
+</header>
+
+<main class="cod-container">
+
+    <div class="cod-heading">
+        <div>
+            <h2>Peta Titik COD</h2>
+            <p>
+                Temukan dan kelola lokasi pertemuan
+                untuk peminjaman barang.
+            </p>
+        </div>
+
+        <button type="button"
+                class="btn-primary"
+                id="add-location-btn">
+            + Tambah Lokasi
+        </button>
+    </div>
+
+    <section class="cod-layout">
+
+        <!-- Daftar Lokasi -->
+        <div class="cod-panel">
+            <h3>Daftar Lokasi COD</h3>
+
+            <input
+                type="search"
+                id="location-search"
+                class="cod-search"
+                placeholder="Cari nama atau alamat lokasi..."
+            >
+
+            <div
+                id="location-list"
+                class="cod-location-list"
+            >
+                <p>Memuat lokasi COD...</p>
+            </div>
+        </div>
+
+        <!-- Peta -->
+        <div class="map-panel">
+            <div id="cod-map"></div>
+        </div>
+
+    </section>
+
+    <!-- Form Tambah / Edit Lokasi -->
+    <section
+        id="location-form-panel"
+        class="cod-form-panel"
+        hidden
+    >
+        <h3 id="form-title">Tambah Lokasi COD</h3>
+
+        <p>
+            Klik titik pada peta untuk menentukan
+            koordinat lokasi COD.
+        </p>
+
+        <form id="location-form" method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="id_name">Nama Lokasi</label>
+                <input
+                    type="text"
+                    name="name"
+                    id="id_name"
+                    class="form-control"
+                    maxlength="150"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="id_address">Alamat</label>
+                <textarea
+                    name="address"
+                    id="id_address"
+                    class="form-control"
+                    rows="3"
+                    required
+                ></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="id_latitude">Latitude</label>
+                <input
+                    type="number"
+                    name="latitude"
+                    id="id_latitude"
+                    class="form-control"
+                    step="any"
+                    readonly
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="id_longitude">Longitude</label>
+                <input
+                    type="number"
+                    name="longitude"
+                    id="id_longitude"
+                    class="form-control"
+                    step="any"
+                    readonly
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="id_notes">Catatan</label>
+                <textarea
+                    name="notes"
+                    id="id_notes"
+                    class="form-control"
+                    rows="2"
+                ></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit"
+                        class="btn-primary">
+                    Simpan Lokasi
+                </button>
+
+                <button type="button"
+                        class="btn-secondary"
+                        id="cancel-location-btn">
+                    Batal
+                </button>
+            </div>
+
+            <p id="form-message" role="status"></p>
+        </form>
+    </section>
+
+</main>
+
+<!-- URL Django untuk JavaScript -->
+<div id="cod-config"
+     data-list-url="{% url 'cod_location:location_list' %}"
+     data-create-url="{% url 'cod_location:location_create' %}"
+     data-login-url="/auth/login/"
+     hidden>
+</div>
+
+<!-- Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- JavaScript COD, dibuat pada Tahap 6 -->
+<script src="{% static 'cod_location/js/cod_map.js' %}" defer></script>
+
+</body>
+</html>

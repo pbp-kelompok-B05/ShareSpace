@@ -24,4 +24,5 @@ urlpatterns = [
     path('', landing_page, name='landing_page'),
     path('loans/', include('loans.urls')),
     path('auth/', include('authentication.urls')),
+    path('cod/', include('cod_location.urls')),
 ]
