@@ -13,6 +13,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from review.forms import ModerationForm
+from review.htmx import is_htmx, render_list
 from review.models import Report
 
 REPORTS_PER_PAGE = 15
@@ -30,10 +31,6 @@ def staff_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return wrapper
-
-
-def _is_htmx(request):
-    return request.headers.get("HX-Request") == "true"
 
 
 def _toast(response, message, level):
@@ -93,9 +90,9 @@ def report_list(request):
         ],
         "next_url": request.get_full_path(),
     }
-    if _is_htmx(request):
-        return render(request, "review/partials/moderation_list.html", context)
-    return render(request, "review/report_list.html", context)
+    return render_list(
+        request, "review/report_list.html", "review/partials/moderation_list.html", context
+    )
 
 
 @staff_required
@@ -109,22 +106,24 @@ def report_moderate(request, pk):
         if not form.is_valid():
             raise ValidationError("Data moderasi tidak valid.")
         status = form.cleaned_data["status"]
-        # Catatan yang tidak dikirim berarti tidak diubah.
+        # Catatan yang tidak dikirim berarti tidak diubah; dikirim kosong berarti dihapus.
         note = form.cleaned_data["admin_note"] if "admin_note" in request.POST else None
         if status:
             report.transition_to(status, note=note)
             message = f"Status laporan diubah ke {report.get_status_display()}."
-        else:
-            report.admin_note = note or ""
+        elif note is not None:
+            report.admin_note = note
             report.save(update_fields=["admin_note", "updated_at"])
             message = "Catatan admin disimpan."
+        else:
+            raise ValidationError("Tidak ada perubahan yang dikirim.")
     except ValidationError as error:
-        if _is_htmx(request):
+        if is_htmx(request):
             return _toast(HttpResponse(status=400), error.messages[0], "error")
         messages.error(request, error.messages[0])
         return redirect(_safe_next(request))
 
-    if _is_htmx(request):
+    if is_htmx(request):
         response = render(request, "review/partials/moderation_row.html", {
             "report": report, "next_url": _safe_next(request),
         })
