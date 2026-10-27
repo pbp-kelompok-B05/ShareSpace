@@ -13,6 +13,14 @@
     <p><strong>Status:</strong> {{ loan.get_status_display }}</p>
     <p><strong>Catatan:</strong> {{ loan.notes|default:"-" }}</p>
 
+    {% if form %}
+        {% include "components/loan_modal.html" with mode="update" %}
+        <form id="cancel-form" method="post" action="{% url 'loans:cancel' loan.pk %}">
+            {% csrf_token %}
+            <button type="submit">Batalkan Pengajuan</button>
+        </form>
+        <p id="cancel-message" role="alert"></p>
+
     <a href="{% url 'loans:list' %}">Kembali</a>
 </section>
 {% endblock content %}
