@@ -150,6 +150,22 @@ class ModerationListTest(ModerationTestMixin, TestCase):
         self.assertTemplateUsed(response, "review/partials/moderation_list.html")
         self.assertTemplateNotUsed(response, "base.html")
 
+    def test_htmx_history_restore_returns_full_page(self):
+        # htmx 2 men-swap respons history-restore ke <body>, jadi harus halaman penuh.
+        response = self.client.get(
+            self.list_url, HTTP_HX_HISTORY_RESTORE_REQUEST="true", **HTMX
+        )
+        self.assertTemplateUsed(response, "review/report_list.html")
+        self.assertTemplateUsed(response, "base.html")
+
+    def test_list_response_varies_on_htmx_headers(self):
+        for headers in ({}, HTMX):
+            with self.subTest(htmx=bool(headers)):
+                response = self.client.get(self.list_url, **headers)
+                vary = {value.strip() for value in response["Vary"].split(",")}
+                self.assertIn("HX-Request", vary)
+                self.assertIn("HX-History-Restore-Request", vary)
+
     def test_only_valid_transition_buttons_rendered(self):
         button = 'type="submit" name="status" value="{}"'
         response, _ = self.results(status=Report.Status.RESOLVED)
@@ -198,6 +214,32 @@ class ModerateActionTest(ModerationTestMixin, TestCase):
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, Report.Status.PENDING)
         self.assertEqual(self.report.admin_note, "Butuh bukti foto.")
+
+    def test_empty_submitted_note_clears_note(self):
+        self.report.admin_note = "Catatan lama."
+        self.report.save()
+        response = self.client.post(self.url, {"admin_note": ""}, **HTMX)
+        self.assertEqual(response.status_code, 200)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.admin_note, "")
+
+    def test_post_without_status_and_note_changes_nothing(self):
+        self.report.admin_note = "Catatan lama."
+        self.report.save()
+        response = self.client.post(self.url, {}, **HTMX)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.toast(response)["level"], "error")
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.admin_note, "Catatan lama.")
+        self.assertEqual(self.report.status, Report.Status.PENDING)
+
+    def test_transition_without_note_keeps_existing_note(self):
+        self.report.admin_note = "Catatan lama."
+        self.report.save()
+        self.client.post(self.url, {"status": Report.Status.REVIEWING}, **HTMX)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.status, Report.Status.REVIEWING)
+        self.assertEqual(self.report.admin_note, "Catatan lama.")
 
     def test_invalid_transition_returns_400_with_toast(self):
         response = self.client.post(self.url, {"status": Report.Status.RESOLVED}, **HTMX)
