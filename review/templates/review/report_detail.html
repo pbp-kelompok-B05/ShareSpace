@@ -5,7 +5,11 @@
 {% block content %}
 <section class="container py-10 md:py-14">
     <div class="mx-auto max-w-2xl">
-        <a class="text-link" href="{% url 'review:my_reports' %}"><span aria-hidden="true">←</span> Laporan saya</a>
+        {% if request.user.is_staff and report.reporter_id != request.user.pk %}
+            <a class="text-link" href="{% url 'review:report_list' %}"><span aria-hidden="true">←</span> Dashboard laporan</a>
+        {% else %}
+            <a class="text-link" href="{% url 'review:my_reports' %}"><span aria-hidden="true">←</span> Laporan saya</a>
+        {% endif %}
 
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
             <h1 class="m-0 text-3xl md:text-4xl">{{ report.get_reason_display }}</h1>
