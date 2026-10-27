@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 
 from items.models import Item
 from review.forms import ReportForm
+from review.htmx import render_list
 from review.models import Report
 
 User = get_user_model()
@@ -81,10 +82,10 @@ def my_reports(request):
         "current_status": current_status,
         "statuses": Report.Status.choices,
     }
-    # HTMX (filter/pagination) cukup menerima isi daftar, bukan halaman penuh.
-    if request.headers.get("HX-Request") == "true":
-        return render(request, "review/partials/my_report_list.html", context)
-    return render(request, "review/my_reports.html", context)
+    # HTMX (filter/pagination) cukup menerima isi daftar; history-restore tetap halaman penuh.
+    return render_list(
+        request, "review/my_reports.html", "review/partials/my_report_list.html", context
+    )
 
 
 @login_required
