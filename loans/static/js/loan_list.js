@@ -23,12 +23,15 @@ async function loadLoans() {
             const title = document.createElement("h3");
             const status = document.createElement("p");
             const dates = document.createElement("p");
+            const detailLink = document.createElement("a");
+            detailLink.href = loan.detail_url;
+            detailLink.textContent = "Lihat Detail";
 
             title.textContent = loan.item_name;
             status.textContent = loan.status_label;
             dates.textContent = `${loan.start_date} - ${loan.due_date}`;
 
-            card.append(title, status, dates);
+            card.append(title, status, dates, detailLink);
             loanList.appendChild(card);
         });
 

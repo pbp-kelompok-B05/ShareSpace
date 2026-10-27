@@ -1,15 +1,19 @@
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
+from django.urls import reverse
 from .models import LoanRequest
+from .forms import LoanRequestForm
+from items.models import Item
 
 # Create your views here.
 
-@login_required
+@login_required(login_url="/login/")
 def loan_list(request):
     return render(request, "loan_list.html")
 
-@login_required
+@login_required(login_url="/login/")
 def loan_list_data(request):
     status = request.GET.get("status", "")
 
@@ -31,7 +35,83 @@ def loan_list_data(request):
                 "status_label": loan.get_status_display(),
                 "start_date": loan.start_date.isoformat(),
                 "due_date": loan.due_date.isoformat(),
+                "detail_url": reverse("loans:detail", args=[loan.pk]),
             }
         )
 
     return JsonResponse({"loans": data})
+
+@login_required(login_url="/login/")
+def loan_create(request, item_id):
+    item = get_object_or_404(Item, pk=item_id)
+
+    if item.owner_id == request.user.pk:
+        return JsonResponse({"success": False, "message": "Tidak bisa meminjam barang sendiri."}, status=403)
+
+    if not item.is_verified and not item.is_available:
+        return JsonResponse({"success": False, "message": "Barang tidak dapat dipinjam."}, status=403)
+
+    form = LoanRequestForm(request.POST)
+    if request.method == "POST" and form.is_valid():
+        loan = form.save(commit=False)
+        loan.borrower = request.user
+        loan.item = item
+        loan.save()
+
+        return JsonResponse({
+            "succes": True,
+            "message": "Permintaan peminjaman berhasil dibuat.",
+            "pk": str(loan.pk),
+            "detail_url": reverse("loans:detail", args=[loan.pk]),
+        }, status=201)
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+
+@login_required(login_url="/login/")
+def loan_detail(request, pk):
+    loans = LoanRequest.objects.select_related("borrower", "item", "item__owner").filter(
+        Q(borrower=request.user) | Q(item__owner=request.user)
+    )
+    loan = get_object_or_404(loan, pk=pk)
+
+    form = None
+    if loan.borrower_id == request.user.pk and loan.status == LoanRequest.Status.PENDING:
+        form = LoanRequestForm(instance=loan)
+
+    return render(request, "loan_detail.html", {"loan": loan, "form": form})
+
+@login_required(login_url="/login/")
+def loan_update(request, pk):
+    loan = get_object_or_404(LoanRequest, pk=pk)
+
+    if loan.borrower_id != request.user.pk:
+        return JsonResponse({"success": False, "message": "Tidak memiliki akses untuk mengubah transaksi."}, status=403)
+
+    if loan.status != LoanRequest.Status.PENDING:
+        return JsonResponse({"succes": False, "message": "Tidak bisa mengubah transaksi saat ini."}, status=409)
+
+    form = LoanRequestForm(request.POST or None, instance=loan)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+
+        return JsonResponse({"success": True, "message": "Permintaan peminjaaman berhasil diperbarui"}, status=200)
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+
+@login_required(login_url="/login/")
+def loan_cancel(request, pk):
+    loan = get_object_or_404(LoanRequest, pk=pk)
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method tidak diizinkan."}, status=405)
+
+    if loan.borrower_id != request.user.pk:
+        return JsonResponse({"success": False, "message": "Tidak memiliki akses untuk membatalkan transaksi."}, status=403)
+
+    if loan.status != LoanRequest.Status.PENDING:
+        return JsonResponse({"succes": False, "message": "Tidak bisa membatalkan transaksi saat ini."}, status=409)
+
+    loan.status = LoanRequest.Status.CANCELLED
+    loan.save()
+
+    return JsonResponse({"success": True, "message": "Permintaan peminjaaman berhasil dibatalkan"}, status=200)
