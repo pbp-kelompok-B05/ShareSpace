@@ -74,4 +74,44 @@ def loan_detail(request, pk):
     )
     loan = get_object_or_404(loan, pk=pk)
 
-    return render(request, "loan_detail.html", {"loan": loan})
+    form = None
+    if loan.borrower_id == request.user.pk and loan.status == LoanRequest.Status.PENDING:
+        form = LoanRequestForm(instance=loan)
+
+    return render(request, "loan_detail.html", {"loan": loan, "form": form})
+
+@login_required(login_url="/login/")
+def loan_update(request, pk):
+    loan = get_object_or_404(LoanRequest, pk=pk)
+
+    if loan.borrower_id != request.user.pk:
+        return JsonResponse({"success": False, "message": "Tidak memiliki akses untuk mengubah transaksi."}, status=403)
+
+    if loan.status != LoanRequest.Status.PENDING:
+        return JsonResponse({"succes": False, "message": "Tidak bisa mengubah transaksi saat ini."}, status=409)
+
+    form = LoanRequestForm(request.POST or None, instance=loan)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+
+        return JsonResponse({"success": True, "message": "Permintaan peminjaaman berhasil diperbarui"}, status=200)
+
+    return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+
+@login_required(login_url="/login/")
+def loan_cancel(request, pk):
+    loan = get_object_or_404(LoanRequest, pk=pk)
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method tidak diizinkan."}, status=405)
+
+    if loan.borrower_id != request.user.pk:
+        return JsonResponse({"success": False, "message": "Tidak memiliki akses untuk membatalkan transaksi."}, status=403)
+
+    if loan.status != LoanRequest.Status.PENDING:
+        return JsonResponse({"succes": False, "message": "Tidak bisa membatalkan transaksi saat ini."}, status=409)
+
+    loan.status = LoanRequest.Status.CANCELLED
+    loan.save()
+
+    return JsonResponse({"success": True, "message": "Permintaan peminjaaman berhasil dibatalkan"}, status=200)
