@@ -1,0 +1,15 @@
+{% comment %}
+Isi #moderation-list. Dirender penuh di report_list.html dan sendirian untuk request HTMX.
+{% endcomment %}
+{% if page_obj %}
+    <ul class="m-0 grid list-none gap-4 p-0">
+        {% for report in page_obj %}
+            <li>{% include "review/partials/moderation_row.html" %}</li>
+        {% endfor %}
+    </ul>
+    <div class="mt-6">
+        {% include "partials/pagination.html" with page_obj=page_obj item_label="laporan" hx_target="#moderation-list" %}
+    </div>
+{% else %}
+    {% include "partials/empty_state.html" with title="Tidak ada laporan yang cocok" text="Ubah kata kunci atau filter untuk melihat laporan lain." icon="🔎" %}
+{% endif %}

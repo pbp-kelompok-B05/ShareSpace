@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard laporan — ShareSpace{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <span class="section-label">ADMIN</span>
+    <h1 class="m-0 mb-3 text-3xl md:text-4xl">Dashboard laporan</h1>
+    <p class="mb-6">Tinjau laporan komunitas. Alur status: Menunggu → Ditinjau → Selesai, atau Ditolak.</p>
+
+    <ul class="m-0 mb-8 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4" aria-label="Ringkasan status laporan">
+        {% for value, label, count in status_summary %}
+            <li class="card">
+                <a class="card-body no-underline" href="?status={{ value }}">
+                    <span class="card-meta">{{ label }}</span>
+                    <span class="font-heading text-3xl font-bold text-ink">{{ count }}</span>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    {# Tanpa JS: form GET biasa. Dengan HTMX: daftar diperbarui otomatis tanpa reload. #}
+    <form method="get" class="card mb-6"
+          hx-get="{% url 'review:report_list' %}"
+          hx-target="#moderation-list"
+          hx-push-url="true"
+          hx-trigger="change, submit, keyup changed delay:400ms from:#report-search"
+          hx-indicator="#filter-loading">
+        <div class="card-body gap-4">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="form-field">
+                    <label class="form-label" for="report-search">Cari laporan</label>
+                    <input type="search" id="report-search" name="q" value="{{ query }}" maxlength="100" placeholder="Username, nama barang, atau isi laporan">
+                </div>
+                <div class="form-field">
+                    <label class="form-label" for="report-reason">Alasan</label>
+                    <select id="report-reason" name="reason">
+                        <option value="">Semua alasan</option>
+                        {% for value, label in reasons %}
+                            <option value="{{ value }}"{% if current_reason == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <fieldset class="chip-group">
+                    <legend class="sr-only">Filter status</legend>
+                    <label class="chip"><input type="radio" name="status" value=""{% if not current_status %} checked{% endif %}>Semua</label>
+                    {% for value, label in statuses %}
+                        <label class="chip"><input type="radio" name="status" value="{{ value }}"{% if current_status == value %} checked{% endif %}>{{ label }}</label>
+                    {% endfor %}
+                </fieldset>
+                <button type="submit" class="button button-secondary button-sm">
+                    Terapkan <span id="filter-loading" class="spinner htmx-indicator" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <div id="moderation-list" aria-live="polite">
+        {% include "review/partials/moderation_list.html" %}
+    </div>
+</section>
+{% endblock %}

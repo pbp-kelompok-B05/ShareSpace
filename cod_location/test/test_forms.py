@@ -150,10 +150,14 @@ class PickupScheduleFormTests(TestCase):
         form = PickupScheduleForm(data=self.valid_data(scheduled_time=date_with_seconds))
         self.assertTrue(form.is_valid(), form.errors)
 
+        
     def test_datetime_widget_type(self):
         form = PickupScheduleForm()
-        self.assertEqual(form.fields["scheduled_time"].widget.attrs.get("type"), "datetime-local")
 
+        html = str(form["scheduled_time"])
+
+        self.assertIn('type="datetime-local"', html)
+        
     def test_form_does_not_expose_loan_or_creator(self):
         form = PickupScheduleForm()
         self.assertNotIn("loan_request", form.fields)

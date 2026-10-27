@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'authentication',
     'items',
     'cod_location',
+    'review',
 ]
 
 MIDDLEWARE = [

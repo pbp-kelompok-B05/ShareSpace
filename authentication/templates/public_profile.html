@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{% firstof profile.full_name target_user.username %} — ShareSpace{% endblock %}
+
+{% block content %}
+{% firstof profile.full_name target_user.username as display_name %}
+<section class="container py-10 md:py-14">
+    <div class="mx-auto max-w-3xl">
+        <span class="section-label">PROFIL PENGGUNA</span>
+        <h1 class="m-0 mb-6 text-3xl md:text-4xl">{{ display_name }}</h1>
+
+        <div class="grid gap-6">
+            <article class="card">
+                <div class="card-body gap-6 p-6 md:p-8">
+                    <!-- Header Publik: Avatar, Nama, Status -->
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex flex-wrap items-center gap-5">
+                            <div class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-surface-soft font-heading text-3xl font-bold text-primary shadow-sm">
+                                {% if profile.profile_picture_url %}
+                                    <img class="h-full w-full object-cover" src="{{ profile.profile_picture_url }}" alt="Foto profil {{ display_name }}">
+                                {% else %}
+                                    <span aria-hidden="true">{{ display_name|first|upper }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="space-y-1">
+                                <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                                <p class="card-meta m-0">@{{ target_user.username }} · Anggota sejak {{ target_user.date_joined|date:"j M Y" }}</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            {% include "review/partials/report_link.html" with target_user=target_user %}
+                        </div>
+                    </div>
+
+                    <hr class="m-0 border-line">
+                    <p class="card-meta m-0">Informasi kontak dan alamat pengguna dijaga kerahasiaannya untuk keamanan komunitas.</p>
+                </div>
+            </article>
+
+            <!-- Sidebar / Box Reputasi Publik -->
+            <div class="card">
+                <div class="card-body gap-4 p-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="card-title text-lg">Reputasi &amp; Ulasan Pengguna</h2>
+                        <span class="badge badge-warning">⭐ Komunitas</span>
+                    </div>
+                    {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Pengguna ini belum memiliki ulasan dari transaksi peminjaman." icon="⭐" heading_level=3 %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

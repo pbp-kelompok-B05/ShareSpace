@@ -1,0 +1,133 @@
+{% comment %}
+Partial form ubah profil. Dirender penuh lewat edit_profile.html, atau langsung di-swap ke #konten oleh HTMX.
+{% endcomment %}
+{% firstof profile.full_name user.username as display_name %}
+<section class="container py-10 md:py-14" id="edit-profile-container">
+    <!-- Navigasi Kembali (Breadcrumb) -->
+    <div class="mb-6">
+        <a class="inline-flex items-center gap-2 text-sm font-bold text-muted transition-colors hover:text-primary"
+           href="{% url 'authentication:profile' %}"
+           hx-get="{% url 'authentication:profile' %}"
+           hx-target="#konten"
+           hx-swap="innerHTML"
+           hx-push-url="true">
+            <span aria-hidden="true">←</span> Kembali ke Profil Saya
+        </a>
+    </div>
+
+    <!-- Header Halaman -->
+    <div class="mb-8">
+        <span class="section-label mb-2 block">PENGATURAN AKUN</span>
+        <h1 class="m-0 mb-2 text-3xl md:text-4xl">Ubah profil &amp; kontak</h1>
+        <p class="card-meta m-0 text-base">Perbarui identitas, kontak, dan alamat domisili agar proses peminjaman barang berjalan lancar.</p>
+    </div>
+
+    <div class="grid gap-8 lg:grid-cols-3">
+        <!-- Kartu Samping: Info & Preview Profil Singkat -->
+        <aside class="space-y-6">
+            <div class="card">
+                <div class="card-body gap-5 p-6">
+                    <h2 class="card-title text-base">Preview Profil</h2>
+                    <div class="flex items-center gap-4">
+                        <div class="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-surface-soft font-heading text-2xl font-bold text-primary shadow-sm">
+                            {% if profile.profile_picture_url %}
+                                <img class="h-full w-full object-cover" src="{{ profile.profile_picture_url }}" alt="Foto profil {{ display_name }}">
+                            {% else %}
+                                <span aria-hidden="true">{{ display_name|first|upper }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="m-0 truncate font-heading font-bold text-ink">{{ display_name }}</p>
+                            <p class="card-meta m-0 truncate text-xs">@{{ user.username }}</p>
+                        </div>
+                    </div>
+                    <div class="rounded-xl border border-line bg-surface-muted p-3 text-xs leading-relaxed text-muted">
+                        💡 <strong>Tips:</strong> Pastikan nomor telepon aktif (terhubung dengan WhatsApp) agar peminjam atau pemilik barang mudah berkoordinasi saat COD.
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body gap-3 p-6 text-sm text-muted">
+                    <h3 class="card-title text-sm">Privasi &amp; Keamanan</h3>
+                    <p class="m-0 text-xs leading-relaxed">
+                        Nomor telepon dan alamat lengkapmu bersifat privat dan tidak akan ditampilkan secara bebas di profil publik.
+                    </p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Kartu Utama: Form Pengaturan -->
+        <article class="card lg:col-span-2">
+            <form method="post"
+                  action="{% url 'authentication:edit_profile' %}"
+                  hx-post="{% url 'authentication:edit_profile' %}"
+                  hx-target="#konten"
+                  hx-swap="innerHTML"
+                  hx-indicator="#simpan-loading"
+                  hx-disabled-elt="find button"
+                  novalidate>
+                {% csrf_token %}
+
+                <div class="card-body gap-6 p-6 md:p-8">
+                    {% if form.non_field_errors %}
+                        <div class="form-errors" role="alert">
+                            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Bagian 1: Identitas Personal -->
+                    <div>
+                        <div class="mb-4">
+                            <h2 class="card-title text-lg">Identitas Diri</h2>
+                            <p class="card-meta text-xs">Nama dan foto yang akan tampil pada ulasan dan barang yang kamu pinjamkan.</p>
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="sm:col-span-2">
+                                {% include "partials/form_field.html" with field=form.full_name %}
+                            </div>
+                            <div class="sm:col-span-2">
+                                {% include "partials/form_field.html" with field=form.profile_picture_url %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="m-0 border-line">
+
+                    <!-- Bagian 2: Kontak & Domisili -->
+                    <div>
+                        <div class="mb-4">
+                            <h2 class="card-title text-lg">Kontak &amp; Titik Temu COD</h2>
+                            <p class="card-meta text-xs">Informasi untuk mempermudah komunikasi dan kesepakatan serah terima barang.</p>
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="sm:col-span-2">
+                                {% include "partials/form_field.html" with field=form.phone_number %}
+                            </div>
+                            <div class="sm:col-span-2">
+                                {% include "partials/form_field.html" with field=form.address %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Tombol Aksi -->
+                <div class="card-footer border-t border-line bg-surface-muted px-6 py-4 md:px-8">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="submit" class="button button-primary gap-2">
+                            <span>Simpan perubahan</span>
+                            <span id="simpan-loading" class="spinner htmx-indicator" aria-hidden="true"></span>
+                        </button>
+                        <a class="button button-secondary"
+                           href="{% url 'authentication:profile' %}"
+                           hx-get="{% url 'authentication:profile' %}"
+                           hx-target="#konten"
+                           hx-swap="innerHTML"
+                           hx-push-url="true">Batal</a>
+                    </div>
+                </div>
+            </form>
+        </article>
+    </div>
+</section>
+
