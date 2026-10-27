@@ -13,6 +13,11 @@
     <link rel="stylesheet"
           href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
+    <!-- MapLibre CSS -->
+    <!-- <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" /> -->
+     <link rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+
     <style>
         * {
             box-sizing: border-box;
@@ -206,6 +211,41 @@
                 height: 400px;
             }
         }
+
+        .overpass-filters {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr) auto;
+            align-items: end;
+            gap: 15px;
+        }
+
+        .overpass-filters label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        #overpass-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 12px;
+        }
+
+        .overpass-result {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .overpass-result button {
+            margin-top: 10px;
+        }
+
+        @media (max-width: 800px) {
+            .overpass-filters {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -232,6 +272,56 @@
             + Tambah Lokasi
         </button>
     </div>
+
+
+    <section class="cod-panel" style="margin-bottom: 20px;">
+        <h3>Cari Rekomendasi Titik COD</h3>
+
+        <div class="overpass-filters">
+            <div>
+                <label for="overpass-category">Jenis Lokasi</label>
+                <select id="overpass-category" class="form-control">
+                    <option value="all">Semua Lokasi</option>
+                    <option value="library">Perpustakaan</option>
+                    <option value="cafe">Kafe</option>
+                    <option value="park">Taman</option>
+                    <option value="community">Pusat Komunitas</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="overpass-radius">Radius Pencarian</label>
+                <select id="overpass-radius" class="form-control">
+                    <option value="500">500 meter</option>
+                    <option value="1000" selected>1 kilometer</option>
+                    <option value="2000">2 kilometer</option>
+                    <option value="5000">5 kilometer</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="overpass-keyword">Nama Lokasi</label>
+                <input
+                    type="search"
+                    id="overpass-keyword"
+                    class="form-control"
+                    placeholder="Contoh: Perpustakaan"
+                >
+            </div>
+
+            <button
+                type="button"
+                class="btn-primary"
+                id="overpass-search-btn"
+            >
+                Cari Lokasi
+            </button>
+        </div>
+
+        <p id="overpass-status" role="status"></p>
+        <div id="overpass-results"></div>
+    </section>
+
 
     <section class="cod-layout">
 
@@ -359,6 +449,7 @@
 <div id="cod-config"
      data-list-url="{% url 'cod_location:location_list' %}"
      data-create-url="{% url 'cod_location:location_create' %}"
+     data-overpass-url="{% url 'cod_location:overpass_search' %}"
      data-login-url="/auth/login/"
      hidden>
 </div>
@@ -366,8 +457,18 @@
 <!-- Leaflet JavaScript -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- JavaScript COD, dibuat pada Tahap 6 -->
+<!-- MapLibre GL + binding Leaflet -->
+<!-- <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js"></script> -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+
+<!-- overpass JavaScript -->
+<script src="{% static 'cod_location/js/overpass.js' %}" defer></script>
+
+<!-- JavaScript COD-->
 <script src="{% static 'cod_location/js/cod_map.js' %}" defer></script>
+
 
 </body>
 </html>

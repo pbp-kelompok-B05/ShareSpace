@@ -63,6 +63,8 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'ShareSpace.urls'
 
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

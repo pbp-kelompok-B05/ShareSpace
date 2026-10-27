@@ -2,6 +2,16 @@ from django.shortcuts import render
 
 # Create your views here.
 
+import json
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
+
+from django.core.cache import cache
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -13,6 +23,174 @@ from loans.models import LoanRequest
 from .models import CODLocation, PickupSchedule
 from .forms import CODLocationForm, PickupScheduleForm
 
+
+
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+]
+
+# Ganti dengan nama proyek dan email kamu
+USER_AGENT = "ShareSpace/1.0 (proyek kuliah PBP; kontak: taufikramadhan6S62@gmail.com)"
+
+OVERPASS_CATEGORIES = {
+    "library": '["amenity"="library"]',
+    "cafe": '["amenity"="cafe"]',
+    "park": '["leisure"="park"]',
+    "community": '["amenity"="community_centre"]',
+}
+
+
+# def _run_overpass(query, referer):
+#     body = urllib.parse.urlencode({"data": query}).encode()
+#     last_error = None
+
+#     for endpoint in OVERPASS_ENDPOINTS:
+#         req = urllib.request.Request(
+#             endpoint,
+#             data=body,
+#             headers={
+#                 "User-Agent": USER_AGENT,
+#                 "Referer": referer,
+#                 "Accept": "*/*",
+#                 "Content-Type": "application/x-www-form-urlencoded",
+#             },
+#         )
+#         try:
+#             with urllib.request.urlopen(req, timeout=15) as resp:
+#                 data = json.loads(resp.read().decode("utf-8"))
+#             if isinstance(data.get("elements"), list):
+#                 return data
+#         except (urllib.error.URLError, TimeoutError, ValueError) as error:
+#             last_error = error
+
+#     raise RuntimeError(last_error)
+
+def _run_overpass(query, referer):
+    body = urllib.parse.urlencode({
+        "data": query
+    }).encode()
+
+    last_error = None
+
+    for endpoint in OVERPASS_ENDPOINTS:
+        req = urllib.request.Request(
+            endpoint,
+            data=body,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Referer": referer,
+                "Accept": "application/json",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(
+                    resp.read().decode("utf-8")
+                )
+
+            if isinstance(data.get("elements"), list):
+                return data
+
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            ValueError,
+        ) as error:
+            print(
+                f"Overpass gagal: {endpoint} -> {error}"
+            )
+            print(f"Overpass gagal: {endpoint}")
+            print(f"Jenis error: {type(error).__name__}")
+            print(f"Detail: {error}")
+            last_error = error
+
+    raise RuntimeError(
+        f"Semua endpoint Overpass gagal: {last_error}"
+    )
+
+
+@require_GET
+def overpass_search(request):
+    try:
+        lat = float(request.GET["lat"])
+        lon = float(request.GET["lon"])
+        radius = int(request.GET.get("radius", 1000))
+    except (KeyError, ValueError):
+        return JsonResponse({"message": "Parameter tidak valid."}, status=400)
+
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180 and 100 <= radius <= 5000):
+        return JsonResponse({"message": "Parameter tidak valid."}, status=400)
+
+    category = request.GET.get("category", "all")
+    keyword = request.GET.get("keyword", "").strip()[:50]
+
+    if category == "all":
+        filters = list(OVERPASS_CATEGORIES.values())
+    elif category in OVERPASS_CATEGORIES:
+        filters = [OVERPASS_CATEGORIES[category]]
+    else:
+        return JsonResponse({"message": "Kategori tidak valid."}, status=400)
+
+    if keyword:
+        safe = re.escape(keyword).replace("\\", "\\\\").replace('"', '\\"')
+        name_filter = f'["name"~"{safe}",i]'
+    else:
+        name_filter = '["name"]'
+
+    statements = "\n".join(
+        # f"nwr(around:{radius},{lat},{lon}){f}{name_filter};" for f in filters
+
+        f"node(around:{radius},{lat},{lon}){f}{name_filter};"
+        for f in filters
+
+    )
+    query = f"[out:json][timeout:8];({statements});out center tags 50;"
+
+    cache_key = "overpass:" + str(hash((round(lat, 3), round(lon, 3), radius, category, keyword)))
+    places = cache.get(cache_key)
+
+    if places is None:
+        try:
+            data = _run_overpass(query, request.build_absolute_uri("/"))
+        except RuntimeError:
+            return JsonResponse(
+                {"message": "Layanan pencarian lokasi sedang tidak tersedia."},
+                status=502,
+            )
+
+        places = []
+        for el in data["elements"]:
+            tags = el.get("tags", {})
+            center = el.get("center", {})
+            p_lat = el.get("lat", center.get("lat"))
+            p_lon = el.get("lon", center.get("lon"))
+            if not tags.get("name") or p_lat is None or p_lon is None:
+                continue
+
+            address = ", ".join(
+                v for v in (
+                    tags.get("addr:street"),
+                    tags.get("addr:housenumber"),
+                    tags.get("addr:city"),
+                ) if v
+            )
+            places.append({
+                "id": f'{el["type"]}/{el["id"]}',
+                "name": tags["name"],
+                "address": address or "Alamat belum tersedia",
+                "latitude": p_lat,
+                "longitude": p_lon,
+                "type": tags.get("amenity") or tags.get("leisure") or "other",
+            })
+
+        cache.set(cache_key, places, 600)  # simpan 10 menit
+
+    return JsonResponse({"places": places})
 
 # HELPER FUNCTIONS
 
@@ -359,4 +537,17 @@ def schedule_delete(request, pk):
         "success": True,
         "message": "Jadwal berhasil dihapus.",
     })
+    
+@login_required(login_url="/login/")
+@require_GET
+def schedule_manage_page(request, loan_id):
+    loan = get_accessible_loan(request, loan_id)
+
+    return render(
+        request,
+        "cod_location/schedule_manage.html",
+        {
+            "loan": loan,
+        }
+    )
 

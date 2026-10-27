@@ -65,4 +65,14 @@ urlpatterns = [
         views.schedule_delete,
         name="schedule_delete",
     ),
+    path(
+        "overpass/", 
+        views.overpass_search, 
+        name="overpass_search"
+    ),
+    path(
+        "loans/<uuid:loan_id>/manage/",
+        views.schedule_manage_page,
+        name="schedule_manage",
+    ),
 ]

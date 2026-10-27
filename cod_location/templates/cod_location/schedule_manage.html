@@ -1,0 +1,165 @@
+{% load static %}
+{% extends "base.html" %}
+
+{% block content %}
+<main class="container">
+    <section class="cod-schedule-section">
+
+        <h1>Pengaturan COD</h1>
+        <p>
+            Tentukan lokasi dan jadwal pertemuan
+            untuk pengambilan atau pengembalian barang.
+        </p>
+
+        <!-- INFORMASI PEMINJAMAN -->
+        <div class="loan-information">
+            <h2>Informasi Peminjaman</h2>
+
+            <p>
+                <strong>Barang:</strong>
+                {{ loan.item.name }}
+            </p>
+
+            <p>
+                <strong>Peminjam:</strong>
+                {{ loan.borrower.username }}
+            </p>
+
+            <p>
+                <strong>Pemilik:</strong>
+                {{ loan.item.owner.username }}
+            </p>
+
+            <p>
+                <strong>Status:</strong>
+                {{ loan.get_status_display }}
+            </p>
+
+            <p>
+                <strong>Tanggal Mulai:</strong>
+                {{ loan.start_date }}
+            </p>
+
+            <p>
+                <strong>Batas Pengembalian:</strong>
+                {{ loan.due_date }}
+            </p>
+        </div>
+
+        <!-- DAFTAR JADWAL COD -->
+        <section class="cod-schedule-list">
+            <h2>Jadwal COD</h2>
+
+            <div id="schedule-list">
+                Memuat jadwal COD...
+            </div>
+        </section>
+
+        <!-- FORM JADWAL COD -->
+        <section class="cod-schedule-form">
+            <h2>Tambah Jadwal COD</h2>
+
+            <form id="schedule-form">
+                {% csrf_token %}
+
+                <div>
+                    <label for="schedule-type">
+                        Jenis Jadwal
+                    </label>
+
+                    <select
+                        id="schedule-type"
+                        name="schedule_type"
+                        required
+                    >
+                        <option value="pickup">
+                            Pengambilan Barang
+                        </option>
+
+                        <option value="return">
+                            Pengembalian Barang
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="cod-location">
+                        Lokasi COD
+                    </label>
+
+                    <select
+                        id="cod-location"
+                        name="cod_location"
+                        required
+                    >
+                        <option value="">
+                            Pilih lokasi COD
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="scheduled-time">
+                        Waktu Pertemuan
+                    </label>
+
+                    <input
+                        type="datetime-local"
+                        id="scheduled-time"
+                        name="scheduled_time"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="schedule-notes">
+                        Catatan
+                    </label>
+
+                    <textarea
+                        id="schedule-notes"
+                        name="notes"
+                        rows="3"
+                        placeholder="Contoh: Bertemu di depan perpustakaan"
+                    ></textarea>
+                </div>
+
+                <button type="submit" id="schedule-submit-btn">
+                    Simpan Jadwal
+                </button>
+
+                <button type="button" id="cancel-edit-btn" hidden>
+                    Batal Edit
+                </button>
+
+                <p id="schedule-message" role="status"></p>
+            </form>
+        </section>
+
+        <div>
+            <a href="{% url 'cod_location:map' %}">
+                Lihat Peta Lokasi COD
+            </a>
+        </div>
+
+        <div>
+            <a href="{% url 'loans:detail' loan.pk %}">
+                Kembali ke Detail Peminjaman
+            </a>
+        </div>
+
+    </section>
+</main>
+
+<!-- KONFIGURASI ENDPOINT -->
+<div
+    id="schedule-config"
+    data-list-url="{% url 'cod_location:schedule_list' loan.pk %}"
+    data-create-url="{% url 'cod_location:schedule_create' loan.pk %}"
+    data-locations-url="{% url 'cod_location:location_list' %}"
+    data-update-url="{% url 'cod_location:schedule_update' '00000000-0000-0000-0000-000000000000' %}"
+    data-delete-url="{% url 'cod_location:schedule_delete' '00000000-0000-0000-0000-000000000000' %}"
+    hidden
+></div>
+
+{% endblock content %}
