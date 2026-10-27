@@ -39,7 +39,6 @@ Partial form ubah profil. Dirender penuh lewat edit_profile.html, atau langsung 
                         <div class="min-w-0">
                             <p class="m-0 truncate font-heading font-bold text-ink">{{ display_name }}</p>
                             <p class="card-meta m-0 truncate text-xs">@{{ user.username }}</p>
-                            <span class="badge badge-verified mt-1">✓ Terverifikasi</span>
                         </div>
                     </div>
                     <div class="rounded-xl border border-line bg-surface-muted p-3 text-xs leading-relaxed text-muted">
@@ -52,7 +51,7 @@ Partial form ubah profil. Dirender penuh lewat edit_profile.html, atau langsung 
                 <div class="card-body gap-3 p-6 text-sm text-muted">
                     <h3 class="card-title text-sm">Privasi &amp; Keamanan</h3>
                     <p class="m-0 text-xs leading-relaxed">
-                        Nomor telepon dan alamat lengkapmu <strong>hanya dapat dilihat oleh pengguna yang bertransaksi denganmu</strong>, dan tidak akan ditampilkan secara bebas di profil publik.
+                        Nomor telepon dan alamat lengkapmu bersifat privat dan tidak akan ditampilkan secara bebas di profil publik.
                     </p>
                 </div>
             </div>
@@ -65,7 +64,6 @@ Partial form ubah profil. Dirender penuh lewat edit_profile.html, atau langsung 
                   hx-post="{% url 'authentication:edit_profile' %}"
                   hx-target="#konten"
                   hx-swap="innerHTML"
-                  hx-push-url="true"
                   hx-indicator="#simpan-loading"
                   hx-disabled-elt="find button"
                   novalidate>

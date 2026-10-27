@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from authentication.forms import UserProfileForm
@@ -67,7 +68,7 @@ def build_profile_context(request, profile):
     }
 
 
-@login_required(login_url="/auth/login/")
+@login_required
 def show_profile(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     context = build_profile_context(request, profile)
@@ -78,7 +79,7 @@ def show_profile(request):
     return render(request, "profile.html", context)
 
 
-@login_required(login_url="/auth/login/")
+@login_required
 def edit_profile(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     form = UserProfileForm(request.POST or None, instance=profile)
@@ -94,6 +95,7 @@ def edit_profile(request):
                 response["HX-Trigger"] = json.dumps(
                     {"showToast": {"message": "Profil berhasil diperbarui!", "level": "success"}}
                 )
+                response["HX-Push-Url"] = reverse("authentication:profile")
                 return response
 
             messages.success(request, "Profil berhasil diperbarui!")
@@ -110,7 +112,7 @@ def edit_profile(request):
     return render(request, template, context)
 
 
-@login_required(login_url="/auth/login/")
+@login_required
 @require_http_methods(["GET", "POST"])
 def deactivate_account(request):
     if request.method == "POST":
@@ -126,7 +128,7 @@ def deactivate_account(request):
     return render(request, "deactivate_account.html")
 
 
-@login_required(login_url="/auth/login/")
+@login_required
 def public_profile(request, username):
     target_user = get_object_or_404(User, username=username, is_active=True)
 

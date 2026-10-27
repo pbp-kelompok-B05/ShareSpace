@@ -34,10 +34,7 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
                         {% endif %}
                     </div>
                     <div class="space-y-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
-                            <span class="badge badge-verified">✓ Terverifikasi</span>
-                        </div>
+                        <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
                         <p class="card-meta m-0">@{{ user.username }} · Anggota sejak {{ user.date_joined|date:"j M Y" }}</p>
                     </div>
                 </div>

@@ -180,6 +180,8 @@ class AuthenticationTest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "profile_content.html")
+        self.assertEqual(response.headers.get("HX-Push-Url"), reverse("authentication:profile"))
+        self.assertIn("showToast", response.headers.get("HX-Trigger", ""))
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.full_name, "Frieren Grand Mage")
 
