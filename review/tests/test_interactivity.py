@@ -29,6 +29,17 @@ class MyReportsHtmxTest(ReportViewTestMixin, TestCase):
         response = self.client.get(self.url, {"status": Report.Status.RESOLVED}, **HTMX)
         self.assertContains(response, "Tidak ada laporan dengan status ini")
 
+    def test_htmx_history_restore_returns_full_page(self):
+        response = self.client.get(self.url, HTTP_HX_HISTORY_RESTORE_REQUEST="true", **HTMX)
+        self.assertTemplateUsed(response, "review/my_reports.html")
+        self.assertTemplateUsed(response, "base.html")
+
+    def test_response_varies_on_htmx_headers(self):
+        response = self.client.get(self.url, **HTMX)
+        vary = {value.strip() for value in response["Vary"].split(",")}
+        self.assertIn("HX-Request", vary)
+        self.assertIn("HX-History-Restore-Request", vary)
+
     def test_pagination_links_target_list(self):
         for _ in range(11):
             self.make_report(status=Report.Status.REJECTED)
