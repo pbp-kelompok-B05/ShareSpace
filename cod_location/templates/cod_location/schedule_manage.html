@@ -1,5 +1,6 @@
-{% load static %}
+
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <main class="container">
@@ -161,5 +162,7 @@
     data-delete-url="{% url 'cod_location:schedule_delete' '00000000-0000-0000-0000-000000000000' %}"
     hidden
 ></div>
+
+<script src="{% static 'cod_location/js/schedule_manage.js' %}" defer></script>
 
 {% endblock content %}
