@@ -10,7 +10,10 @@ Isi #item-list di katalog: dirender di dalam catalog.html, atau sendirian untuk 
         {% endfor %}
     </ul>
     {% include "partials/pagination.html" with page_obj=page_obj item_label="barang" hx_target="#item-list" %}
-{% else %}
+{% elif filter_form.has_filters %}
     <p class="sr-only" role="status">Tidak ada barang yang cocok</p>
     {% include "partials/empty_state.html" with title="Tidak ada barang yang cocok" text="Coba kata kunci lain atau hapus beberapa filter." action_url=catalog_url action_label="Hapus semua filter" icon="🔍" %}
+{% else %}
+    {% url 'items:create' as create_url %}
+    {% include "partials/empty_state.html" with title="Belum ada barang di katalog" text="Jadilah yang pertama meminjamkan barang ke tetangga di sekitarmu." action_url=create_url action_label="Pinjamkan Barang" icon="📦" %}
 {% endif %}
