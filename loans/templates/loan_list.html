@@ -1,25 +1,87 @@
 {% extends "base.html" %}
 {% load static %}
+{% block title %}Daftar Transaksi Peminjaman — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'loans/css/loan_list.css' %}">
+{% endblock extra_head %}
 
 {% block content %}
-<section class="container">
-    <h1>Transaksi Saya</h1>
+<section class="container loan-page">
+    <header class="loan-heading">
+        <div>
+            <h1>Daftar Transaksi Peminjaman</h1>
+            <p>Kelola riwayat peminjaman dan pantau status barang Anda.</p>
+        </div>
 
-    <label for="status-filter">Filter Status</label>
-    <select id="status-filter">
-        <option value="">Semua Status</option>
-        <option value="pending">Menunggu Konfirmasi</option>
-        <option value="approved">Disetujui</option>
-        <option value="borrowed">Sedang Dipinjam</option>
-        <option value="completed">Selesai</option>
-        <option value="rejected">Ditolak</option>
-        <option value="cancelled">Dibatalkan</option>
-    </select>
+        <nav class="loan-role-tabs" aria-label="Peran dalam transaksi">
+            <a href="{% url 'loans:list' %}"
+               class="loan-role-tab {% if role == 'borrower' %}active{% endif %}"
+               {% if role == 'borrower' %}aria-current="page"{% endif %}>
+                Sebagai Peminjam ({{ borrower_count }})
+            </a>
 
-    <div id="loan-list" data-url="{% url 'loans:data' %}">
+            <a href="{% url 'loans:lender_list' %}"
+               class="loan-role-tab {% if role == 'lender' %}active{% endif %}"
+               {% if role == 'lender' %}aria-current="page"{% endif %}>
+                Sebagai Pemilik ({{ lender_count }})
+            </a>
+        </nav>
+    </header>
+
+    <div class="loan-toolbar">
+        <div class="loan-filters" aria-label="Filter status transaksi">
+            <button type="button" class="loan-filter active" data-status="" aria-pressed="true">
+                Semua
+            </button>
+
+            <button type="button" class="loan-filter" data-status="pending" aria-pressed="false">
+                <span class="loan-dot pending"></span>
+                Menunggu Konfirmasi
+            </button>
+
+            <button type="button" class="loan-filter" data-status="approved" aria-pressed="false">
+                <span class="loan-dot approved"></span>
+                Disetujui
+            </button>
+
+            <button type="button" class="loan-filter" data-status="borrowed" aria-pressed="false">
+                <span class="loan-dot borrowed"></span>
+                Sedang Dipinjam
+            </button>
+
+            <button type="button" class="loan-filter" data-status="completed" aria-pressed="false">
+                <span class="loan-dot completed"></span>
+                Selesai
+            </button>
+
+            <button type="button" class="loan-filter" data-status="rejected" aria-pressed="false">
+                <span class="loan-dot rejected"></span>
+                Ditolak
+            </button>
+
+            <button type="button" class="loan-filter" data-status="cancelled" aria-pressed="false">
+                <span class="loan-dot cancelled"></span>
+                Dibatalkan
+            </button>
+        </div>
+
+        <a class="loan-browse-link" href="{% url 'loans:catalog' %}">+ Ajukan Peminjaman</a>
+    </div>
+
+    <div id="loan-message" role="status" aria-live="polite"></div>
+
+    <div id="loan-list"
+         data-role="{{ role }}"
+         data-url="{% if role == 'lender' %}{% url 'loans:lender_data' %}{% else %}{% url 'loans:data' %}{% endif %}"
+         aria-live="polite">
         Memuat transaksi...
     </div>
+
+    <form id="loan-csrf-form" hidden>
+        {% csrf_token %}
+    </form>
 </section>
 
-<script src="{% static 'loans/loan_list.js' %}" defer></script>
+<script src="{% static 'loans/js/loan_list.js' %}" defer></script>
 {% endblock content %}
