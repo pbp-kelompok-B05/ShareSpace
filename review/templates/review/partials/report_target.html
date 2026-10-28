@@ -1,0 +1,8 @@
+{% comment %}Ringkasan target laporan (barang atau pengguna). Pakai with report=report.{% endcomment %}
+{% if report.target_item_id %}
+    <span class="badge badge-category">Barang</span>
+    <span class="font-semibold">{{ report.target_item.name }}</span>
+{% else %}
+    <span class="badge badge-category">Pengguna</span>
+    <span class="font-semibold">{{ report.target_user.username }}</span>
+{% endif %}
