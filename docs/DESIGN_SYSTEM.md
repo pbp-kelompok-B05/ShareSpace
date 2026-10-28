@@ -293,14 +293,6 @@ if item.owner != request.user and not request.user.is_staff:
 
 Pesan `PermissionDenied` ditampilkan di halaman 403. Pengguna yang belum login mendapat tombol masuk dengan `?next=`.
 
-## Catatan sementara
-
-**Guard namespace `authentication` di `base.html`.** Saat ini `base.html` tidak merender toast messages di halaman ber-namespace `authentication`, karena `login.html` dan `register.html` masih merender messages sendiri (agar pesan tidak tampil dua kali). Guard ini dihapus setelah modul Autentikasi siap:
-
-1. Pemilik modul Autentikasi menambahkan `{% block messages %}{% endblock %}` di `login.html` dan `register.html`.
-2. Penanggung jawab base template menghapus kondisi `{% if request.resolver_match.namespace != 'authentication' %}` di `templates/base.html`, sehingga isi block `messages` tinggal `{% include "partials/messages.html" %}`.
-3. Jalankan seluruh test proyek. `test_auth_pages_show_message_once` dan `test_register_success_message_shown_once` di `ShareSpace/tests.py` harus tetap lulus.
-
 ## Dark mode
 
 Class `.dark` di `<html>` dipasang `theme-init.js` sebelum halaman digambar (pilihan dari localStorage, atau preferensi sistem). Tombol toggle ada di navbar. Dari JS: `ShareSpace.theme.get()`, `ShareSpace.theme.set("dark")`, `ShareSpace.theme.toggle()`. Selama memakai token, halaman modul otomatis ikut. Selalu cek halamanmu di kedua tema.
