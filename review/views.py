@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 
 from items.models import Item
 from review.forms import ReportForm
+from review.htmx import render_list
 from review.models import Report
 
 User = get_user_model()
@@ -76,11 +77,15 @@ def my_reports(request):
         reports = reports.filter(status=current_status)
 
     page_obj = Paginator(reports, REPORTS_PER_PAGE).get_page(request.GET.get("page"))
-    return render(request, "review/my_reports.html", {
+    context = {
         "page_obj": page_obj,
         "current_status": current_status,
         "statuses": Report.Status.choices,
-    })
+    }
+    # HTMX (filter/pagination) cukup menerima isi daftar; history-restore tetap halaman penuh.
+    return render_list(
+        request, "review/my_reports.html", "review/partials/my_report_list.html", context
+    )
 
 
 @login_required
