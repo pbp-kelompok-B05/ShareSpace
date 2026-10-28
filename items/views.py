@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlsplit
 
 from django.contrib import messages
 from django.core.paginator import Paginator
@@ -39,6 +40,12 @@ def _is_htmx_partial(request):
         request.headers.get("HX-Request") == "true"
         and request.headers.get("HX-History-Restore-Request") != "true"
     )
+
+
+def _htmx_from_path(request, path):
+    """Request HTMX dikirim dari halaman `path`; tanpa header HX-Current-URL dianggap ya."""
+    current_url = request.headers.get("HX-Current-URL")
+    return current_url is None or urlsplit(current_url).path == path
 
 
 @require_GET
@@ -154,6 +161,10 @@ def item_edit(request, item):
         if not is_htmx(request):
             messages.success(request, message)
             return redirect(detail_url)
+        if not _htmx_from_path(request, detail_url):
+            # Form HTMX di halaman lain (mis. halaman edit penuh) tidak punya #item-detail: pindah ke detail.
+            messages.success(request, message)
+            return hx_redirect(detail_url)
         # HTMX (dari dialog di detail): ganti isi detail di tempat, tutup dialog, tampilkan toast.
         context = {"item": item, "can_manage": item.can_be_managed_by(request.user)}
         response = render(request, "items/partials/item_detail_updated.html", context)
