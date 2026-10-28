@@ -349,3 +349,135 @@ class MyItemsQueryTest(MyItemsTestMixin, TestCase):
                 for i in range(15):
                     self.make_item(name=f"Banyak {i}", is_available=bool(i % 2))
                 self.assertEqual(few, self.count_queries(headers))
+
+
+class MyItemsDeletedTabTest(MyItemsTestMixin, TestCase):
+    """Tab "Terhapus" (?status=deleted): barang milik sendiri yang di-soft delete, bisa dipulihkan."""
+
+    def setUp(self):
+        super().setUp()
+        self.login()
+        self.active = self.make_item(name="Masih Aktif")
+        self.deleted = self.make_item(name="Sudah Dihapus")
+        self.deleted.soft_delete()
+
+    def test_shows_only_own_deleted_items(self):
+        theirs = self.make_item(name="Dihapus Orang Lain", owner=self.other)
+        theirs.soft_delete()
+        response = self.get(status="deleted")
+        self.assertTrue(response.context["show_deleted"])
+        self.assertEqual(self.names(response), [self.deleted.name])
+
+    def test_active_tab_is_default(self):
+        response = self.get()
+        self.assertFalse(response.context["show_deleted"])
+        self.assertEqual(self.names(response), [self.active.name])
+
+    def test_invalid_status_falls_back_to_active(self):
+        self.assertEqual(self.names(self.get(status="arsip")), [self.active.name])
+
+    def test_filters_apply_within_deleted_tab(self):
+        other = self.make_item(name="Kompor Lama")
+        other.soft_delete()
+        self.assertEqual(self.names(self.get(status="deleted", q="kompor")), [other.name])
+
+    def test_status_is_part_of_filter_form(self):
+        html = self.get(status="deleted").content.decode()
+        filter_form = re.search(r'<form[^>]*id="my-items-filter".*?</form>', html, re.S).group(0)
+        self.assertRegex(filter_form, r'<input type="radio" name="status" value="active"')
+        self.assertRegex(filter_form, r'<input type="radio" name="status" value="deleted" checked')
+
+    def test_status_is_not_counted_as_filter(self):
+        self.deleted.restore()
+        response = self.get(status="deleted")
+        self.assertContains(response, "Belum ada barang terhapus")
+        self.assertNotContains(response, "Hapus semua filter")
+
+    def test_deleted_row_not_linked_to_detail(self):
+        response = self.get(status="deleted")
+        self.assertNotContains(response, f'href="{reverse("items:detail", args=[self.deleted.pk])}"')
+        self.assertContains(response, "Dihapus")
+
+    def test_deleted_row_has_restore_form(self):
+        html = self.get(status="deleted").content.decode()
+        bulk_url = reverse("items:bulk_action")
+        self.assertRegex(html, rf'<form[^>]*method="post"[^>]*action="{bulk_url}"[^>]*hx-post="{bulk_url}"')
+        self.assertIn(f'<input type="hidden" name="items" value="{self.deleted.pk}">', html)
+        self.assertIn('<input type="hidden" name="action" value="restore">', html)
+        self.assertIn("csrfmiddlewaretoken", html)
+
+    def test_bulk_form_restores_without_confirm(self):
+        html = self.get(status="deleted").content.decode()
+        bulk_form = re.search(r'<form[^>]*id="bulk-form"[^>]*>', html).group(0)
+        self.assertNotIn("hx-confirm", bulk_form)
+        self.assertIn("Pulihkan terpilih", html)
+
+    def test_htmx_partial(self):
+        response = self.get(headers=HTMX_HEADERS, status="deleted")
+        self.assertTemplateUsed(response, "items/partials/my_item_list.html")
+        self.assertContains(response, self.deleted.name)
+
+
+class MyItemsBulkControlsTest(MyItemsTestMixin, TestCase):
+    """Kontrol bulk di tab aktif: form POST + HTMX, checkbox per baris, aksi cepat per baris."""
+
+    def setUp(self):
+        super().setUp()
+        self.login()
+        self.item = self.make_item(name="Tenda Dome")
+        self.borrowed = self.make_item(name="Bor Listrik", is_available=False)
+        self.bulk_url = reverse("items:bulk_action")
+        self.html = self.get().content.decode()
+
+    def checkbox(self, item):
+        match = re.search(rf'<input type="checkbox" name="items" value="{item.pk}"[^>]*>', self.html)
+        self.assertIsNotNone(match)
+        return match.group(0)
+
+    def test_bulk_form_posts_with_htmx_and_confirm(self):
+        form = re.search(r'<form[^>]*id="bulk-form"[^>]*>', self.html).group(0)
+        self.assertIn('method="post"', form)
+        self.assertIn(f'action="{self.bulk_url}"', form)
+        self.assertIn(f'hx-post="{self.bulk_url}"', form)
+        self.assertIn('hx-target="#my-item-list"', form)
+        self.assertIn('hx-include="#my-items-filter, #my-items-page"', form)
+        self.assertIn("hx-confirm=", form)
+        self.assertIn('<input type="hidden" name="action" value="delete">', self.html)
+        self.assertIn("Hapus terpilih", self.html)
+
+    def test_current_page_is_sent_with_actions(self):
+        self.assertIn('<input type="hidden" id="my-items-page" name="page" value="1">', self.html)
+
+    def test_row_checkbox_belongs_to_bulk_form_and_is_labelled(self):
+        checkbox = self.checkbox(self.item)
+        self.assertIn('form="bulk-form"', checkbox)
+        self.assertIn('aria-label="Pilih Tenda Dome"', checkbox)
+        self.assertNotIn("disabled", checkbox)
+
+    def test_borrowed_row_locked(self):
+        self.assertIn("disabled", self.checkbox(self.borrowed))
+        self.assertNotIn(f'href="{reverse("items:edit", args=[self.borrowed.pk])}"', self.html)
+        self.assertIn("tidak dapat diubah", self.html)
+
+    def test_select_all_checkbox(self):
+        self.assertRegex(self.html, r'<input type="checkbox" id="my-items-select-all"')
+        self.assertIn('for="my-items-select-all"', self.html)
+
+    def test_row_edit_link(self):
+        self.assertIn(f'href="{reverse("items:edit", args=[self.item.pk])}"', self.html)
+
+    def test_row_quick_delete_uses_bulk_endpoint_with_fallback_link(self):
+        delete_url = reverse("items:delete", args=[self.item.pk])
+        link = re.search(rf'<a[^>]*href="{delete_url}"[^>]*>', self.html)
+        self.assertIsNotNone(link)
+        self.assertIn(f'hx-post="{self.bulk_url}"', link.group(0))
+        self.assertIn(f'"items": "{self.item.pk}"', link.group(0).replace("&quot;", '"'))
+        self.assertIn("hx-confirm=", link.group(0))
+
+    def test_confirm_dialog_and_script(self):
+        self.assertIn('id="my-items-confirm"', self.html)
+        self.assertIn("items/js/my-items.js", self.html)
+
+    def test_no_bulk_controls_when_empty(self):
+        Item.objects.filter(owner=self.owner).delete()
+        self.assertNotContains(self.get(), 'id="bulk-form"')

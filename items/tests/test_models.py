@@ -254,6 +254,65 @@ class ItemSoftDeleteTest(ItemTestMixin, TestCase):
         self.assertIsNone(item.deleted_at)
 
 
+class ItemQuerySetBulkTest(ItemTestMixin, TestCase):
+    """Versi massal soft_delete()/restore() untuk bulk action: satu UPDATE, aturan tetap di model."""
+
+    def test_soft_delete_updates_available_items(self):
+        items = [self.make_item(), self.make_item()]
+        count = Item.objects.filter(pk__in=[i.pk for i in items]).soft_delete()
+        self.assertEqual(count, 2)
+        for item in Item.all_objects.filter(pk__in=[i.pk for i in items]):
+            self.assertTrue(item.is_deleted)
+            self.assertIsNotNone(item.deleted_at)
+
+    def test_soft_delete_skips_borrowed_items(self):
+        borrowed = self.make_item(is_available=False)
+        count = Item.objects.filter(pk=borrowed.pk).soft_delete()
+        self.assertEqual(count, 0)
+        borrowed.refresh_from_db()
+        self.assertFalse(borrowed.is_deleted)
+
+    def test_soft_delete_skips_already_deleted_items(self):
+        item = self.make_item()
+        item.soft_delete()
+        deleted_at = Item.all_objects.get(pk=item.pk).deleted_at
+        self.assertEqual(Item.all_objects.filter(pk=item.pk).soft_delete(), 0)
+        self.assertEqual(Item.all_objects.get(pk=item.pk).deleted_at, deleted_at)
+
+    def test_soft_delete_updates_timestamp(self):
+        item = self.make_item()
+        Item.objects.filter(pk=item.pk).update(updated_at=timezone.now() - timedelta(days=1))
+        Item.objects.filter(pk=item.pk).soft_delete()
+        self.assertGreater(Item.all_objects.get(pk=item.pk).updated_at, timezone.now() - timedelta(minutes=1))
+
+    def test_soft_delete_runs_single_query(self):
+        items = [self.make_item() for _ in range(3)]
+        queryset = Item.objects.filter(pk__in=[i.pk for i in items])
+        with self.assertNumQueries(1):
+            queryset.soft_delete()
+
+    def test_restore_updates_deleted_items(self):
+        item = self.make_item()
+        item.soft_delete()
+        self.assertEqual(Item.all_objects.filter(pk=item.pk).restore(), 1)
+        item.refresh_from_db()
+        self.assertFalse(item.is_deleted)
+        self.assertIsNone(item.deleted_at)
+
+    def test_restore_skips_items_not_deleted(self):
+        item = self.make_item()
+        self.assertEqual(Item.all_objects.filter(pk=item.pk).restore(), 0)
+
+    def test_restore_through_default_manager_finds_nothing(self):
+        # Manager default menyaring barang terhapus, jadi pemulihan harus lewat all_objects.
+        item = self.make_item()
+        item.soft_delete()
+        self.assertEqual(Item.objects.filter(pk=item.pk).restore(), 0)
+
+    def test_all_objects_has_custom_queryset(self):
+        self.assertTrue(hasattr(Item.all_objects.all(), "visible"))
+
+
 class ItemConstraintTest(ItemTestMixin, TestCase):
     def test_deleted_without_deleted_at_rejected(self):
         with self.assertRaises(IntegrityError), transaction.atomic():
