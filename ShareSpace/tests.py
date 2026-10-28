@@ -41,6 +41,11 @@ def _message_then_login(request):
     return redirect("authentication:login")
 
 
+def _message_then_profile(request):
+    messages.success(request, "Pesan menuju profil.")
+    return redirect("authentication:profile")
+
+
 # Urlconf khusus test: URL modul tiruan agar link navbar yang bergantung pada
 # {% url ... as var %} bisa diuji walau app modul lain belum ada di branch ini.
 urlpatterns = [
@@ -63,6 +68,7 @@ urlpatterns = [
     ], "review"))),
     path("_test/messages/", _message_page),
     path("_test/messages-login/", _message_then_login),
+    path("_test/messages-profile/", _message_then_profile),
     path("_test/forbidden/", _forbidden_with_message),
     path("_test/forbidden-plain/", _forbidden_plain),
 ]
@@ -425,6 +431,23 @@ class MessagesToastTest(TestCase):
             follow=True,
         )
         self.assertEqual(response.content.decode().count("Akun berhasil dibuat"), 1)
+
+    def test_other_auth_pages_show_message_as_toast(self):
+        # Halaman authentication selain login/register (mis. profil) tidak merender messages sendiri.
+        User.objects.create_user(username="warga_toast", password="PasswordUji123!")
+        self.client.login(username="warga_toast", password="PasswordUji123!")
+        response = self.client.get("/_test/messages-profile/", follow=True)
+        self.assertEqual(response.resolver_match.view_name, "authentication:profile")
+        html = response.content.decode()
+        self.assertEqual(html.count("Pesan menuju profil."), 1)
+        self.assertRegex(html, r'class="toast toast-success"[^>]*data-toast')
+
+    def test_message_not_carried_over_from_auth_page(self):
+        # Pesan yang sudah tampil di profil tidak boleh muncul lagi di halaman berikutnya.
+        User.objects.create_user(username="warga_toast", password="PasswordUji123!")
+        self.client.login(username="warga_toast", password="PasswordUji123!")
+        self.client.get("/_test/messages-profile/", follow=True)
+        self.assertNotContains(self.client.get("/"), "Pesan menuju profil.")
 
     def test_toast_script_loaded_and_avoids_innerhtml(self):
         self.assertRegex(self.client.get("/").content.decode(), r'<script defer src="[^"]*js/toast\.js"')
