@@ -250,10 +250,11 @@ def item_delete(request, item):
         # Tanpa force: barang dipinjam sudah ditolak decorator dengan 403.
         item.soft_delete()
         messages.success(request, f"{item.name} berhasil dihapus dari katalog.")
-        # TODO: arahkan ke items:my_items setelah halaman "Barang saya" dibuat.
-        catalog_url = reverse("items:catalog")
+        # Pemilik kembali ke "Barang saya" (barang bisa dipulihkan dari tab Terhapus);
+        # admin yang menghapus barang orang lain kembali ke katalog.
+        next_url = reverse("items:my_items" if item.owner_id == request.user.pk else "items:catalog")
         # Detail barang sudah 404, jadi HTMX juga pindah halaman; toast tampil dari messages.
-        return hx_redirect(catalog_url) if is_htmx(request) else redirect(catalog_url)
+        return hx_redirect(next_url) if is_htmx(request) else redirect(next_url)
 
     context = {
         "item": item,
