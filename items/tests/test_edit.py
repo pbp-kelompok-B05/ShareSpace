@@ -260,6 +260,50 @@ class ItemEditSubmitTest(ItemEditTestMixin, TestCase):
 
 
 @override_settings(CACHES=TEST_CACHES)
+class ItemEditFromOtherPageTest(ItemEditTestMixin, TestCase):
+    """Form HTMX di luar dialog detail (mis. halaman edit penuh): tidak ada #item-detail untuk di-swap."""
+
+    def post_from(self, path, data=None):
+        headers = {**HTMX_HEADERS, "HX-Current-URL": f"http://testserver{path}"}
+        if data is None:
+            data = valid_data(name="Kipas Angin Berdiri", description=UPDATED_DESCRIPTION)
+        return self.client.post(self.url, data, headers=headers)
+
+    def setUp(self):
+        super().setUp()
+        self.login()
+
+    def test_from_full_edit_page_redirects_to_detail(self):
+        response = self.post_from(self.url)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["HX-Redirect"], self.detail_url)
+        self.assertNotIn("HX-Retarget", response)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.name, "Kipas Angin Berdiri")
+
+    def test_from_full_edit_page_message_shown_after_redirect(self):
+        response = self.post_from(self.url)
+        messages = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertEqual(messages, ["Perubahan pada Kipas Angin Berdiri berhasil disimpan."])
+
+    def test_from_my_items_page_redirects_to_detail(self):
+        response = self.post_from(f'{reverse("items:my_items")}?category=electronics')
+        self.assertEqual(response["HX-Redirect"], self.detail_url)
+
+    def test_from_detail_page_still_swaps_in_place(self):
+        response = self.post_from(f"{self.detail_url}?ref=katalog")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["HX-Retarget"], "#item-detail")
+        self.assertNotIn("HX-Redirect", response)
+
+    def test_invalid_post_from_full_page_still_returns_form_partial(self):
+        response = self.post_from(self.url, valid_data(name="ab"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "items/partials/item_form.html")
+        self.assertNotIn("HX-Redirect", response)
+
+
+@override_settings(CACHES=TEST_CACHES)
 class ItemEditRateLimitTest(ItemEditTestMixin, TestCase):
     """Rate limit edit: ITEM_UPDATE_RATE_LIMIT POST per jam per user, terpisah dari create."""
 
