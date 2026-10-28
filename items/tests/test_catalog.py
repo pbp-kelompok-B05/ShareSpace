@@ -96,6 +96,20 @@ class CatalogFilterFormTest(ItemTestMixin, TestCase):
         Item.objects.filter(pk=self.match.pk).update(created_at=timezone.now() - timedelta(days=1))
         self.assertEqual(self.apply(sort="xyz"), [self.other, self.match])
 
+    def test_has_filters_false_without_data(self):
+        self.assertFalse(CatalogFilterForm({}).has_filters())
+
+    def test_sort_alone_is_not_a_filter(self):
+        self.assertFalse(CatalogFilterForm({"sort": "name", "page": "2"}).has_filters())
+
+    def test_invalid_or_blank_values_are_not_filters(self):
+        self.assertFalse(CatalogFilterForm({"category": "xyz", "q": "   "}).has_filters())
+
+    def test_each_filter_counts_as_active(self):
+        for data in ({"q": "tenda"}, {"category": "sports"}, {"condition": "good"}, {"available": "1"}):
+            with self.subTest(data=data):
+                self.assertTrue(CatalogFilterForm(data).has_filters())
+
 
 class CatalogPageTest(CatalogTestMixin, TestCase):
     """Halaman katalog: publik, memakai base template, dan sesuai Figma Page 1."""
