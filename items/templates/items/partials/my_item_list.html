@@ -1,0 +1,20 @@
+{% comment %}
+Isi #my-item-list di "Barang saya": dirender di dalam my_items.html, atau sendirian untuk request HTMX.
+Context: filter_form, page_obj.
+{% endcomment %}
+{% if page_obj.object_list %}
+    <p class="catalog-count" role="status">{{ page_obj.paginator.count }} barang</p>
+    <ul class="my-item-rows" role="list">
+        {% for item in page_obj.object_list %}
+            <li>{% include "items/partials/my_item_row.html" %}</li>
+        {% endfor %}
+    </ul>
+    {% include "partials/pagination.html" with page_obj=page_obj item_label="barang" hx_target="#my-item-list" %}
+{% elif filter_form.has_filters %}
+    {% url 'items:my_items' as my_items_url %}
+    <p class="sr-only" role="status">Tidak ada barang yang cocok</p>
+    {% include "partials/empty_state.html" with title="Tidak ada barang yang cocok" text="Coba kata kunci lain atau hapus beberapa filter." action_url=my_items_url action_label="Hapus semua filter" icon="🔍" %}
+{% else %}
+    {% url 'items:create' as create_url %}
+    {% include "partials/empty_state.html" with title="Kamu belum punya barang" text="Pinjamkan barang pertamamu agar bisa dipakai tetangga di sekitarmu." action_url=create_url action_label="Pinjamkan Barang" icon="📦" %}
+{% endif %}

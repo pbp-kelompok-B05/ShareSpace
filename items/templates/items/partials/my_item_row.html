@@ -1,0 +1,33 @@
+{% load static %}
+{% comment %}
+Satu baris di "Barang saya". Pakai: {% include "items/partials/my_item_row.html" with item=item %}
+{% endcomment %}
+{% url 'items:detail' item.pk as detail_url %}
+<article class="my-item-row" id="my-item-{{ item.pk }}">
+    <div class="my-item-thumb">
+        {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">
+        {% else %}
+            <img class="my-item-placeholder" src="{% static item.placeholder_path %}" alt="" loading="lazy">
+        {% endif %}
+    </div>
+    <div class="my-item-main">
+        <h2 class="my-item-name"><a href="{{ detail_url }}">{{ item.name }}</a></h2>
+        <p class="my-item-meta">
+            <span>{{ item.get_category_display }}</span>
+            <span aria-hidden="true">·</span>
+            <span>Kondisi {{ item.get_condition_display }}</span>
+        </p>
+    </div>
+    <div class="my-item-status">
+        {% if item.is_available %}
+            <span class="badge badge-available">Tersedia</span>
+        {% else %}
+            <span class="badge badge-unavailable">Sedang Dipinjam</span>
+        {% endif %}
+        {% if item.is_verified %}<span class="badge badge-verified">✓ Terverifikasi</span>{% endif %}
+    </div>
+    <p class="my-item-date">
+        <span class="sr-only">Ditambahkan </span><time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"d/m/Y" }}</time>
+    </p>
+</article>

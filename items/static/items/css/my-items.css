@@ -1,0 +1,39 @@
+/* Halaman "Barang saya" (Modul 2). Panel filter memakai catalog.css; hanya token dari style.css. */
+
+.my-items{padding-block:48px 72px}
+
+/* Ringkasan jumlah barang */
+.my-items-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 0 24px}
+.my-items-stat{padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.my-items-stat dt{color:var(--muted);font-size:13px;font-weight:600}
+.my-items-stat dd{margin:4px 0 0;color:var(--ink);font:800 28px/1.1 var(--font-heading);letter-spacing:-.02em}
+
+.my-items-controls{width:100%}
+
+/* Daftar baris */
+.my-item-rows{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.my-item-row{display:grid;grid-template-columns:64px minmax(0,1fr) auto auto;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);transition:border-color .2s,box-shadow .2s}
+.my-item-row:hover,.my-item-row:focus-within{border-color:var(--green);box-shadow:0 8px 24px #1c302914}
+.my-item-thumb{display:grid;place-items:center;width:64px;height:64px;overflow:hidden;border-radius:12px;background:var(--surface-muted)}
+.my-item-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.my-item-thumb .my-item-placeholder{width:36px;height:36px;object-fit:contain}
+.my-item-main{min-width:0}
+.my-item-name{margin:0;overflow:hidden;font:700 16px/1.4 var(--font-heading);text-overflow:ellipsis;white-space:nowrap}
+.my-item-name a{color:var(--ink)}
+.my-item-name a:hover{color:var(--green);text-decoration:underline}
+.my-item-meta{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 0;color:var(--muted);font-size:13px}
+.my-item-status{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.my-item-date{margin:0;color:var(--muted);font-size:13px;white-space:nowrap}
+
+@media(max-width:700px){
+  .my-items{padding-block:32px 56px}
+  .my-items-stats{gap:10px}
+  .my-items-stat{padding:12px}
+  .my-items-stat dd{font-size:22px}
+  .my-items-controls select{flex:1 1 140px}
+  /* Baris ditumpuk: status dan tanggal pindah ke bawah nama. */
+  .my-item-row{grid-template-columns:56px minmax(0,1fr);gap:4px 12px;padding:12px}
+  .my-item-thumb{grid-row:span 3;width:56px;height:56px;align-self:start}
+  .my-item-status{justify-content:flex-start}
+}
+@media(max-width:420px){.my-items-stat dt{font-size:12px}}

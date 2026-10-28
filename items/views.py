@@ -2,6 +2,7 @@ import json
 
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,6 +15,7 @@ from items.models import Item
 from items.serializers import serialize_item
 
 CATALOG_PAGE_SIZE = 12
+MY_ITEMS_PAGE_SIZE = 20  # daftar baris lebih padat daripada grid card katalog
 ITEM_CREATE_RATE_LIMIT = 10  # POST per jam per user
 ITEM_UPDATE_RATE_LIMIT = 30  # POST per jam per user
 
@@ -46,6 +48,29 @@ def catalog(request):
     template = "items/partials/item_list.html" if _is_htmx_partial(request) else "items/catalog.html"
     response = render(request, template, context)
     # Halaman penuh dan partial memakai URL sama; cache browser harus membedakannya.
+    patch_vary_headers(response, ["HX-Request"])
+    return response
+
+
+@require_GET
+@htmx_login_required
+def my_items(request):
+    """Barang milik user yang login, termasuk yang sedang dipinjam (soft delete tetap tersembunyi)."""
+    own_items = Item.objects.filter(owner=request.user)
+    filter_form = CatalogFilterForm(request.GET)
+    page_obj = Paginator(filter_form.apply(own_items), MY_ITEMS_PAGE_SIZE).get_page(request.GET.get("page"))
+    context = {"filter_form": filter_form, "page_obj": page_obj}
+    if _is_htmx_partial(request):
+        template = "items/partials/my_item_list.html"
+    else:
+        template = "items/my_items.html"
+        # Ringkasan hanya ada di halaman penuh dan sengaja tidak mengikuti filter.
+        context["stats"] = own_items.aggregate(
+            total=Count("pk"),
+            available=Count("pk", filter=Q(is_available=True)),
+            borrowed=Count("pk", filter=Q(is_available=False)),
+        )
+    response = render(request, template, context)
     patch_vary_headers(response, ["HX-Request"])
     return response
 

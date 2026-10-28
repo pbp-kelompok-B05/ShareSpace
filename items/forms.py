@@ -59,6 +59,11 @@ class CatalogFilterForm(forms.Form):
         ordering = self.SORT_ORDERING.get(data.get("sort"), self.SORT_ORDERING["newest"])
         return queryset.order_by(*ordering)
 
+    def has_filters(self):
+        """Ada filter valid yang mempersempit hasil; sort tidak dihitung (untuk empty state)."""
+        self.is_valid()
+        return any(self.cleaned_data.get(name) for name in ("q", "category", "condition", "available"))
+
 
 def _item_formfield(db_field, **kwargs):
     # Tanpa skema ("contoh.com/foto.jpg") dianggap https; sekaligus menghindari warning Django 6.0.

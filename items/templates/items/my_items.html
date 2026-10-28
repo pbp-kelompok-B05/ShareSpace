@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Halaman "Barang saya": barang milik user yang login. Context: filter_form, page_obj, stats.
+{% endcomment %}
+
+{% block title %}Barang Saya — ShareSpace{% endblock %}
+
+{% block extra_head %}
+{# Panel filter memakai ulang gaya katalog. #}
+<link rel="stylesheet" href="{% static 'items/css/catalog.css' %}">
+<link rel="stylesheet" href="{% static 'items/css/my-items.css' %}">
+{% endblock %}
+
+{% block content %}
+{% url 'items:my_items' as my_items_url %}
+{% url 'items:create' as create_url %}
+<section class="my-items container" aria-labelledby="my-items-title">
+    <div class="catalog-header">
+        <div>
+            <h1 id="my-items-title" class="page-title">Barang Saya</h1>
+            <p class="page-subtitle">Kelola barang yang kamu pinjamkan ke komunitas.</p>
+        </div>
+        <a class="button button-primary" href="{{ create_url }}">+ Pinjamkan Barang</a>
+    </div>
+
+    <dl class="my-items-stats">
+        <div class="my-items-stat"><dt>Total barang</dt>
+            <dd>{{ stats.total }}</dd></div>
+        <div class="my-items-stat"><dt>Tersedia</dt>
+            <dd>{{ stats.available }}</dd></div>
+        <div class="my-items-stat"><dt>Sedang dipinjam</dt>
+            <dd>{{ stats.borrowed }}</dd></div>
+    </dl>
+
+    {# Tanpa JS: form GET biasa. Dengan HTMX: hanya #my-item-list yang diganti dan URL ikut diperbarui. #}
+    <form id="my-items-filter" class="catalog-filter" method="get" action="{{ my_items_url }}" role="search"
+          hx-get="{{ my_items_url }}" hx-target="#my-item-list" hx-push-url="true" hx-sync="this:replace"
+          hx-trigger="submit, change, input changed delay:400ms from:#id_q" hx-indicator="#my-items-loading">
+        <div class="catalog-search">
+            <label class="sr-only" for="{{ filter_form.q.id_for_label }}">Cari barang saya</label>
+            <span class="catalog-search-icon" aria-hidden="true">⌕</span>
+            {{ filter_form.q }}
+            <span id="my-items-loading" class="spinner htmx-indicator" aria-hidden="true"></span>
+        </div>
+
+        <div class="catalog-controls my-items-controls">
+            <label class="sr-only" for="{{ filter_form.category.id_for_label }}">{{ filter_form.category.label }}</label>
+            {# Dirender manual agar opsi kosong berbunyi "Semua Kategori"; kategori tidak valid dianggap kosong. #}
+            {% with current=filter_form.cleaned_data.category|default:"" %}
+            <select name="category" id="{{ filter_form.category.id_for_label }}">
+                {% for value, label in filter_form.category.field.choices %}
+                    <option value="{{ value }}"{% if value == current %} selected{% endif %}>{% if value %}{{ label }}{% else %}Semua Kategori{% endif %}</option>
+                {% endfor %}
+            </select>
+            {% endwith %}
+            <label class="sr-only" for="{{ filter_form.condition.id_for_label }}">{{ filter_form.condition.label }}</label>
+            {{ filter_form.condition }}
+            <label class="sr-only" for="{{ filter_form.sort.id_for_label }}">{{ filter_form.sort.label }}</label>
+            {{ filter_form.sort }}
+            <label class="catalog-check" for="{{ filter_form.available.id_for_label }}">
+                {{ filter_form.available }} {{ filter_form.available.label }}
+            </label>
+            <noscript><button type="submit" class="button button-secondary button-sm">Terapkan</button></noscript>
+        </div>
+    </form>
+
+    <div id="my-item-list" class="my-items-results">
+        {% include "items/partials/my_item_list.html" %}
+    </div>
+</section>
+{% endblock %}
