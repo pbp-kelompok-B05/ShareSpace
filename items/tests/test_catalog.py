@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles import finders
+from django.core.paginator import Paginator
 from django.db import connection
 from django.template.loader import render_to_string
 from django.templatetags.static import static
@@ -185,6 +186,38 @@ class CatalogPageTest(CatalogTestMixin, TestCase):
         response = self.get(q="tidakadazqx999")
         self.assertContains(response, "empty-state")
         self.assertContains(response, "Tidak ada barang yang cocok")
+
+
+class CatalogEmptyStateTest(ItemTestMixin, TestCase):
+    """Empty state katalog: kosong tanpa filter vs filter tidak menemukan apa pun.
+
+    Dirender langsung dari partial karena DB test bisa berisi data seed (katalog tidak pernah kosong).
+    """
+
+    def render(self, data):
+        filter_form = CatalogFilterForm(data)
+        page_obj = Paginator(filter_form.apply(Item.objects.none()), CATALOG_PAGE_SIZE).get_page(1)
+        return render_to_string(
+            "items/partials/item_list.html", {"filter_form": filter_form, "page_obj": page_obj},
+        )
+
+    def assertEmptyCatalogState(self, html):
+        self.assertIn("Belum ada barang di katalog", html)
+        self.assertIn(f'href="{reverse("items:create")}"', html)
+        self.assertNotIn("Hapus semua filter", html)
+        self.assertNotIn("Tidak ada barang yang cocok", html)
+
+    def test_without_filters(self):
+        self.assertEmptyCatalogState(self.render({}))
+
+    def test_sort_alone_is_not_a_filter(self):
+        self.assertEmptyCatalogState(self.render({"sort": "name"}))
+
+    def test_with_filter_offers_reset(self):
+        html = self.render({"category": Item.Category.SPORTS})
+        self.assertIn("Tidak ada barang yang cocok", html)
+        self.assertIn(f'href="{reverse("items:catalog")}">Hapus semua filter', html)
+        self.assertNotIn("Belum ada barang di katalog", html)
 
 
 class CatalogVisibilityTest(CatalogTestMixin, TestCase):
