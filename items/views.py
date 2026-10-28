@@ -8,10 +8,12 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.cache import patch_vary_headers
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from items.decorators import htmx_login_required, hx_redirect, is_htmx, item_owner_required, rate_limit
-from items.forms import CatalogFilterForm, ItemForm
+from items.decorators import (
+    htmx_login_required, hx_redirect, is_htmx, item_owner_required, rate_limit, toast_response,
+)
+from items.forms import BulkItemActionForm, CatalogFilterForm, ItemForm, MyItemsFilterForm
 from items.models import Item
 from items.serializers import serialize_item
 
@@ -19,6 +21,7 @@ CATALOG_PAGE_SIZE = 12
 MY_ITEMS_PAGE_SIZE = 20  # daftar baris lebih padat daripada grid card katalog
 ITEM_CREATE_RATE_LIMIT = 10  # POST per jam per user
 ITEM_UPDATE_RATE_LIMIT = 30  # POST per jam per user
+ITEM_BULK_RATE_LIMIT = 60  # POST per jam per user; aksi cepat per baris ikut dihitung
 
 
 def _visible_items():
@@ -59,26 +62,71 @@ def catalog(request):
     return response
 
 
+def _my_items_context(request, data):
+    """Daftar "Barang saya" (tab aktif/terhapus + filter + halaman) dari query string atau POST."""
+    filter_form = MyItemsFilterForm(data)
+    if filter_form.show_deleted:
+        own_items = Item.all_objects.filter(owner=request.user, is_deleted=True)
+    else:
+        # Termasuk barang yang sedang dipinjam; soft delete disaring manager default.
+        own_items = Item.objects.filter(owner=request.user)
+    page_obj = Paginator(filter_form.apply(own_items), MY_ITEMS_PAGE_SIZE).get_page(data.get("page"))
+    return {"filter_form": filter_form, "page_obj": page_obj, "show_deleted": filter_form.show_deleted}
+
+
+def _my_items_stats(user):
+    """Ringkasan barang aktif milik user dalam satu query; sengaja tidak mengikuti filter."""
+    return Item.objects.filter(owner=user).aggregate(
+        total=Count("pk"),
+        available=Count("pk", filter=Q(is_available=True)),
+        borrowed=Count("pk", filter=Q(is_available=False)),
+    )
+
+
 @require_GET
 @htmx_login_required
 def my_items(request):
-    """Barang milik user yang login, termasuk yang sedang dipinjam (soft delete tetap tersembunyi)."""
-    own_items = Item.objects.filter(owner=request.user)
-    filter_form = CatalogFilterForm(request.GET)
-    page_obj = Paginator(filter_form.apply(own_items), MY_ITEMS_PAGE_SIZE).get_page(request.GET.get("page"))
-    context = {"filter_form": filter_form, "page_obj": page_obj}
+    context = _my_items_context(request, request.GET)
     if _is_htmx_partial(request):
         template = "items/partials/my_item_list.html"
     else:
         template = "items/my_items.html"
-        # Ringkasan hanya ada di halaman penuh dan sengaja tidak mengikuti filter.
-        context["stats"] = own_items.aggregate(
-            total=Count("pk"),
-            available=Count("pk", filter=Q(is_available=True)),
-            borrowed=Count("pk", filter=Q(is_available=False)),
-        )
+        context["stats"] = _my_items_stats(request.user)
     response = render(request, template, context)
     patch_vary_headers(response, ["HX-Request"])
+    return response
+
+
+@require_POST
+@htmx_login_required
+@rate_limit("item_bulk", limit=ITEM_BULK_RATE_LIMIT, period=60 * 60)
+def item_bulk_action(request):
+    """Hapus/pulihkan beberapa barang milik sendiri sekaligus (juga dipakai aksi cepat per baris)."""
+    form = BulkItemActionForm(request.user, request.POST)
+    my_items_url = reverse("items:my_items")
+    if not form.is_valid():
+        message = next(iter(form.errors.values()))[0]
+        if is_htmx(request):
+            # 4xx tidak di-swap HTMX; my-items.js mengembalikan baris yang sudah disembunyikan (optimistic UI).
+            return toast_response(message, 400)
+        messages.error(request, message)
+        return redirect(my_items_url)
+
+    changed, skipped = form.save()
+    message = form.result_message(changed, skipped)
+    level = "success" if changed else "warning"
+    if not is_htmx(request):
+        messages.add_message(request, messages.SUCCESS if changed else messages.WARNING, message)
+        if form.cleaned_data["action"] == "restore":
+            my_items_url += "?status=deleted"
+        return redirect(my_items_url)
+
+    # HTMX: daftar dirender ulang dengan filter dan halaman yang ikut dikirim (hx-include),
+    # ringkasan diperbarui lewat hx-swap-oob.
+    context = _my_items_context(request, request.POST)
+    context["stats"] = _my_items_stats(request.user)
+    response = render(request, "items/partials/my_items_bulk_result.html", context)
+    response["HX-Trigger"] = json.dumps({"showToast": {"message": message, "level": level}})
     return response
 
 

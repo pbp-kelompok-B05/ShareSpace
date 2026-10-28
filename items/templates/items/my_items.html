@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% load static %}
 {% comment %}
-Halaman "Barang saya": barang milik user yang login. Context: filter_form, page_obj, stats.
+Halaman "Barang saya": barang milik user yang login. Context: filter_form, page_obj, show_deleted, stats.
 {% endcomment %}
 
 {% block title %}Barang Saya — ShareSpace{% endblock %}
 
 {% block extra_head %}
-{# Panel filter memakai ulang gaya katalog. #}
+{# Panel filter memakai ulang gaya katalog; dialog konfirmasi memakai gaya dialog di detail dan form. #}
 <link rel="stylesheet" href="{% static 'items/css/catalog.css' %}">
+<link rel="stylesheet" href="{% static 'items/css/detail.css' %}">
+<link rel="stylesheet" href="{% static 'items/css/form.css' %}">
 <link rel="stylesheet" href="{% static 'items/css/my-items.css' %}">
 {% endblock %}
 
@@ -24,19 +26,22 @@ Halaman "Barang saya": barang milik user yang login. Context: filter_form, page_
         <a class="button button-primary" href="{{ create_url }}">+ Pinjamkan Barang</a>
     </div>
 
-    <dl class="my-items-stats">
-        <div class="my-items-stat"><dt>Total barang</dt>
-            <dd>{{ stats.total }}</dd></div>
-        <div class="my-items-stat"><dt>Tersedia</dt>
-            <dd>{{ stats.available }}</dd></div>
-        <div class="my-items-stat"><dt>Sedang dipinjam</dt>
-            <dd>{{ stats.borrowed }}</dd></div>
-    </dl>
+    {% include "items/partials/my_items_stats.html" %}
 
     {# Tanpa JS: form GET biasa. Dengan HTMX: hanya #my-item-list yang diganti dan URL ikut diperbarui. #}
     <form id="my-items-filter" class="catalog-filter" method="get" action="{{ my_items_url }}" role="search"
           hx-get="{{ my_items_url }}" hx-target="#my-item-list" hx-push-url="true" hx-sync="this:replace"
           hx-trigger="submit, change, input changed delay:400ms from:#id_q" hx-indicator="#my-items-loading">
+        {# Tab status ikut form filter, jadi filter lain tetap berlaku saat berpindah tab. #}
+        <fieldset class="chip-group my-items-tabs">
+            <legend class="sr-only">{{ filter_form.status.label }}</legend>
+            {% with current=filter_form.cleaned_data.status|default:"active" %}
+            {% for value, label in filter_form.status.field.choices %}
+                <label class="chip"><input type="radio" name="status" value="{{ value }}"{% if value == current %} checked{% endif %}>{{ label }}</label>
+            {% endfor %}
+            {% endwith %}
+        </fieldset>
+
         <div class="catalog-search">
             <label class="sr-only" for="{{ filter_form.q.id_for_label }}">Cari barang saya</label>
             <span class="catalog-search-icon" aria-hidden="true">⌕</span>
@@ -69,4 +74,24 @@ Halaman "Barang saya": barang milik user yang login. Context: filter_form, page_
         {% include "items/partials/my_item_list.html" %}
     </div>
 </section>
+
+{# Konfirmasi hapus (dibuka my-items.js lewat event htmx:confirm). Di luar #my-item-list agar tidak ikut terganti. #}
+<dialog id="my-items-confirm" class="item-dialog my-items-confirm" aria-labelledby="my-items-confirm-title" aria-describedby="my-items-confirm-text">
+    <div class="item-dialog-body">
+        <div class="item-dialog-header">
+            <h2 id="my-items-confirm-title" class="item-dialog-title">Hapus barang?</h2>
+            <button type="button" class="item-dialog-close" data-confirm-cancel aria-label="Tutup dialog">×</button>
+        </div>
+        <p id="my-items-confirm-text" class="item-delete-text"></p>
+        <p class="my-items-confirm-note">Barang yang dihapus disembunyikan dari katalog dan bisa dipulihkan dari tab Terhapus.</p>
+        <div class="item-form-actions">
+            <button type="button" class="button button-secondary" data-confirm-cancel autofocus>Batal</button>
+            <button type="button" class="button button-danger" data-confirm-ok>Ya, hapus</button>
+        </div>
+    </div>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script defer src="{% static 'items/js/my-items.js' %}"></script>
 {% endblock %}

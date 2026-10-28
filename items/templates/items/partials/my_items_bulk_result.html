@@ -1,0 +1,5 @@
+{% comment %}
+Respons HTMX bulk action: isi baru #my-item-list + ringkasan out-of-band.
+{% endcomment %}
+{% include "items/partials/my_item_list.html" %}
+{% include "items/partials/my_items_stats.html" with oob=True %}

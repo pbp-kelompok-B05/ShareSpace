@@ -65,6 +65,77 @@ class CatalogFilterForm(forms.Form):
         return any(self.cleaned_data.get(name) for name in ("q", "category", "condition", "available"))
 
 
+class MyItemsFilterForm(CatalogFilterForm):
+    """Filter "Barang saya": filter katalog + tab status (aktif/terhapus). Status bukan filter."""
+
+    STATUS_CHOICES = [("active", "Aktif"), ("deleted", "Terhapus")]
+
+    status = forms.ChoiceField(label="Tampilkan", required=False, choices=STATUS_CHOICES)
+
+    @property
+    def show_deleted(self):
+        self.is_valid()
+        return self.cleaned_data.get("status") == "deleted"
+
+
+class BulkItemActionForm(forms.Form):
+    """Aksi massal untuk barang milik sendiri.
+
+    Pilihan dibatasi ke barang milik `user` (termasuk yang terhapus, untuk dipulihkan), jadi satu pk
+    milik orang lain membuat seluruh form tidak valid dan tidak ada barang yang berubah.
+    """
+
+    MAX_ITEMS = 100
+    SKIPPED_REASONS = {
+        "delete": "karena sedang dipinjam",
+        "restore": "karena belum dihapus",
+    }
+
+    action = forms.ChoiceField(
+        choices=[("delete", "Hapus"), ("restore", "Pulihkan")],
+        error_messages={
+            "required": "Aksi wajib dipilih.",
+            "invalid_choice": "Aksi tidak dikenal.",
+        },
+    )
+    items = forms.ModelMultipleChoiceField(
+        queryset=Item.all_objects.none(),
+        error_messages={
+            "required": "Pilih minimal satu barang.",
+            "invalid_choice": "Ada barang yang tidak ditemukan atau bukan milikmu.",
+            "invalid_pk_value": "Ada barang yang tidak ditemukan atau bukan milikmu.",
+        },
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["items"].queryset = Item.all_objects.filter(owner=user)
+
+    def clean_items(self):
+        items = self.cleaned_data["items"]
+        if len(items) > self.MAX_ITEMS:
+            raise forms.ValidationError(f"Maksimal {self.MAX_ITEMS} barang per aksi.")
+        return items
+
+    def save(self):
+        """Jalankan aksi; kembalikan (jumlah berubah, jumlah dilewati)."""
+        items = self.cleaned_data["items"]
+        if self.cleaned_data["action"] == "delete":
+            changed = items.soft_delete()
+        else:
+            changed = items.restore()
+        return changed, len(items) - changed
+
+    def result_message(self, changed, skipped):
+        """Pesan toast, mis. "2 barang dihapus. 1 barang dilewati karena sedang dipinjam."."""
+        action = self.cleaned_data["action"]
+        verb = "dihapus" if action == "delete" else "dipulihkan"
+        message = f"{changed} barang {verb}." if changed else f"Tidak ada barang yang {verb}."
+        if skipped:
+            message += f" {skipped} barang dilewati {self.SKIPPED_REASONS[action]}."
+        return message
+
+
 def _item_formfield(db_field, **kwargs):
     # Tanpa skema ("contoh.com/foto.jpg") dianggap https; sekaligus menghindari warning Django 6.0.
     if isinstance(db_field, models.URLField):

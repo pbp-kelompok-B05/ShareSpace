@@ -8,12 +8,27 @@
 .my-items-stat dt{color:var(--muted);font-size:13px;font-weight:600}
 .my-items-stat dd{margin:4px 0 0;color:var(--ink);font:800 28px/1.1 var(--font-heading);letter-spacing:-.02em}
 
+/* Tab status (radio di dalam form filter) */
+.my-items-tabs{min-width:0;margin:0;padding:0;border:0}
 .my-items-controls{width:100%}
+
+/* Toolbar bulk action */
+.my-items-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0 0 12px;padding:10px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.my-items-select-all{display:inline-flex;align-items:center;gap:8px;color:var(--ink);font-size:13px;font-weight:600;cursor:pointer}
+.my-items-select-all input,.my-item-select input{width:18px;height:18px;margin:0;accent-color:var(--green);cursor:pointer}
+.my-items-selected{margin:0;color:var(--muted);font-size:13px}
+.my-items-count{margin:0 0 0 auto}
+.my-items-toolbar .button[disabled]{opacity:.5;cursor:not-allowed;transform:none}
 
 /* Daftar baris */
 .my-item-rows{display:grid;gap:12px;margin:0;padding:0;list-style:none}
-.my-item-row{display:grid;grid-template-columns:64px minmax(0,1fr) auto auto;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);transition:border-color .2s,box-shadow .2s}
+.my-item-row{display:grid;grid-template-columns:auto 64px minmax(0,1fr) auto auto auto;align-items:center;gap:16px;padding:12px 16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);transition:border-color .2s,box-shadow .2s,opacity .25s,transform .25s}
 .my-item-row:hover,.my-item-row:focus-within{border-color:var(--green);box-shadow:0 8px 24px #1c302914}
+.my-item-row.is-selected{border-color:var(--green);background:var(--success-bg)}
+.my-item-row.is-locked .my-item-select input{cursor:not-allowed;opacity:.4}
+/* Optimistic UI: baris dianggap sudah terhapus/dipulihkan sampai server membalas. */
+.my-item-row.is-pending{opacity:0;transform:translateX(24px);pointer-events:none}
+.my-item-select{display:flex}
 .my-item-thumb{display:grid;place-items:center;width:64px;height:64px;overflow:hidden;border-radius:12px;background:var(--surface-muted)}
 .my-item-thumb img{display:block;width:100%;height:100%;object-fit:cover}
 .my-item-thumb .my-item-placeholder{width:36px;height:36px;object-fit:contain}
@@ -24,16 +39,32 @@
 .my-item-meta{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 0;color:var(--muted);font-size:13px}
 .my-item-status{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
 .my-item-date{margin:0;color:var(--muted);font-size:13px;white-space:nowrap}
+.my-item-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.my-item-actions form{margin:0}
+.my-item-note{max-width:180px;margin:0;color:var(--muted);font-size:12px;line-height:1.4;text-align:right}
 
+/* Dialog konfirmasi (gaya dasar dari detail.css dan form.css) */
+.my-items-confirm{width:min(480px,calc(100% - 32px))}
+.my-items-confirm-note{margin:-8px 0 18px;color:var(--muted);font-size:13px}
+
+@media(max-width:960px){
+  /* Aksi turun ke baris kedua agar nama barang tetap terbaca. */
+  .my-item-row{grid-template-columns:auto 64px minmax(0,1fr) auto auto}
+  .my-item-actions{grid-column:3 / -1;justify-content:flex-start}
+  .my-item-note{max-width:none;text-align:left}
+}
 @media(max-width:700px){
   .my-items{padding-block:32px 56px}
   .my-items-stats{gap:10px}
   .my-items-stat{padding:12px}
   .my-items-stat dd{font-size:22px}
   .my-items-controls select{flex:1 1 140px}
-  /* Baris ditumpuk: status dan tanggal pindah ke bawah nama. */
-  .my-item-row{grid-template-columns:56px minmax(0,1fr);gap:4px 12px;padding:12px}
-  .my-item-thumb{grid-row:span 3;width:56px;height:56px;align-self:start}
+  .my-items-count{flex-basis:100%;margin:0;order:-1}
+  /* Baris ditumpuk: status, tanggal, dan aksi pindah ke bawah nama. */
+  .my-item-row{grid-template-columns:auto 56px minmax(0,1fr);gap:6px 12px;padding:12px}
+  .my-item-select,.my-item-thumb{grid-row:span 4;align-self:start}
+  .my-item-thumb{width:56px;height:56px}
+  .my-item-status,.my-item-date,.my-item-actions{grid-column:3}
   .my-item-status{justify-content:flex-start}
 }
 @media(max-width:420px){.my-items-stat dt{font-size:12px}}
