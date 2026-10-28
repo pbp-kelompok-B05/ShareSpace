@@ -57,7 +57,10 @@ urlpatterns = [
     ], "items"))),
     path("loans/", include(([path("", _base_page, name="list")], "loans"))),
     path("cod/", include(([path("", _base_page, name="location_list")], "cod_location"))),
-    path("reports/", include(([path("", _base_page, name="report_list")], "review"))),
+    path("reports/", include(([
+        path("", _base_page, name="report_list"),
+        path("mine/", _base_page, name="my_reports"),
+    ], "review"))),
     path("_test/messages/", _message_page),
     path("_test/messages-login/", _message_then_login),
     path("_test/forbidden/", _forbidden_with_message),
@@ -330,6 +333,31 @@ class NavbarModuleLinksTest(TestCase):
     def test_report_link_only_for_staff(self):
         self.client.login(username="admin_mod", password=self.password)
         self.assertContains(self.client.get("/"), 'href="/reports/"')
+
+    def test_my_reports_link_after_loans_for_authenticated(self):
+        self.client.login(username="warga_mod", password=self.password)
+        html = self.client.get("/").content.decode()
+        self.assertRegex(
+            html,
+            r'<a href="/loans/">Peminjaman saya</a>\s*<a href="/reports/mine/">Laporan saya</a>',
+        )
+
+    def test_my_reports_link_hidden_for_anonymous(self):
+        response = self.client.get("/")
+        self.assertNotContains(response, 'href="/reports/mine/"')
+        self.assertNotContains(response, "Laporan saya")
+
+    def test_my_reports_link_marked_active_on_its_page(self):
+        self.client.login(username="warga_mod", password=self.password)
+        html = self.client.get("/reports/mine/").content.decode()
+        self.assertRegex(html, r'<a href="/reports/mine/" aria-current="page">Laporan saya</a>')
+        self.assertNotRegex(html, r'<a href="/loans/" aria-current="page">')
+
+    def test_staff_sees_my_reports_and_moderation_links(self):
+        self.client.login(username="admin_mod", password=self.password)
+        html = self.client.get("/").content.decode()
+        self.assertIn('<a href="/reports/mine/">Laporan saya</a>', html)
+        self.assertIn('<a href="/reports/">Laporan</a>', html)
 
     def test_catalog_link_labelled_with_new_badge(self):
         html = self.client.get("/").content.decode()
