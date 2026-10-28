@@ -177,13 +177,35 @@ class ItemDeleteConfirmTest(ItemDeleteTestMixin, TestCase):
 
 
 class ItemDeleteSubmitTest(ItemDeleteTestMixin, TestCase):
-    """POST: soft delete, lalu kembali ke katalog dengan pesan sukses."""
+    """POST: soft delete, lalu pemilik kembali ke "Barang saya" dengan pesan sukses."""
 
-    def test_post_soft_deletes_and_redirects_to_catalog(self):
+    def test_post_soft_deletes_and_redirects_owner_to_my_items(self):
         self.login()
         response = self.post()
-        self.assertRedirects(response, reverse("items:catalog"))
+        self.assertRedirects(response, reverse("items:my_items"))
         self.assertSoftDeleted()
+
+    def test_staff_deleting_other_users_item_redirects_to_catalog(self):
+        # "Barang saya" milik admin tidak berisi barang ini, jadi admin kembali ke katalog.
+        self.login(self.staff)
+        self.assertRedirects(self.post(), reverse("items:catalog"))
+
+    def test_staff_deleting_other_users_item_htmx_redirects_to_catalog(self):
+        self.login(self.staff)
+        self.assertEqual(self.post(htmx=True)["HX-Redirect"], reverse("items:catalog"))
+
+    def test_staff_deleting_own_item_redirects_to_my_items(self):
+        own = self.make_item(owner=self.staff)
+        self.login(self.staff)
+        response = self.client.post(reverse("items:delete", args=[own.pk]))
+        self.assertRedirects(response, reverse("items:my_items"))
+
+    def test_deleted_item_listed_in_my_items_deleted_tab(self):
+        self.login()
+        response = self.post(follow=True)
+        self.assertNotIn(self.item.name, [i.name for i in response.context["page_obj"].object_list])
+        deleted_tab = self.client.get(reverse("items:my_items"), {"status": "deleted"})
+        self.assertIn(self.item.name, [i.name for i in deleted_tab.context["page_obj"].object_list])
 
     def test_success_message(self):
         self.login()
@@ -201,7 +223,7 @@ class ItemDeleteSubmitTest(ItemDeleteTestMixin, TestCase):
         self.login()
         response = self.post(htmx=True)
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(response["HX-Redirect"], reverse("items:catalog"))
+        self.assertEqual(response["HX-Redirect"], reverse("items:my_items"))
         self.assertEqual([str(m) for m in get_messages(response.wsgi_request)], [SUCCESS_MESSAGE])
         self.assertSoftDeleted()
 
