@@ -155,7 +155,8 @@ def schedule_to_dict(schedule):
 
 def user_can_access_loan(user, loan):
     return (
-        loan.borrower_id == user.pk
+        user.is_superuser
+        or loan.borrower_id == user.pk
         or loan.item.owner_id == user.pk
     )
 
@@ -163,10 +164,13 @@ def user_can_access_loan(user, loan):
 def get_accessible_loan(request, loan_id):
     loans = LoanRequest.objects.select_related(
         "item", "item__owner"
-    ).filter(
-        Q(borrower=request.user)
-        | Q(item__owner=request.user)
     )
+    
+    if not request.user.is_superuser:
+        loans = loans.filter(
+            Q(borrower=request.user)
+            | Q(item__owner=request.user)
+        )
 
     return get_object_or_404(loans, pk=loan_id)
 
@@ -220,8 +224,21 @@ def location_create(request):
 
     location = form.save(commit=False)
     location.created_by = request.user
-    location.full_clean()
-    location.save()
+
+    try:
+        location.full_clean()
+        location.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data lokasi tidak valid.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
 
     return JsonResponse({
         "success": True,
@@ -253,8 +270,21 @@ def location_update(request, pk):
         return form_errors(form)
 
     location = form.save(commit=False)
-    location.full_clean()
-    location.save()
+
+    try:
+        location.full_clean()
+        location.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data lokasi tidak valid.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
 
     return JsonResponse({
         "success": True,
@@ -426,11 +456,24 @@ def schedule_update(request, pk):
         return form_errors(form)
 
     schedule = form.save(commit=False)
-    schedule.full_clean()
 
     try:
+        schedule.full_clean()
+
         with transaction.atomic():
             schedule.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data jadwal tidak valid atau jenis jadwal sudah digunakan.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
+
     except IntegrityError:
         return JsonResponse({
             "success": False,

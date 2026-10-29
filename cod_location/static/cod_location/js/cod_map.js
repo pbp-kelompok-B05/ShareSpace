@@ -84,8 +84,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (location) {
             form.elements.name.value = location.name;
             form.elements.address.value = location.address;
-            form.elements.latitude.value = location.latitude;
-            form.elements.longitude.value = location.longitude;
+            form.elements.latitude.value = Number(location.latitude).toFixed(6);
+            form.elements.longitude.value = Number(location.longitude).toFixed(6);
             form.elements.notes.value = location.notes;
 
             map.setView(
@@ -308,8 +308,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         form.elements.name.value = place.name;
         form.elements.address.value = place.address;
-        form.elements.latitude.value = place.latitude;
-        form.elements.longitude.value = place.longitude;
+        form.elements.latitude.value = Number(place.latitude).toFixed(6);
+        form.elements.longitude.value = Number(place.longitude).toFixed(6);
 
         if (selectedMarker) {
             map.removeLayer(selectedMarker);
