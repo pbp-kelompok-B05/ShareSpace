@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ item.name }} — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'items/css/detail.css' %}">
+{% if show_item_dialog %}<link rel="stylesheet" href="{% static 'items/css/form.css' %}">{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include "items/partials/item_detail_body.html" %}
+
+{% if show_item_dialog %}
+    {# Di luar #item-detail agar tidak ikut terganti saat detail di-swap setelah edit. Isi dimuat HTMX. #}
+    <dialog id="item-dialog" class="item-dialog" aria-labelledby="item-dialog-title">
+        <div id="item-dialog-body" class="item-dialog-body"></div>
+    </dialog>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if show_item_dialog %}<script defer src="{% static 'items/js/item-dialog.js' %}"></script>{% endif %}
+{% endblock %}

@@ -1,0 +1,6 @@
+{% comment %}
+Respons HTMX setelah edit berhasil: menggantikan #item-detail (HX-Retarget).
+HTMX memakai <title> di respons untuk memperbarui judul tab jika nama barang berubah.
+{% endcomment %}
+<title>{{ item.name }} — ShareSpace</title>
+{% include "items/partials/item_detail_body.html" %}
