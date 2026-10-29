@@ -8,7 +8,30 @@ from django.utils import timezone
 from items.validators import StrippedMinLengthValidator
 
 
-class ActiveItemManager(models.Manager):
+class ItemQuerySet(models.QuerySet):
+
+    def visible(self):
+        """Barang yang boleh tampil di katalog: pemiliknya masih aktif."""
+        return self.filter(owner__is_active=True)
+
+    def soft_delete(self):
+        """Versi massal Item.soft_delete() dalam satu UPDATE; barang yang sedang dipinjam dilewati.
+
+        Mengembalikan jumlah barang yang benar-benar dihapus.
+        """
+        now = timezone.now()
+        return self.filter(is_deleted=False, is_available=True).update(
+            is_deleted=True, deleted_at=now, updated_at=now,
+        )
+
+    def restore(self):
+        """Versi massal Item.restore(). Panggil lewat all_objects (manager default menyaring barang terhapus)."""
+        return self.filter(is_deleted=True).update(
+            is_deleted=False, deleted_at=None, updated_at=timezone.now(),
+        )
+
+
+class ActiveItemManager(models.Manager.from_queryset(ItemQuerySet)):
     """Manager default: menyembunyikan barang yang sudah di-soft delete."""
 
     def get_queryset(self):
@@ -61,7 +84,7 @@ class Item(models.Model):
 
     # Manager pertama menjadi manager default.
     objects = ActiveItemManager()
-    all_objects = models.Manager()
+    all_objects = models.Manager.from_queryset(ItemQuerySet)()
 
     class Meta:
         ordering = ["-created_at"]
@@ -84,6 +107,15 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def placeholder_path(self):
+        """Path static gambar pengganti jika image_url kosong (per kategori)."""
+        return f"items/img/placeholders/{self.category}.svg"
+
+    def can_be_managed_by(self, user):
+        """Pemilik atau admin (is_staff) boleh mengubah/menghapus barang ini."""
+        return user.is_authenticated and (user.is_staff or self.owner_id == user.pk)
 
     def soft_delete(self, force=False):
         """Sembunyikan barang. force=True hanya untuk jalur moderasi admin."""

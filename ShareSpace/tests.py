@@ -73,6 +73,17 @@ urlpatterns = [
     path("_test/forbidden-plain/", _forbidden_plain),
 ]
 
+class MinimalUrlconf:
+    """Urlconf tanpa URL modul mana pun, untuk menguji navbar saat modul belum ter-merge.
+
+    Berupa class (bukan modul) karena urlconf cukup objek hashable yang punya urlpatterns.
+    """
+
+    urlpatterns = [
+        path("", landing_page, name="landing_page"),
+        path("auth/", include((auth_urls.urlpatterns, "authentication"))),
+    ]
+
 
 class BaseTemplateStructureTest(TestCase):
     """Base template dipecah ke partial dan tetap dipakai semua halaman yang ada."""
@@ -242,11 +253,11 @@ class NavbarTest(TestCase):
     def test_anonymous_sees_login_and_start_button(self):
         html = self.client.get(reverse("landing_page")).content.decode()
         self.assertIn(f'href="{reverse("authentication:login")}"', html)
-        # Katalog belum ada di urlconf proyek: tombol "Mulai jelajahi" sementara mengarah ke daftar.
+        # Katalog sudah ada di urlconf proyek: tombol "Mulai jelajahi" mengarah ke katalog.
         self.assertRegex(
             html,
             r'<a class="button button-primary button-sm header-start" href="%s">\s*Mulai jelajahi'
-            % re.escape(reverse("authentication:register")),
+            % re.escape(reverse("items:catalog")),
         )
         self.assertNotIn(reverse("authentication:logout"), html)
 
@@ -278,12 +289,13 @@ class NavbarTest(TestCase):
         self.assertContains(self.client.get(reverse("landing_page")), anchor)
         self.assertNotContains(self.client.get(reverse("authentication:login")), anchor)
 
+    @override_settings(ROOT_URLCONF=MinimalUrlconf)
     def test_module_links_hidden_when_urls_missing(self):
-        # Urlconf proyek di branch ini belum punya URL modul; halaman tetap render tanpa error.
+        # Tanpa URL modul, {% url ... as var %} kosong: halaman tetap render dan link modul tidak tampil.
         response = self.client.get(reverse("authentication:login"))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, ">Katalog<")
         self.assertNotContains(response, "Katalog Komunitas")
+        self.assertNotContains(response, "Lokasi COD")
 
     def test_mobile_menu_toggle_accessible(self):
         html = self.client.get(reverse("landing_page")).content.decode()

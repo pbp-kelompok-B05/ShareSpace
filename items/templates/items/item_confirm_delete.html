@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Halaman konfirmasi hapus untuk akses tanpa JS (link "Hapus Barang" di detail).
+Dengan HTMX, konfirmasi yang sama tampil di dialog (partials/item_delete_dialog.html).
+{% endcomment %}
+
+{% block title %}Hapus Barang — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'items/css/form.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="item-form-page container" aria-labelledby="item-delete-title">
+    <div class="item-form-inner">
+        <a class="item-form-back" href="{{ cancel_url }}">← Kembali</a>
+        <h1 id="item-delete-title" class="item-form-title">Hapus Barang</h1>
+        <p class="item-form-subtitle">Pastikan barang ini memang tidak ingin kamu pinjamkan lagi.</p>
+        <div class="card item-form-card">
+            {% include "items/partials/item_delete_form.html" %}
+        </div>
+    </div>
+</section>
+{% endblock %}

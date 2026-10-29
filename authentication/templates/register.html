@@ -1,71 +1,38 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "auth_base.html" %}
 
 {% block title %}Daftar Akun — ShareSpace{% endblock %}
 
-{% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% block panel_heading %}Mulai Berbagi, Hemat Bersama.{% endblock %}
+{% block panel_text %}Buat akun ShareSpace dan mulai pinjam atau pinjamkan barang dengan tetangga dan teman kampus di sekitarmu.{% endblock %}
+{% block panel_points %}
+    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Gratis dan mudah digunakan</li>
+    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Pinjam barang tanpa perlu membeli</li>
+    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Komunitas Depok &amp; Kampus yang saling percaya</li>
 {% endblock %}
 
-{% block messages %}{% endblock %}
+{% block form_area %}
+<h1 class="m-0 mb-2 text-3xl tracking-tight">Buat Akun Baru</h1>
+<p class="mb-6 text-sm text-muted">Bergabung bersama komunitas ShareSpace sekarang.</p>
 
-{% block content %}
-<section class="section-space auth-wrapper">
-    <div class="container auth-container auth-container-wide">
-        <div class="auth-card">
-            <div class="auth-header">
-                <span class="eyebrow">REGISTRASI PENGGUNA</span>
-                <h1 class="auth-title">Buat Akun Baru</h1>
-                <p class="auth-subtitle">Bergabung bersama komunitas ShareSpace sekarang.</p>
-            </div>
+{% include "partials/social_login.html" with action="Daftar" %}
 
-            {% if messages %}
-                <div class="auth-messages">
-                    {% for message in messages %}
-                        <div class="auth-message">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
+<form method="post" action="{% url 'authentication:register' %}" novalidate>
+    {% csrf_token %}
 
-            <form method="post" action="{% url 'authentication:register' %}">
-                {% csrf_token %}
-
-                {% if form.non_field_errors %}
-                    <div class="auth-alert-error">
-                        {% for error in form.non_field_errors %}
-                            <p>{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                {% for field in form %}
-                    <div class="auth-field">
-                        <label for="{{ field.id_for_label }}">
-                            {{ field.label }}
-                        </label>
-                        {{ field }}
-                        {% if field.help_text %}
-                            <p class="auth-help-text">{{ field.help_text|safe }}</p>
-                        {% endif %}
-                        {% if field.errors %}
-                            {% for error in field.errors %}
-                                <p class="auth-error">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                {% endfor %}
-
-                <button type="submit" class="button button-primary auth-submit-btn">
-                    Daftar Akun
-                </button>
-            </form>
-
-            <div class="auth-footer">
-                Sudah punya akun? <a href="{% url 'authentication:login' %}">Login di sini</a>
-            </div>
+    {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
         </div>
-    </div>
-</section>
-{% endblock content %}
+    {% endif %}
+
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/password_field.html" with field=form.password1 %}
+    {% include "partials/password_field.html" with field=form.password2 %}
+
+    <button type="submit" class="button button-primary mt-2 w-full">Daftar Akun</button>
+</form>
+
+<p class="mb-0 mt-6 text-center text-sm text-muted">
+    Sudah punya akun? <a class="font-bold text-primary hover:underline" href="{% url 'authentication:login' %}">Masuk di sini</a>
+</p>
+{% endblock %}

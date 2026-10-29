@@ -13,3 +13,19 @@
 .review-dialog-body{display:grid;gap:14px;padding:24px}
 .review-dialog-title{margin:0;font-size:22px;letter-spacing:-.02em}
 .review-dialog-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}
+
+/* Tab berupa link (mis. "Ulasan saya"): sama seperti chip terpilih. */
+.chip[aria-current="page"]{background:var(--green);color:var(--on-primary)}
+
+/* Rating bintang read-only (partials/stars.html) */
+.review-stars{color:var(--amber);font-size:18px;letter-spacing:2px;white-space:nowrap}
+
+/* Input rating bintang tanpa JS (partials/star_rating_input.html).
+   Radio urut 5→1 di DOM lalu dibalik tampilannya, jadi "~" menyalakan bintang yang lebih kecil. */
+.review-star-input{display:inline-flex;flex-direction:row-reverse;justify-content:flex-end;gap:4px}
+.review-star-input input{position:absolute;width:1px;height:1px;opacity:0}
+.review-star-input label{padding:2px;border-radius:6px;color:var(--input-border);font-size:34px;line-height:1;cursor:pointer;transition:color .15s}
+.review-star-input input:checked ~ label,
+.review-star-input label:hover,
+.review-star-input label:hover ~ label{color:var(--amber)}
+.review-star-input input:focus-visible + label{outline:3px solid var(--focus);outline-offset:2px}

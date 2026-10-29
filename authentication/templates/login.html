@@ -1,68 +1,44 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "auth_base.html" %}
 
 {% block title %}Login — ShareSpace{% endblock %}
 
-{% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% block panel_heading %}Satu Komunitas, Berjuta Solusi Berbagi.{% endblock %}
+{% block panel_text %}Bergabunglah bersama ribuan mahasiswa dan warga sekitar yang saling meminjamkan barang tanpa rasa cemas.{% endblock %}
+{% block panel_points %}
+    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Autentikasi Aman Google OAuth</li>
+    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Verifikasi Domisili Depok &amp; Kampus</li>
 {% endblock %}
 
-{% block messages %}{% endblock %}
+{% block form_area %}
+<h1 class="m-0 mb-2 text-3xl tracking-tight">Selamat Datang Kembali</h1>
+<p class="mb-6 text-sm text-muted">Masuk ke akun ShareSpace Anda untuk melanjutkan transaksi.</p>
 
-{% block content %}
-<section class="section-space auth-wrapper">
-    <div class="container auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <span class="eyebrow">MASUK KE AKUN</span>
-                <h1 class="auth-title">Selamat Datang</h1>
-                <p class="auth-subtitle">Masuk untuk mulai berbagi dan meminjam barang.</p>
-            </div>
-
-            {% if messages %}
-                <div class="auth-messages">
-                    {% for message in messages %}
-                        <div class="auth-message">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            <form method="post" action="{% url 'authentication:login' %}">
-                {% csrf_token %}
-
-                {% if form.non_field_errors %}
-                    <div class="auth-alert-error">
-                        {% for error in form.non_field_errors %}
-                            <p>{{ error }}</p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                {% for field in form %}
-                    <div class="auth-field">
-                        <label for="{{ field.id_for_label }}">
-                            {{ field.label }}
-                        </label>
-                        {{ field }}
-                        {% if field.errors %}
-                            {% for error in field.errors %}
-                                <p class="auth-error">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                {% endfor %}
-
-                <button type="submit" class="button button-primary auth-submit-btn">
-                    Masuk Sekarang
-                </button>
-            </form>
-
-            <div class="auth-footer">
-                Belum punya akun? <a href="{% url 'authentication:register' %}">Daftar di sini</a>
-            </div>
-        </div>
+{% if messages %}
+    <div class="mb-5 grid gap-2" role="status">
+        {% for message in messages %}
+            <div class="rounded-lg border px-4 py-3 text-sm font-medium text-primary" style="background: var(--success-bg); border-color: var(--success-line);">{{ message }}</div>
+        {% endfor %}
     </div>
-</section>
-{% endblock content %}
+{% endif %}
+
+{% include "partials/social_login.html" with action="Masuk" %}
+
+<form method="post" action="{% url 'authentication:login' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/password_field.html" with field=form.password %}
+
+    <button type="submit" class="button button-primary mt-2 w-full">Masuk</button>
+</form>
+
+<p class="mb-0 mt-6 text-center text-sm text-muted">
+    Belum punya akun? <a class="font-bold text-primary hover:underline" href="{% url 'authentication:register' %}">Daftar sekarang</a>
+</p>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Katalog Barang — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'items/css/catalog.css' %}">
+{% endblock %}
+
+{% block content %}
+{% url 'items:catalog' as catalog_url %}
+{% url 'items:create' as create_url %}
+<section class="catalog container" aria-labelledby="catalog-title">
+    <div class="catalog-header">
+        <div>
+            <h1 id="catalog-title" class="page-title">Katalog Barang Komunitas</h1>
+            <p class="page-subtitle">Temukan barang yang tersedia untuk dipinjam dari tetangga di sekitarmu.</p>
+        </div>
+        {% if create_url %}<a class="button button-primary" href="{{ create_url }}">+ Pinjamkan Barang</a>{% endif %}
+    </div>
+
+    {# Tanpa JS: form GET biasa. Dengan HTMX: hanya #item-list yang diganti dan URL ikut diperbarui. #}
+    <form id="catalog-filter" class="catalog-filter" method="get" action="{{ catalog_url }}" role="search"
+          hx-get="{{ catalog_url }}" hx-target="#item-list" hx-push-url="true" hx-sync="this:replace"
+          hx-trigger="submit, change, input changed delay:400ms from:#id_q" hx-indicator="#catalog-loading">
+        <div class="catalog-search">
+            <label class="sr-only" for="{{ filter_form.q.id_for_label }}">{{ filter_form.q.label }}</label>
+            <span class="catalog-search-icon" aria-hidden="true">⌕</span>
+            {{ filter_form.q }}
+            <span id="catalog-loading" class="spinner htmx-indicator" aria-hidden="true"></span>
+        </div>
+
+        <div class="catalog-filter-row">
+            <fieldset class="chip-group catalog-chips">
+                <legend class="sr-only">{{ filter_form.category.label }}</legend>
+                {# cleaned_data: kategori tidak valid dianggap "Semua". #}
+                {% with current=filter_form.cleaned_data.category|default:"" %}
+                {% for value, label in filter_form.category.field.choices %}
+                    <label class="chip"><input type="radio" name="category" value="{{ value }}"{% if value == current %} checked{% endif %}>{{ label }}</label>
+                {% endfor %}
+                {% endwith %}
+            </fieldset>
+
+            <div class="catalog-controls">
+                <label class="sr-only" for="{{ filter_form.condition.id_for_label }}">{{ filter_form.condition.label }}</label>
+                {{ filter_form.condition }}
+                <label class="sr-only" for="{{ filter_form.sort.id_for_label }}">{{ filter_form.sort.label }}</label>
+                {{ filter_form.sort }}
+                <label class="catalog-check" for="{{ filter_form.available.id_for_label }}">
+                    {{ filter_form.available }} {{ filter_form.available.label }}
+                </label>
+                {# Tanpa JS filter tidak terkirim saat berubah, jadi butuh tombol. Enter di kolom cari tetap jalan. #}
+                <noscript><button type="submit" class="button button-secondary button-sm">Terapkan</button></noscript>
+            </div>
+        </div>
+    </form>
+
+    <div id="item-list" class="catalog-results">
+        {% include "items/partials/item_list.html" %}
+    </div>
+</section>
+{% endblock %}

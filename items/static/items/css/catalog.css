@@ -1,0 +1,51 @@
+/* Katalog barang (Modul 2). Hanya token dari style.css agar ikut dark mode. */
+
+.catalog{padding-block:48px 72px}
+.catalog-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px}
+.page-title{max-width:none;margin:0 0 6px;font-size:clamp(28px,3.2vw,36px);line-height:1.2;letter-spacing:-.03em}
+.page-subtitle{margin:0;font-size:14px}
+
+/* Panel filter */
+.catalog-filter{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-bottom:28px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.catalog-search{position:relative}
+.catalog-search input{width:100%;padding:12px 44px;border:1px solid var(--input-border);border-radius:10px;background:var(--cream);color:var(--ink);font:400 14px/1.5 var(--font-body);transition:border-color .2s,background-color .2s}
+.catalog-search input:focus{border-color:var(--green);background:var(--surface)}
+.catalog-search-icon{position:absolute;top:50%;left:14px;color:var(--muted);font-size:20px;line-height:1;transform:translateY(-50%)}
+.catalog-search .spinner{position:absolute;top:50%;right:14px;margin-top:-9px;color:var(--green)}
+.catalog-filter-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
+/* fieldset tanpa border bawaan browser (preflight Tailwind dimatikan). */
+.catalog-chips{min-width:0;margin:0;padding:0;border:0}
+.catalog-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.catalog-controls select{min-height:40px;padding:8px 12px;border:1px solid var(--input-border);border-radius:10px;background:var(--surface);color:var(--ink);font:500 13px/1.2 var(--font-body)}
+.catalog-check{display:inline-flex;align-items:center;gap:8px;color:var(--ink);font-size:13px;font-weight:600;cursor:pointer}
+.catalog-check input{width:18px;height:18px;margin:0;accent-color:var(--green)}
+
+/* Hasil */
+.catalog-count{margin:0 0 14px;font-size:13px}
+.item-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin:0;padding:0;list-style:none}
+.item-grid>li{display:flex}
+.item-card{flex:1}
+.item-card-media{position:relative;display:grid;place-items:center;aspect-ratio:2/1}
+.item-card-media .item-card-placeholder{width:96px;height:96px;object-fit:contain}
+.item-card-media .badge{position:absolute;top:12px}
+.item-card-media .badge-available,.item-card-media .badge-unavailable{left:12px}
+.item-card-media .badge-category{right:12px}
+.item-card-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.item-card-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-card-description{display:-webkit-box;margin:0;overflow:hidden;font-size:13px;line-height:1.6;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.item-card-footer{padding-top:14px;border-top:1px solid var(--line)}
+.item-card-owner{display:inline-flex;align-items:center;gap:8px;min-width:0;font-size:13px;font-weight:600}
+.item-card-avatar{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--green);color:var(--on-primary);font-size:11px;font-weight:800}
+.item-card-more{color:var(--green);font-size:13px;font-weight:700;white-space:nowrap}
+
+@media(max-width:960px){.item-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+  .catalog{padding-block:32px 56px}
+  .catalog-filter-row{align-items:stretch}
+  /* Chip kategori digeser horizontal agar tidak memakan banyak baris di layar kecil. */
+  .catalog-chips{flex-wrap:nowrap;overflow-x:auto;margin-inline:-4px;padding:4px;scrollbar-width:thin}
+  .catalog-chips .chip{flex:none}
+  .catalog-controls{width:100%}
+  .catalog-controls select{flex:1 1 140px}
+}
+@media(max-width:600px){.item-grid{grid-template-columns:1fr;gap:16px}}
