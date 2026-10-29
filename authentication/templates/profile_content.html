@@ -59,12 +59,15 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
 
                 <!-- Footer Aksi -->
                 <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-                    <a class="button button-primary"
-                       href="{% url 'authentication:edit_profile' %}"
-                       hx-get="{% url 'authentication:edit_profile' %}"
-                       hx-target="#konten"
-                       hx-swap="innerHTML"
-                       hx-push-url="true">Ubah profil</a>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a class="button button-primary"
+                           href="{% url 'authentication:edit_profile' %}"
+                           hx-get="{% url 'authentication:edit_profile' %}"
+                           hx-target="#konten"
+                           hx-swap="innerHTML"
+                           hx-push-url="true">Ubah profil</a>
+                        <a class="button button-secondary" href="{% url 'review:my_reports' %}">Laporan saya</a>
+                    </div>
                     <a class="button button-danger-outline" href="{% url 'authentication:deactivate_account' %}">Nonaktifkan akun</a>
                 </div>
             </div>

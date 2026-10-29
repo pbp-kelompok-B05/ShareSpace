@@ -230,6 +230,11 @@ class AuthenticationTest(TestCase):
         response = self.client.get(reverse("authentication:profile"))
         self.assertContains(response, reverse("authentication:deactivate_account"))
 
+    def test_profile_page_has_my_reports_link(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertContains(response, reverse("review:my_reports"))
+
     def test_profile_page_has_no_dummy_metrics(self):
         self.client.login(username=self.username, password=self.password)
         response = self.client.get(reverse("authentication:profile"))
