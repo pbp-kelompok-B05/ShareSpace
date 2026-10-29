@@ -397,15 +397,17 @@ class LoanStatusFlowTests(LoanTestBase):
         loan.refresh_from_db()
         self.assertEqual(loan.status, LoanRequest.Status.PENDING)
 
-    # Memastikan Leon tidak dapat menyetujui dua pengajuan aktif untuk SG-09 R.
+    # Memastikan pengajuan lain otomatis ditolak setelah satu pengajuan disetujui.
     def test_second_pending_loan_cannot_be_approved_after_first(self):
         first = self.make_loan()
         second = self.make_loan(borrower=self.second_borrower)
         self.login_as(self.owner)
         self.assertEqual(self.client.post(self.url("approve", first)).status_code, 200)
         self.assertEqual(self.client.post(self.url("approve", second)).status_code, 409)
+        first.refresh_from_db()
         second.refresh_from_db()
-        self.assertEqual(second.status, LoanRequest.Status.PENDING)
+        self.assertEqual(first.status, LoanRequest.Status.APPROVED)
+        self.assertEqual(second.status, LoanRequest.Status.REJECTED)
 
     # Memastikan Leon dapat menolak pengajuan dan barang tetap tersedia.
     def test_owner_can_reject_pending_loan(self):

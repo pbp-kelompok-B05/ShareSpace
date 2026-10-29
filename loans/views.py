@@ -258,6 +258,12 @@ def loan_approve(request, pk):
             item.is_available = False
             item.save()
 
+            LoanRequest.objects.filter(
+                item=item, status=LoanRequest.Status.PENDING
+            ).exclude(pk=loan.pk).update(
+                status=LoanRequest.Status.REJECTED, updated_at=timezone.now()
+            )
+
     except IntegrityError:
         return JsonResponse({"message": "Barang sudah memiliki peminjaman aktif."}, status=409)
 
