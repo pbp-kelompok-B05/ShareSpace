@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Kerangka bersama login.html dan register.html: panel hijau di kiri, form di kanan.
+Halaman turunan mengisi block panel_heading, panel_text, panel_points, dan form_area.
+{% endcomment %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock %}
+
+{% block messages %}{% endblock %}
+
+{% block content %}
+<section class="grid min-h-[calc(100vh-200px)] lg:grid-cols-2">
+    <!-- Panel Dekorasi -->
+    <div class="auth-panel flex flex-col justify-center gap-6 px-8 py-12 text-white md:px-14 lg:py-16">
+        <span class="auth-dots" aria-hidden="true"></span>
+        <span class="auth-ring" aria-hidden="true"></span>
+
+        <div class="flex items-center gap-3 font-heading text-xl font-extrabold">
+            <span class="brand-logo" style="background: var(--lime); color: var(--green-dark);" aria-hidden="true">SS</span>
+            <span>ShareSpace</span>
+        </div>
+
+        <h2 class="m-0 max-w-md text-3xl font-extrabold leading-tight tracking-tight md:text-4xl">{% block panel_heading %}{% endblock %}</h2>
+        <p class="m-0 max-w-md border-b border-white/15 pb-6 text-sm leading-relaxed text-white/70">{% block panel_text %}{% endblock %}</p>
+
+        <ul class="m-0 grid list-none gap-4 p-0 text-sm text-white/85">
+            {% block panel_points %}{% endblock %}
+        </ul>
+    </div>
+
+    <!-- Area Form -->
+    <div class="flex items-center bg-cream px-6 py-12 md:px-14">
+        <div class="mx-auto w-full max-w-md">
+            {% block form_area %}{% endblock %}
+        </div>
+    </div>
+</section>
+{% endblock content %}
+
+{% block extra_js %}
+<script defer src="{% static 'js/password-peek.js' %}"></script>
+{% endblock %}
+
