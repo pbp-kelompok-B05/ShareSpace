@@ -266,17 +266,19 @@ class LoanCreateTests(LoanTestBase):
         self.assertEqual(response.status_code, 403)
         self.assertFalse(LoanRequest.objects.exists())
 
-    # Memastikan barang yang belum diverifikasi atau tidak tersedia tidak dapat dipinjam.
-    def test_unverified_or_unavailable_item_rejected(self):
+    # Memastikan barang tanpa badge verifikasi boleh dipinjam, tetapi barang tidak tersedia tetap ditolak.
+    def test_unverified_item_allowed_but_unavailable_rejected(self):
         self.login_as(self.borrower)
         url = reverse("loans:create", args=[self.item.pk])
-        for update in ({"is_verified": False}, {"is_verified": True, "is_available": False}):
-            with self.subTest(update=update):
-                Item.objects.filter(pk=self.item.pk).update(is_verified=True, is_available=True)
-                Item.objects.filter(pk=self.item.pk).update(**update)
-                response = self.client.post(url, self.loan_data())
-                self.assertEqual(response.status_code, 409)
-        self.assertFalse(LoanRequest.objects.exists())
+        Item.objects.filter(pk=self.item.pk).update(is_verified=False)
+        response = self.client.post(url, self.loan_data())
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(LoanRequest.objects.count(), 1)
+        Item.objects.filter(pk=self.item.pk).update(is_available=False)
+        self.login_as(self.second_borrower)
+        response = self.client.post(url, self.loan_data())
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(LoanRequest.objects.count(), 1)
 
     # Memastikan Ada tidak dapat mengajukan peminjaman pending yang sama dua kali.
     def test_duplicate_pending_request_rejected(self):
@@ -363,9 +365,10 @@ class LoanStatusFlowTests(LoanTestBase):
             with self.subTest(action=name):
                 self.assertEqual(self.client.post(self.url(name, loan)).status_code, 403)
 
-    # Memastikan persetujuan mengubah status transaksi dan membuat barang tidak tersedia.
+    # Memastikan barang belum diverifikasi boleh disetujui dan menjadi tidak tersedia.
     def test_approve_sets_item_unavailable(self):
         loan = self.make_loan()
+        Item.objects.filter(pk=self.item.pk).update(is_verified=False)
         self.login_as(self.owner)
         response = self.client.post(self.url("approve", loan))
         self.assertEqual(response.status_code, 200)
