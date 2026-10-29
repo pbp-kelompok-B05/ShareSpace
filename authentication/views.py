@@ -1,15 +1,18 @@
 import datetime
 import json
 
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login, logout
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
+from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
 
@@ -29,6 +32,7 @@ def register(request):
 
     context = {
         "form": form,
+        "google_client_id": getattr(settings, "GOOGLE_CLIENT_ID", ""),
     }
     return render(request, "register.html", context)
 
@@ -48,6 +52,7 @@ def login_user(request):
 
     context = {
         "form": form,
+        "google_client_id": getattr(settings, "GOOGLE_CLIENT_ID", ""),
     }
     return render(request, "login.html", context)
 
@@ -143,4 +148,84 @@ def public_profile(request, username):
         "profile": profile,
     }
     return render(request, "public_profile.html", context)
+
+
+@require_http_methods(["POST"])
+def google_login(request):
+    """
+    Endpoint autentikasi Google Identity Services (GSI).
+    Menerima ID token credential via POST form atau JSON payload dengan proteksi CSRF standar.
+    """
+    is_json = request.content_type == "application/json"
+    credential = request.POST.get("credential")
+    if not credential and is_json:
+        try:
+            body = json.loads(request.body)
+            credential = body.get("credential")
+        except Exception as e:
+            credential = None
+
+    if not credential:
+        if is_json:
+            return JsonResponse({"status": "error", "message": "Kredensial Google tidak ditemukan."}, status=400)
+        messages.error(request, "Kredensial Google tidak ditemukan.")
+        return redirect("authentication:login")
+
+    user = authenticate(request, google_credential=credential)
+
+    if not user:
+        if is_json:
+            return JsonResponse({"status": "error", "message": "Autentikasi Google gagal atau token tidak valid."}, status=400)
+        messages.error(request, "Autentikasi Google gagal atau token tidak valid.")
+        return redirect("authentication:login")
+
+    login(request, user)
+    messages.success(request, f"Selamat datang, {user.username}! Berhasil masuk via Google.")
+
+    if is_json:
+        response = JsonResponse({"status": "success", "redirect_url": reverse("landing_page")})
+    else:
+        response = redirect("landing_page")
+
+    response.set_cookie(
+        "last_login",
+        str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    )
+    return response
+
+
+@require_http_methods(["GET"])
+def sso_ui_login(request):
+    """
+    Mengarahkan pengguna ke halaman login CAS SSO UI.
+    """
+    service_url = request.build_absolute_uri(reverse("authentication:sso_ui_callback"))
+    return redirect(SSOUIAuthBackend.get_login_url(service_url))
+
+
+@require_http_methods(["GET"])
+def sso_ui_callback(request):
+    """
+    Callback handler dari CAS SSO UI setelah pengguna berhasil login.
+    """
+    ticket = request.GET.get("ticket")
+    if not ticket:
+        messages.error(request, "Tiket otorisasi SSO UI tidak ditemukan.")
+        return redirect("authentication:login")
+
+    service_url = request.build_absolute_uri(reverse("authentication:sso_ui_callback"))
+    user = authenticate(request, sso_ticket=ticket, service_url=service_url)
+
+    if not user:
+        messages.error(request, "Autentikasi SSO UI gagal. Silakan coba kembali.")
+        return redirect("authentication:login")
+
+    login(request, user)
+    messages.success(request, f"Selamat datang civitas UI, {user.username}! Berhasil masuk via SSO UI.")
+    response = redirect("landing_page")
+    response.set_cookie(
+        "last_login",
+        str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    )
+    return response
 

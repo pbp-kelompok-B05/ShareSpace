@@ -4,14 +4,14 @@ from django.urls import reverse
 
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
-from authentication.providers import GoogleAuthProvider, SSOUIAuthProvider
+from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 
 
 # Create your tests here.
 class AuthenticationTest(TestCase):
     def setUp(self):
-        self._orig_google_verify = GoogleAuthProvider.verify_token
-        self._orig_sso_validate = SSOUIAuthProvider.validate_ticket
+        self._orig_google_verify = GoogleAuthBackend.verify_token
+        self._orig_sso_validate = SSOUIAuthBackend.validate_ticket
         self.username = "frieren"
         self.password = "PasswordnyaFrieren69."
         self.user = User.objects.create_user(
@@ -26,8 +26,8 @@ class AuthenticationTest(TestCase):
         )
 
     def tearDown(self):
-        GoogleAuthProvider.verify_token = self._orig_google_verify
-        SSOUIAuthProvider.validate_ticket = self._orig_sso_validate
+        GoogleAuthBackend.verify_token = self._orig_google_verify
+        SSOUIAuthBackend.validate_ticket = self._orig_sso_validate
 
     def test_login_page_accessible(self):
         response = self.client.get(reverse("authentication:login"))
@@ -396,7 +396,7 @@ class AuthenticationTest(TestCase):
         self.assertRedirects(response, reverse("authentication:login"))
 
     def test_google_login_success(self):
-        GoogleAuthProvider.verify_token = lambda self, token: {
+        GoogleAuthBackend.verify_token = lambda self, token: {
             "email": "himmel@hero.com",
             "name": "Himmel The Hero",
             "email_verified": True,
@@ -418,7 +418,7 @@ class AuthenticationTest(TestCase):
         self.assertEqual(user.userprofile.profile_picture_url, "https://img.com/himmel.jpg")
 
     def test_google_login_json_success(self):
-        GoogleAuthProvider.verify_token = lambda self, token: {
+        GoogleAuthBackend.verify_token = lambda self, token: {
             "email": "eisen@dwarf.com",
             "name": "Eisen The Warrior",
             "email_verified": True,
@@ -437,7 +437,7 @@ class AuthenticationTest(TestCase):
         self.assertTrue(User.objects.filter(email="eisen@dwarf.com").exists())
 
     def test_google_login_invalid_token(self):
-        GoogleAuthProvider.verify_token = lambda self, token: None
+        GoogleAuthBackend.verify_token = lambda self, token: None
 
         response = self.client.post(
             reverse("authentication:google_login"),
@@ -457,7 +457,7 @@ class AuthenticationTest(TestCase):
         self.assertRedirects(response, reverse("authentication:login"))
 
     def test_sso_ui_callback_success(self):
-        SSOUIAuthProvider.validate_ticket = lambda self, ticket, service_url: {
+        SSOUIAuthBackend.validate_ticket = lambda self, ticket, service_url: {
             "username": "azka.nur",
             "nama": "Azka Nur Jauhar",
             "npm": "2506123456",
@@ -477,7 +477,7 @@ class AuthenticationTest(TestCase):
         self.assertEqual(user.userprofile.full_name, "Azka Nur Jauhar")
 
     def test_sso_ui_callback_failure(self):
-        SSOUIAuthProvider.validate_ticket = lambda self, ticket, service_url: None
+        SSOUIAuthBackend.validate_ticket = lambda self, ticket, service_url: None
 
         response = self.client.get(
             reverse("authentication:sso_ui_callback") + "?ticket=ST-expired-ticket",
@@ -486,9 +486,9 @@ class AuthenticationTest(TestCase):
         self.assertFalse(User.objects.filter(username="azka.nur").exists())
 
 
-class AuthProvidersTest(TestCase):
+class AuthBackendsTest(TestCase):
     def test_sso_ui_parse_cas_xml_success(self):
-        provider = SSOUIAuthProvider()
+        backend = SSOUIAuthBackend()
         cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
             <cas:authenticationSuccess>
                 <cas:user>azka.nur</cas:user>
@@ -498,21 +498,21 @@ class AuthProvidersTest(TestCase):
                 </cas:attributes>
             </cas:authenticationSuccess>
         </cas:serviceResponse>"""
-        user_info = provider.parse_cas_xml(cas_xml)
+        user_info = backend.parse_cas_xml(cas_xml)
         self.assertEqual(user_info["username"], "azka.nur")
         self.assertEqual(user_info["npm"], "2506123456")
         self.assertEqual(user_info["nama"], "Azka Nur Jauhar")
 
     def test_sso_ui_parse_cas_xml_failure(self):
-        provider = SSOUIAuthProvider()
+        backend = SSOUIAuthBackend()
         cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
             <cas:authenticationFailure code="INVALID_TICKET">Ticket expired</cas:authenticationFailure>
         </cas:serviceResponse>"""
-        self.assertIsNone(provider.parse_cas_xml(cas_xml))
+        self.assertIsNone(backend.parse_cas_xml(cas_xml))
 
     def test_auth_provider_get_or_create_user(self):
-        provider = GoogleAuthProvider()
-        user = provider.get_or_create_user(
+        backend = GoogleAuthBackend()
+        user = backend.get_or_create_user(
             username="heiter",
             email="heiter@priest.com",
             full_name="Heiter The Priest",
@@ -525,33 +525,34 @@ class AuthProvidersTest(TestCase):
         self.assertEqual(user.userprofile.full_name, "Heiter The Priest")
         self.assertEqual(user.userprofile.auth_provider, UserProfile.AuthProvider.GOOGLE)
         self.assertTrue(user.userprofile.is_verified)
+
     def test_sso_ui_get_login_url(self):
-        provider = SSOUIAuthProvider()
-        url = provider.get_login_url("http://example.com/callback")
+        backend = SSOUIAuthBackend()
+        url = backend.get_login_url("http://example.com/callback")
         self.assertIn("sso.ui.ac.id/cas2/login", url)
         self.assertIn("service=http", url)
 
     def test_sso_ui_parse_cas_xml_syntax_error(self):
-        provider = SSOUIAuthProvider()
-        self.assertIsNone(provider.parse_cas_xml("<<<invalid xml"))
+        backend = SSOUIAuthBackend()
+        self.assertIsNone(backend.parse_cas_xml("<<<invalid xml"))
 
     def test_google_authenticate_empty_credential(self):
-        provider = GoogleAuthProvider()
-        self.assertIsNone(provider.authenticate(""))
+        backend = GoogleAuthBackend()
+        self.assertIsNone(backend.authenticate(None, google_credential=""))
 
     def test_sso_ui_authenticate_empty_params(self):
-        provider = SSOUIAuthProvider()
-        self.assertIsNone(provider.authenticate("", ""))
+        backend = SSOUIAuthBackend()
+        self.assertIsNone(backend.authenticate(None, sso_ticket="", service_url=""))
 
     def test_auth_provider_username_collision(self):
-        provider = GoogleAuthProvider()
-        user1 = provider.get_or_create_user(
+        backend = GoogleAuthBackend()
+        user1 = backend.get_or_create_user(
             username="claud",
             email="claud1@test.com",
             full_name="Claud One",
             auth_provider=UserProfile.AuthProvider.GOOGLE,
         )
-        user2 = provider.get_or_create_user(
+        user2 = backend.get_or_create_user(
             username="claud",
             email="claud2@test.com",
             full_name="Claud Two",
@@ -559,3 +560,29 @@ class AuthProvidersTest(TestCase):
         )
         self.assertEqual(user1.username, "claud")
         self.assertEqual(user2.username, "claud1")
+
+    def test_auth_backend_get_user(self):
+        backend = GoogleAuthBackend()
+        user = backend.get_or_create_user(
+            username="frieren_mage",
+            email="frieren_mage@test.com",
+            full_name="Frieren",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+        )
+        self.assertEqual(backend.get_user(user.id), user)
+        self.assertIsNone(backend.get_user(999999))
+    def test_sso_ui_parse_cas_xml_missing_username(self):
+        backend = SSOUIAuthBackend()
+        cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
+            <cas:authenticationSuccess>
+                <cas:attributes>
+                    <cas:nama>Tanpa Username</cas:nama>
+                </cas:attributes>
+            </cas:authenticationSuccess>
+        </cas:serviceResponse>"""
+        self.assertIsNone(backend.parse_cas_xml(cas_xml))
+
+    def test_google_authenticate_unverified_email(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {"email": "test@gmail.com", "email_verified": False}
+        self.assertIsNone(backend.authenticate(None, google_credential="unverified_token"))
