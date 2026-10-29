@@ -141,3 +141,23 @@ class PickupSchedule(models.Model):
         )
 
 
+class Place(models.Model):
+    """Tempat publik dari OpenStreetMap, untuk rekomendasi titik COD."""
+
+    osm_id = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=200, db_index=True)
+    address = models.CharField(max_length=300, blank=True)
+    kind = models.CharField(max_length=30, db_index=True)
+    latitude = models.FloatField(db_index=True)
+    longitude = models.FloatField(db_index=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["latitude", "longitude"])]
+
+    def __str__(self):
+        return f"{self.name} ({self.kind})"
+
+
+    
+    
+    

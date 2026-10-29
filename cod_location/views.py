@@ -18,100 +18,50 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
+from django.core.exceptions import ValidationError
 
 from loans.models import LoanRequest
 from .models import CODLocation, PickupSchedule
 from .forms import CODLocationForm, PickupScheduleForm
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
-OVERPASS_ENDPOINTS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://lz4.overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter",
-]
+# Di views.py: HAPUS semua kode pencarian Overpass/Nominatim lama
+# (OVERPASS_ENDPOINTS, _run_overpass, _nominatim, _search_*, overpass_search lama, dst.),
+# lalu pakai kode ini. Pastikan import di bagian atas file:
+import math
 
-# Ganti dengan nama proyek dan email kamu
-USER_AGENT = "ShareSpace/1.0 (proyek kuliah PBP; kontak: taufikramadhan6S62@gmail.com)"
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 
-OVERPASS_CATEGORIES = {
-    "library": '["amenity"="library"]',
-    "cafe": '["amenity"="cafe"]',
-    "park": '["leisure"="park"]',
-    "community": '["amenity"="community_centre"]',
+from .models import Place
+
+
+KIND_BY_CATEGORY = {
+    "library": ["library"],
+    "cafe": ["cafe"],
+    "park": ["park"],
+    "community": ["community_centre"],
+    "minimarket": ["convenience", "supermarket"],
+    "mall": ["mall"],
+    "ibadah": ["place_of_worship"],
 }
 
+# kategori yang tidak ikut "Semua Lokasi" (jumlahnya sangat banyak)
+EXCLUDED_FROM_ALL = KIND_BY_CATEGORY["minimarket"] + KIND_BY_CATEGORY["ibadah"]
 
-# def _run_overpass(query, referer):
-#     body = urllib.parse.urlencode({"data": query}).encode()
-#     last_error = None
 
-#     for endpoint in OVERPASS_ENDPOINTS:
-#         req = urllib.request.Request(
-#             endpoint,
-#             data=body,
-#             headers={
-#                 "User-Agent": USER_AGENT,
-#                 "Referer": referer,
-#                 "Accept": "*/*",
-#                 "Content-Type": "application/x-www-form-urlencoded",
-#             },
-#         )
-#         try:
-#             with urllib.request.urlopen(req, timeout=15) as resp:
-#                 data = json.loads(resp.read().decode("utf-8"))
-#             if isinstance(data.get("elements"), list):
-#                 return data
-#         except (urllib.error.URLError, TimeoutError, ValueError) as error:
-#             last_error = error
-
-#     raise RuntimeError(last_error)
-
-def _run_overpass(query, referer):
-    body = urllib.parse.urlencode({
-        "data": query
-    }).encode()
-
-    last_error = None
-
-    for endpoint in OVERPASS_ENDPOINTS:
-        req = urllib.request.Request(
-            endpoint,
-            data=body,
-            headers={
-                "User-Agent": USER_AGENT,
-                "Referer": referer,
-                "Accept": "application/json",
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                data = json.loads(
-                    resp.read().decode("utf-8")
-                )
-
-            if isinstance(data.get("elements"), list):
-                return data
-
-        except (
-            urllib.error.URLError,
-            TimeoutError,
-            ValueError,
-        ) as error:
-            print(
-                f"Overpass gagal: {endpoint} -> {error}"
-            )
-            print(f"Overpass gagal: {endpoint}")
-            print(f"Jenis error: {type(error).__name__}")
-            print(f"Detail: {error}")
-            last_error = error
-
-    raise RuntimeError(
-        f"Semua endpoint Overpass gagal: {last_error}"
-    )
+def _distance_m(lat1, lon1, lat2, lon2):
+    """Jarak haversine dalam meter."""
+    r = 6371000
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = p2 - p1
+    dlmb = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
 
 
 @require_GET
@@ -129,68 +79,45 @@ def overpass_search(request):
     category = request.GET.get("category", "all")
     keyword = request.GET.get("keyword", "").strip()[:50]
 
-    if category == "all":
-        filters = list(OVERPASS_CATEGORIES.values())
-    elif category in OVERPASS_CATEGORIES:
-        filters = [OVERPASS_CATEGORIES[category]]
-    else:
+    if category != "all" and category not in KIND_BY_CATEGORY:
         return JsonResponse({"message": "Kategori tidak valid."}, status=400)
 
-    if keyword:
-        safe = re.escape(keyword).replace("\\", "\\\\").replace('"', '\\"')
-        name_filter = f'["name"~"{safe}",i]'
-    else:
-        name_filter = '["name"]'
+    if not Place.objects.exists():
+        return JsonResponse(
+            {"message": "Data lokasi belum diimpor. Jalankan: python manage.py import_places <file>"},
+            status=503,
+        )
 
-    statements = "\n".join(
-        # f"nwr(around:{radius},{lat},{lon}){f}{name_filter};" for f in filters
+    # saring kotak di database dulu, lalu hitung jarak sebenarnya
+    d_lat = radius / 111320
+    d_lon = radius / (111320 * max(math.cos(math.radians(lat)), 0.01))
 
-        f"node(around:{radius},{lat},{lon}){f}{name_filter};"
-        for f in filters
-
+    qs = Place.objects.filter(
+        latitude__range=(lat - d_lat, lat + d_lat),
+        longitude__range=(lon - d_lon, lon + d_lon),
     )
-    query = f"[out:json][timeout:8];({statements});out center tags 50;"
+    if category == "all":
+        qs = qs.exclude(kind__in=EXCLUDED_FROM_ALL)
+    else:
+        qs = qs.filter(kind__in=KIND_BY_CATEGORY[category])
+    if keyword:
+        qs = qs.filter(name__icontains=keyword)
 
-    cache_key = "overpass:" + str(hash((round(lat, 3), round(lon, 3), radius, category, keyword)))
-    places = cache.get(cache_key)
+    found = []
+    for p in qs[:500]:
+        dist = _distance_m(lat, lon, p.latitude, p.longitude)
+        if dist <= radius:
+            found.append((dist, {
+                "id": p.osm_id,
+                "name": p.name,
+                "address": p.address or "Alamat belum tersedia",
+                "latitude": p.latitude,
+                "longitude": p.longitude,
+                "type": p.kind,
+            }))
 
-    if places is None:
-        try:
-            data = _run_overpass(query, request.build_absolute_uri("/"))
-        except RuntimeError:
-            return JsonResponse(
-                {"message": "Layanan pencarian lokasi sedang tidak tersedia."},
-                status=502,
-            )
-
-        places = []
-        for el in data["elements"]:
-            tags = el.get("tags", {})
-            center = el.get("center", {})
-            p_lat = el.get("lat", center.get("lat"))
-            p_lon = el.get("lon", center.get("lon"))
-            if not tags.get("name") or p_lat is None or p_lon is None:
-                continue
-
-            address = ", ".join(
-                v for v in (
-                    tags.get("addr:street"),
-                    tags.get("addr:housenumber"),
-                    tags.get("addr:city"),
-                ) if v
-            )
-            places.append({
-                "id": f'{el["type"]}/{el["id"]}',
-                "name": tags["name"],
-                "address": address or "Alamat belum tersedia",
-                "latitude": p_lat,
-                "longitude": p_lon,
-                "type": tags.get("amenity") or tags.get("leisure") or "other",
-            })
-
-        cache.set(cache_key, places, 600)  # simpan 10 menit
-
-    return JsonResponse({"places": places})
+    found.sort(key=lambda item: item[0])
+    return JsonResponse({"places": [item for _, item in found[:50]]})
 
 # HELPER FUNCTIONS
 
@@ -246,7 +173,7 @@ def get_accessible_loan(request, loan_id):
 
 # HALAMAN PETA COD
 
-@login_required(login_url="/login/")
+@login_required
 @require_GET
 def cod_map_page(request):
     return render(
@@ -257,7 +184,7 @@ def cod_map_page(request):
 
 # CRUD COD LOCATION
 
-@login_required(login_url="/login/")
+@login_required
 @require_GET
 def location_list(request):
     locations = CODLocation.objects.select_related(
@@ -273,7 +200,7 @@ def location_list(request):
     })
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_GET
 def location_detail(request, pk):
     location = get_object_or_404(CODLocation, pk=pk)
@@ -283,7 +210,7 @@ def location_detail(request, pk):
         "location": location_to_dict(location),
     })
 
-@login_required(login_url="/login/")
+@login_required
 @require_POST
 def location_create(request):
     form = CODLocationForm(request.POST)
@@ -303,7 +230,7 @@ def location_create(request):
     }, status=201)
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_POST
 def location_update(request, pk):
     location = get_object_or_404(CODLocation, pk=pk)
@@ -336,7 +263,7 @@ def location_update(request, pk):
     })
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_POST
 def location_delete(request, pk):
     location = get_object_or_404(CODLocation, pk=pk)
@@ -366,7 +293,7 @@ def location_delete(request, pk):
 
 # CRUD PICKUP SCHEDULE
 
-@login_required(login_url="/login/")
+@login_required
 @require_GET
 def schedule_list(request, loan_id):
     loan = get_accessible_loan(request, loan_id)
@@ -383,7 +310,7 @@ def schedule_list(request, loan_id):
         ],
     })
 
-@login_required(login_url="/login/")
+@login_required
 @require_GET
 def schedule_detail(request, pk):
     schedule = get_object_or_404(
@@ -407,7 +334,7 @@ def schedule_detail(request, pk):
         "schedule": schedule_to_dict(schedule),
     })
 
-@login_required(login_url="/login/")
+@login_required
 @require_POST
 def schedule_create(request, loan_id):
     loan = get_accessible_loan(request, loan_id)
@@ -430,11 +357,24 @@ def schedule_create(request, loan_id):
     schedule = form.save(commit=False)
     schedule.loan_request = loan
     schedule.created_by = request.user
-    schedule.full_clean()
 
     try:
+        schedule.full_clean()
+
         with transaction.atomic():
             schedule.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data jadwal tidak valid atau jadwal sudah ada.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
+
     except IntegrityError:
         return JsonResponse({
             "success": False,
@@ -448,7 +388,7 @@ def schedule_create(request, loan_id):
     }, status=201)
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_POST
 def schedule_update(request, pk):
     schedule = get_object_or_404(
@@ -504,7 +444,7 @@ def schedule_update(request, pk):
     })
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_POST
 def schedule_delete(request, pk):
     schedule = get_object_or_404(
@@ -538,7 +478,7 @@ def schedule_delete(request, pk):
         "message": "Jadwal berhasil dihapus.",
     })
     
-@login_required(login_url="/login/")
+@login_required
 @require_GET
 def schedule_manage_page(request, loan_id):
     loan = get_accessible_loan(request, loan_id)
@@ -551,3 +491,8 @@ def schedule_manage_page(request, loan_id):
         }
     )
 
+
+    
+    
+    
+    
