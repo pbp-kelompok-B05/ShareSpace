@@ -1,14 +1,12 @@
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from cod_location.models import CODLocation, PickupSchedule
+from cod_location.models import CODLocation, PickupSchedule, Place
 from cod_location.views import overpass_search
 from items.models import Item
 from loans.models import LoanRequest
@@ -220,17 +218,37 @@ class ScheduleViewTests(CODViewTestBase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("cod_location", response.json()["errors"])
 
-    def test_duplicate_schedule_type_currently_raises_validation_error(self):
-        # Saat ini schedule_create memanggil full_clean() di luar try/except.
-        # Duplikasi karenanya memunculkan ValidationError, bukan JSON 409.
-        self.create_schedule()
+    def test_duplicate_schedule_create_returns_400(self):
+        self.create_schedule(schedule_type=PickupSchedule.ScheduleType.PICKUP)
         self.client.force_login(self.borrower)
-        with self.assertRaises(ValidationError):
-            self.client.post(
-                reverse("cod_location:schedule_create", args=[self.loan.pk]),
-                self.schedule_data(),
-            )
+
+        response = self.client.post(
+            reverse("cod_location:schedule_create", args=[self.loan.pk]),
+            self.schedule_data(schedule_type="pickup"),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["success"])
         self.assertEqual(PickupSchedule.objects.filter(loan_request=self.loan).count(), 1)
+
+    def test_duplicate_schedule_update_returns_400(self):
+        self.create_schedule(schedule_type=PickupSchedule.ScheduleType.PICKUP)
+        return_schedule = self.create_schedule(
+            schedule_type=PickupSchedule.ScheduleType.RETURN,
+            scheduled_time=timezone.now() + timedelta(days=3),
+        )
+        self.client.force_login(self.borrower)
+
+        response = self.client.post(
+            reverse("cod_location:schedule_update", args=[return_schedule.pk]),
+            self.schedule_data(schedule_type="pickup"),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["success"])
+        return_schedule.refresh_from_db()
+        self.assertEqual(return_schedule.schedule_type, PickupSchedule.ScheduleType.RETURN)
+        self.assertEqual(PickupSchedule.objects.filter(loan_request=self.loan).count(), 2)
 
     def test_borrower_can_update_schedule(self):
         schedule = self.create_schedule()
@@ -348,29 +366,79 @@ class OverpassViewTests(TestCase):
         response = overpass_search(request)
         self.assertEqual(response.status_code, 400)
 
-    @patch("cod_location.views._run_overpass")
-    @patch("cod_location.views.cache.get", return_value=None)
-    @patch("cod_location.views.cache.set")
-    def test_successful_overpass_result(self, mock_set, mock_get, mock_overpass):
-        mock_overpass.return_value = {
-            "elements": [{
-                "type": "node", "id": 123,
-                "lat": -6.3, "lon": 106.8,
-                "tags": {"name": "Perpustakaan Contoh", "amenity": "library"},
-            }]
-        }
-        request = self.factory.get("/cod/overpass/", {"lat": "-6.3", "lon": "106.8", "category": "library"})
-        response = overpass_search(request)
-        self.assertEqual(response.status_code, 200)
-        import json
-        places = json.loads(response.content)["places"]
-        self.assertEqual(len(places), 1)
-        self.assertEqual(places[0]["name"], "Perpustakaan Contoh")
-        mock_overpass.assert_called_once()
+    def make_place(self, osm_id, name, kind, latitude=-6.3, longitude=106.8):
+        # Sesuaikan bila model Place di proyek memiliki field wajib tambahan.
+        return Place.objects.create(
+            osm_id=osm_id,
+            name=name,
+            kind=kind,
+            address="Depok, Jawa Barat",
+            latitude=latitude,
+            longitude=longitude,
+        )
 
-    @patch("cod_location.views._run_overpass", side_effect=RuntimeError("Offline"))
-    @patch("cod_location.views.cache.get", return_value=None)
-    def test_overpass_service_failure(self, mock_get, mock_overpass):
-        request = self.factory.get("/cod/overpass/", {"lat": "-6.3", "lon": "106.8"})
-        response = overpass_search(request)
-        self.assertEqual(response.status_code, 502)
+    def search(self, **changes):
+        params = {
+            "lat": "-6.3", "lon": "106.8", "radius": "1000", "category": "all"
+        }
+        params.update(changes)
+        return self.client.get(reverse("cod_location:overpass_search"), params)
+
+    def test_successful_place_search(self):
+        self.make_place(1001, "Perpustakaan UI", "library")
+
+        response = self.search(category="library")
+
+        self.assertEqual(response.status_code, 200)
+        places = response.json()["places"]
+        self.assertEqual(len(places), 1)
+        self.assertEqual(places[0]["name"], "Perpustakaan UI")
+        self.assertEqual(places[0]["type"], "library")
+
+    def test_filter_category(self):
+        self.make_place(1001, "Perpustakaan UI", "library")
+        self.make_place(1002, "Kafe UI", "cafe")
+
+        response = self.search(category="library")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([place["name"] for place in response.json()["places"]], ["Perpustakaan UI"])
+
+    def test_filter_keyword(self):
+        self.make_place(1001, "Perpustakaan UI", "library")
+        self.make_place(1002, "Perpustakaan Kota", "library")
+
+        response = self.search(category="library", keyword="UI")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([place["name"] for place in response.json()["places"]], ["Perpustakaan UI"])
+
+    def test_filter_radius(self):
+        self.make_place(1001, "Perpustakaan Dekat", "library", latitude=-6.3005)
+        self.make_place(1002, "Perpustakaan Jauh", "library", latitude=-6.315)
+
+        response = self.search(category="library", radius="1000")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([place["name"] for place in response.json()["places"]], ["Perpustakaan Dekat"])
+
+    def test_no_imported_places_returns_503(self):
+        response = self.search()
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("message", response.json())
+
+    def test_all_category_excludes_minimarket_and_worship(self):
+        self.make_place(1001, "Perpustakaan UI", "library")
+        self.make_place(1002, "Minimarket UI", "convenience")
+        self.make_place(1003, "Tempat Ibadah UI", "place_of_worship")
+
+        response = self.search(category="all")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([place["name"] for place in response.json()["places"]], ["Perpustakaan UI"])
+
+   
+
+   
+    

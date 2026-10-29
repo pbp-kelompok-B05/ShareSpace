@@ -1,0 +1,9 @@
+{% comment %}
+Isi dialog edit barang (dimuat HTMX ke #item-dialog-body di detail.html).
+Error validasi hanya mengganti #item-form; judul dan tombol tutup tetap.
+{% endcomment %}
+<div class="item-dialog-header">
+    <h2 id="item-dialog-title" class="item-dialog-title">Edit Barang</h2>
+    <button type="button" class="item-dialog-close" data-dialog-close aria-label="Tutup dialog">×</button>
+</div>
+{% include "items/partials/item_form.html" %}

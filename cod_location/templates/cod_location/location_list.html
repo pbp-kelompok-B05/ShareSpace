@@ -1,477 +1,143 @@
-
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
 
-    <title>Peta Titik COD - ShareSpace</title>
+{# Base template ShareSpace mengurus partial header, footer, messages serta theme.js. #}
+{% block extra_head %}
+    <title>Peta Lokasi COD — ShareSpace</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="{% static 'css/location_list.css' %}">
+{% endblock %}
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-    <!-- MapLibre CSS -->
-    <!-- <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet" /> -->
-     <link rel="stylesheet"
-      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f5f7fb;
-            color: #173f39;
-        }
-
-        .cod-header {
-            background: #ffffff;
-            padding: 20px 6%;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .cod-header h1 {
-            margin: 0;
-            font-size: 25px;
-        }
-
-        .cod-container {
-            max-width: 1200px;
-            margin: 35px auto;
-            padding: 0 20px;
-        }
-
-        .cod-heading {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-
-        .cod-heading h2 {
-            margin: 0 0 8px;
-            font-size: 28px;
-        }
-
-        .cod-heading p {
-            margin: 0;
-            color: #64748b;
-        }
-
-        .btn-primary {
-            background: #07594f;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 18px;
-            cursor: pointer;
-        }
-
-        .btn-primary:hover {
-            background: #06463f;
-        }
-
-        .cod-layout {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 20px;
-        }
-
-        .cod-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid #e5e7eb;
-        }
-
-        .cod-panel h3 {
-            margin-top: 0;
-        }
-
-        .cod-search {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-
-        .cod-location-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            max-height: 480px;
-            overflow-y: auto;
-        }
-
-        .location-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 15px;
-        }
-
-        .location-card h4 {
-            margin: 0 0 8px;
-        }
-
-        .location-card p {
-            margin: 0;
-            font-size: 13px;
-            color: #64748b;
-        }
-
-        .location-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .location-actions button {
-            padding: 7px 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            background: white;
-            cursor: pointer;
-        }
-
-        .map-panel {
-            background: white;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-        }
-
-        #cod-map {
-            width: 100%;
-            height: 550px;
-            border-radius: 8px;
-            background: #e2e8f0;
-        }
-
-        .cod-form-panel {
-            margin-top: 25px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 25px;
-        }
-
-        .cod-form-panel[hidden] {
-            display: none;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: bold;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-secondary {
-            background: #e5e7eb;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 18px;
-            cursor: pointer;
-        }
-
-        @media (max-width: 800px) {
-            .cod-layout {
-                grid-template-columns: 1fr;
-            }
-
-            .cod-heading {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            #cod-map {
-                height: 400px;
-            }
-        }
-
-        .overpass-filters {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr) auto;
-            align-items: end;
-            gap: 15px;
-        }
-
-        .overpass-filters label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        #overpass-results {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-            gap: 12px;
-        }
-
-        .overpass-result {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-        }
-
-        .overpass-result button {
-            margin-top: 10px;
-        }
-
-        @media (max-width: 800px) {
-            .overpass-filters {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
-</head>
-
-<body>
-
-<header class="cod-header">
-    <h1>ShareSpace ♻️</h1>
-</header>
-
-<main class="cod-container">
-
-    <div class="cod-heading">
-        <div>
-            <h2>Peta Titik COD</h2>
-            <p>
-                Temukan dan kelola lokasi pertemuan
-                untuk peminjaman barang.
-            </p>
-        </div>
-
-        <button type="button"
-                class="btn-primary"
-                id="add-location-btn">
-            + Tambah Lokasi
-        </button>
-    </div>
-
-
-    <section class="cod-panel" style="margin-bottom: 20px;">
-        <h3>Cari Rekomendasi Titik COD</h3>
-
-        <div class="overpass-filters">
-            <div>
-                <label for="overpass-category">Jenis Lokasi</label>
-                <select id="overpass-category" class="form-control">
-                    <option value="all">Semua Lokasi</option>
-                    <option value="library">Perpustakaan</option>
-                    <option value="cafe">Kafe</option>
-                    <option value="park">Taman</option>
-                    <option value="community">Pusat Komunitas</option>
-                    <option value="minimarket">Minimarket</option>
-                    <option value="mall">Mall</option>
-                    <option value="ibadah">Tempat Ibadah</option>
-                </select>
+{% block content %}
+<main class="cod-page" id="main-content">
+    <div class="container cod-container">
+        <header class="cod-page-heading">
+            <div class="cod-page-intro">
+                <span class="cod-eyebrow"><span class="cod-eyebrow-dot" aria-hidden="true"></span> TITIK TEMU KOMUNITAS</span>
+                <h1 class="cod-page-title">Peta <em>Lokasi COD</em></h1>
+                <p>Temukan lokasi pertemuan yang nyaman untuk pengambilan dan pengembalian barang komunitas.</p>
             </div>
-
-            <div>
-                <label for="overpass-radius">Radius Pencarian</label>
-                <select id="overpass-radius" class="form-control">
-                    <option value="500">500 meter</option>
-                    <option value="1000" selected>1 kilometer</option>
-                    <option value="2000">2 kilometer</option>
-                    <option value="5000">5 kilometer</option>
-                </select>
-            </div>
-
-            <div>
-                <label for="overpass-keyword">Nama Lokasi</label>
-                <input
-                    type="search"
-                    id="overpass-keyword"
-                    class="form-control"
-                    placeholder="Contoh: Perpustakaan"
-                >
-            </div>
-
-            <button
-                type="button"
-                class="btn-primary"
-                id="overpass-search-btn"
-            >
-                Cari Lokasi
+            <button type="button" class="button button-primary cod-add-button" id="add-location-btn">
+                <span aria-hidden="true">＋</span> Tambah Lokasi
             </button>
-        </div>
+        </header>
 
-        <p id="overpass-status" role="status"></p>
-        <div id="overpass-results"></div>
-    </section>
-
-
-    <section class="cod-layout">
-
-        <!-- Daftar Lokasi -->
-        <div class="cod-panel">
-            <h3>Daftar Lokasi COD</h3>
-
-            <input
-                type="search"
-                id="location-search"
-                class="cod-search"
-                placeholder="Cari nama atau alamat lokasi..."
-            >
-
-            <div
-                id="location-list"
-                class="cod-location-list"
-            >
-                <p>Memuat lokasi COD...</p>
+        <section class="cod-panel cod-recommendations" aria-labelledby="cod-search-title">
+            <div class="cod-panel-heading">
+                <div>
+                    <span class="cod-section-kicker">EKSPLORASI SEKITARMU</span>
+                    <h2 id="cod-search-title">Cari Rekomendasi Titik COD</h2>
+                </div>
+                <p>Gunakan kategori, radius, atau nama tempat untuk mencari titik temu.</p>
             </div>
-        </div>
-
-        <!-- Peta -->
-        <div class="map-panel">
-            <div id="cod-map"></div>
-        </div>
-
-    </section>
-
-    <!-- Form Tambah / Edit Lokasi -->
-    <section
-        id="location-form-panel"
-        class="cod-form-panel"
-        hidden
-    >
-        <h3 id="form-title">Tambah Lokasi COD</h3>
-
-        <p>
-            Klik titik pada peta untuk menentukan
-            koordinat lokasi COD.
-        </p>
-
-        <form id="location-form" method="post">
-            {% csrf_token %}
-
-            <div class="form-group">
-                <label for="id_name">Nama Lokasi</label>
-                <input
-                    type="text"
-                    name="name"
-                    id="id_name"
-                    class="form-control"
-                    maxlength="150"
-                    required
-                >
+            <div class="overpass-filters">
+                <div class="cod-field">
+                    <label for="overpass-category">Jenis Lokasi</label>
+                    <select id="overpass-category" class="form-control">
+                        <option value="all">Semua Lokasi</option>
+                        <option value="library">Perpustakaan</option>
+                        <option value="cafe">Kafe</option>
+                        <option value="park">Taman</option>
+                        <option value="community">Pusat Komunitas</option>
+                        <option value="minimarket">Minimarket</option>
+                        <option value="mall">Mall</option>
+                        <option value="ibadah">Tempat Ibadah</option>
+                    </select>
+                </div>
+                <div class="cod-field">
+                    <label for="overpass-radius">Radius Pencarian</label>
+                    <select id="overpass-radius" class="form-control">
+                        <option value="500">500 meter</option>
+                        <option value="1000" selected>1 kilometer</option>
+                        <option value="2000">2 kilometer</option>
+                        <option value="5000">5 kilometer</option>
+                    </select>
+                </div>
+                <div class="cod-field">
+                    <label for="overpass-keyword">Nama Lokasi</label>
+                    <input id="overpass-keyword" type="search" class="form-control" placeholder="Contoh: Perpustakaan">
+                </div>
+                <button type="button" class="button button-primary cod-search-button" id="overpass-search-btn">Cari Lokasi</button>
             </div>
+            <p id="overpass-status" role="status" aria-live="polite"></p>
+            <div id="overpass-results" aria-live="polite"></div>
+        </section>
 
-            <div class="form-group">
-                <label for="id_address">Alamat</label>
-                <textarea
-                    name="address"
-                    id="id_address"
-                    class="form-control"
-                    rows="3"
-                    required
-                ></textarea>
+        <section class="cod-layout" aria-label="Peta dan daftar lokasi COD">
+            <div class="cod-panel cod-list-panel">
+                <div class="cod-panel-heading">
+                    <div>
+                        <span class="cod-section-kicker">LOKASI TERSIMPAN</span>
+                        <h2>Daftar Lokasi COD</h2>
+                    </div>
+                </div>
+                <label class="sr-only" for="location-search">Cari nama atau alamat lokasi COD</label>
+                <input id="location-search" type="search" class="cod-search form-control" placeholder="Cari nama atau alamat lokasi...">
+                <div id="location-list" class="cod-location-list" aria-live="polite">
+                    <p>Memuat lokasi COD...</p>
+                </div>
             </div>
-
-            <div class="form-group">
-                <label for="id_latitude">Latitude</label>
-                <input
-                    type="number"
-                    name="latitude"
-                    id="id_latitude"
-                    class="form-control"
-                    step="any"
-                    readonly
-                    required
-                >
+            <div class="cod-map-panel" aria-label="Peta interaktif lokasi COD">
+                <div class="cod-map-topbar">
+                    <span><span class="cod-map-indicator" aria-hidden="true"></span> Peta Titik COD</span>
+                    <small>Geser dan klik peta untuk memilih titik</small>
+                </div>
+                <div id="cod-map" aria-label="Peta COD"></div>
             </div>
+        </section>
 
-            <div class="form-group">
-                <label for="id_longitude">Longitude</label>
-                <input
-                    type="number"
-                    name="longitude"
-                    id="id_longitude"
-                    class="form-control"
-                    step="any"
-                    readonly
-                    required
-                >
+        <section id="location-form-panel" class="cod-panel cod-form-panel" aria-labelledby="form-title" hidden>
+            <div class="cod-panel-heading">
+                <div>
+                    <span class="cod-section-kicker">KELOLA TITIK TEMU</span>
+                    <h2 id="form-title">Tambah Lokasi COD</h2>
+                </div>
+                <p>Klik titik pada peta untuk menentukan koordinat lokasi COD.</p>
             </div>
-
-            <div class="form-group">
-                <label for="id_notes">Catatan</label>
-                <textarea
-                    name="notes"
-                    id="id_notes"
-                    class="form-control"
-                    rows="2"
-                ></textarea>
-            </div>
-
-            <div class="form-actions">
-                <button type="submit"
-                        class="btn-primary">
-                    Simpan Lokasi
-                </button>
-
-                <button type="button"
-                        class="btn-secondary"
-                        id="cancel-location-btn">
-                    Batal
-                </button>
-            </div>
-
-            <p id="form-message" role="status"></p>
-        </form>
-    </section>
-
+            <form id="location-form" method="post">
+                {% csrf_token %}
+                <div class="form-group cod-field">
+                    <label for="id_name">Nama Lokasi</label>
+                    <input type="text" name="name" id="id_name" class="form-control" maxlength="150" required>
+                </div>
+                <div class="form-group cod-field cod-field-full">
+                    <label for="id_address">Alamat</label>
+                    <textarea name="address" id="id_address" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="form-group cod-field">
+                    <label for="id_latitude">Latitude</label>
+                    <input type="number" name="latitude" id="id_latitude" class="form-control" step="any" readonly required>
+                </div>
+                <div class="form-group cod-field">
+                    <label for="id_longitude">Longitude</label>
+                    <input type="number" name="longitude" id="id_longitude" class="form-control" step="any" readonly required>
+                </div>
+                <div class="form-group cod-field cod-field-full">
+                    <label for="id_notes">Catatan (opsional)</label>
+                    <textarea name="notes" id="id_notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button button-primary">Simpan Lokasi</button>
+                    <button type="button" id="cancel-location-btn" class="button button-secondary">Batal</button>
+                </div>
+                <p id="form-message" role="status" aria-live="polite"></p>
+            </form>
+        </section>
+    </div>
 </main>
 
-<!-- URL Django untuk JavaScript -->
+{# Nama ID dan URL berikut dipertahankan agar cod_map.js / overpass.js tetap kompatibel. #}
 <div id="cod-config"
      data-list-url="{% url 'cod_location:location_list' %}"
      data-create-url="{% url 'cod_location:location_create' %}"
      data-overpass-url="{% url 'cod_location:overpass_search' %}"
      data-login-url="/auth/login/"
-     hidden>
-</div>
+     hidden></div>
 
-<!-- Leaflet JavaScript -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- MapLibre GL + binding Leaflet -->
-<!-- <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js"></script> -->
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-
-<!-- overpass JavaScript -->
 <script src="{% static 'cod_location/js/overpass.js' %}" defer></script>
-
-<!-- JavaScript COD-->
 <script src="{% static 'cod_location/js/cod_map.js' %}" defer></script>
-
-
-</body>
-</html>
+{% endblock content %}

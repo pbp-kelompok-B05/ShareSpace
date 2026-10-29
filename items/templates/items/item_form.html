@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Halaman form barang (tambah; nanti juga fallback edit tanpa JS).
+Context: form, page_title, page_subtitle, form_action, submit_label, cancel_url.
+{% endcomment %}
+
+{% block title %}{{ page_title }} — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'items/css/form.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="item-form-page container" aria-labelledby="item-form-title">
+    <div class="item-form-inner">
+        <a class="item-form-back" href="{{ cancel_url }}">← Kembali</a>
+        <h1 id="item-form-title" class="item-form-title">{{ page_title }}</h1>
+        <p class="item-form-subtitle">{{ page_subtitle }}</p>
+        <div class="card item-form-card">
+            {% include "items/partials/item_form.html" %}
+        </div>
+    </div>
+</section>
+{% endblock %}
