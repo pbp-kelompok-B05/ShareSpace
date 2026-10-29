@@ -1,0 +1,43 @@
+{% comment %}
+Satu laporan di dashboard admin. Form di-swap utuh lewat HTMX setelah aksi;
+tanpa JS, form tetap POST biasa lalu kembali ke next_url.
+{% endcomment %}
+<article class="card" id="report-{{ report.pk }}">
+    <div class="card-body">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+                {% include "review/partials/report_target.html" with report=report %}
+            </div>
+            {% include "review/partials/report_status_badge.html" with report=report %}
+        </div>
+        <h2 class="card-title m-0 text-lg">
+            <a href="{% url 'review:report_detail' report.pk %}">{{ report.get_reason_display }}</a>
+        </h2>
+        <p class="card-meta m-0">Dilaporkan oleh {{ report.reporter.username }} · {{ report.created_at|date:"j M Y, H:i" }}</p>
+        <p class="m-0 text-ink">{{ report.description|truncatechars:200 }}</p>
+
+        <form method="post" action="{% url 'review:report_moderate' report.pk %}" class="mt-2 grid gap-3"
+              hx-post="{% url 'review:report_moderate' report.pk %}"
+              hx-target="closest article"
+              hx-swap="outerHTML"
+              hx-indicator="#loading-{{ report.pk }}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <div class="form-field">
+                <label class="form-label" for="note-{{ report.pk }}">Catatan admin (terlihat oleh pelapor)</label>
+                <textarea id="note-{{ report.pk }}" name="admin_note" rows="2" maxlength="1000">{{ report.admin_note }}</textarea>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                {% for status in report.next_statuses %}
+                    <button type="submit" name="status" value="{{ status.value }}" class="button button-sm {% if status.value == 'rejected' %}button-danger-outline{% else %}button-primary{% endif %}">
+                        {% if status.value == 'reviewing' %}Mulai tinjau{% elif status.value == 'resolved' %}Tandai selesai{% else %}Tolak laporan{% endif %}
+                    </button>
+                {% empty %}
+                    <span class="card-meta">Laporan sudah ditutup.</span>
+                {% endfor %}
+                <button type="submit" class="button button-ghost button-sm">Simpan catatan</button>
+                <span id="loading-{{ report.pk }}" class="spinner htmx-indicator" aria-hidden="true"></span>
+            </div>
+        </form>
+    </div>
+</article>

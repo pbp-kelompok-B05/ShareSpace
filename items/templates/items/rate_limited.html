@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% comment %}
+Dirender decorator rate_limit (items/decorators.py) untuk request non-HTMX dengan status 429.
+Request HTMX tidak memakai halaman ini; pesannya dikirim lewat HX-Trigger showToast.
+{% endcomment %}
+
+{% block title %}Terlalu banyak permintaan — ShareSpace{% endblock %}
+
+{% block content %}
+<section class="error-page" aria-labelledby="error-title">
+    <div class="container error-inner">
+        <p class="error-code" aria-hidden="true">429</p>
+        <span class="section-label">ERROR 429</span>
+        <h1 id="error-title" class="error-title">Pelan-pelan dulu</h1>
+        <p class="error-text">{{ message }}</p>
+        <div class="error-actions">
+            <a class="button button-primary" href="{% url 'items:catalog' %}">Kembali ke katalog</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

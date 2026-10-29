@@ -1,11 +1,20 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Detail laporan — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'review/css/review.css' %}">
+{% endblock %}
 
 {% block content %}
 <section class="container py-10 md:py-14">
     <div class="mx-auto max-w-2xl">
-        <a class="text-link" href="{% url 'review:my_reports' %}"><span aria-hidden="true">←</span> Laporan saya</a>
+        {% if request.user.is_staff and report.reporter_id != request.user.pk %}
+            <a class="text-link" href="{% url 'review:report_list' %}"><span aria-hidden="true">←</span> Dashboard laporan</a>
+        {% else %}
+            <a class="text-link" href="{% url 'review:my_reports' %}"><span aria-hidden="true">←</span> Laporan saya</a>
+        {% endif %}
 
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
             <h1 class="m-0 text-3xl md:text-4xl">{{ report.get_reason_display }}</h1>
@@ -44,9 +53,26 @@
         {% if can_edit %}
             <div class="mt-6 flex flex-wrap gap-3">
                 <a class="button button-secondary" href="{% url 'review:report_update' report.pk %}">Ubah laporan</a>
-                <a class="button button-danger-outline" href="{% url 'review:report_delete' report.pk %}">Batalkan laporan</a>
+                {# Dengan JS membuka dialog di bawah; tanpa JS menuju halaman konfirmasi. #}
+                <a class="button button-danger-outline" href="{% url 'review:report_delete' report.pk %}" data-confirm-dialog="cancel-report-dialog" aria-haspopup="dialog">Batalkan laporan</a>
             </div>
+
+            <dialog id="cancel-report-dialog" class="review-dialog" aria-labelledby="cancel-report-title">
+                <form method="post" action="{% url 'review:report_delete' report.pk %}" class="review-dialog-body">
+                    {% csrf_token %}
+                    <h2 id="cancel-report-title" class="review-dialog-title">Batalkan laporan ini?</h2>
+                    <p class="m-0">Laporan <strong>{{ report.get_reason_display }}</strong> akan dihapus permanen dan tidak bisa dipulihkan.</p>
+                    <div class="review-dialog-actions">
+                        <button type="button" class="button button-ghost" data-dialog-close>Kembali</button>
+                        <button type="submit" class="button button-danger">Ya, batalkan</button>
+                    </div>
+                </form>
+            </dialog>
         {% endif %}
     </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+{% if can_edit %}<script defer src="{% static 'review/js/confirm-dialog.js' %}"></script>{% endif %}
 {% endblock %}

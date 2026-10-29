@@ -1,0 +1,28 @@
+{% comment %}
+Form barang. Tanpa JS: POST biasa. Dengan HTMX: error validasi mengganti form ini saja
+(outerHTML) dan field error pertama mendapat autofocus; sukses dibalas HX-Redirect oleh view.
+{% endcomment %}
+<form id="item-form" class="item-form" method="post" action="{{ form_action }}"
+      hx-post="{{ form_action }}" hx-target="this" hx-swap="outerHTML"
+      hx-disabled-elt="find button[type='submit']">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+        <div class="form-errors item-form-errors" role="alert">
+            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% include "partials/form_field.html" with field=form.name %}
+    {% include "partials/form_field.html" with field=form.description %}
+    <div class="item-form-row">
+        {% include "partials/form_field.html" with field=form.category %}
+        {% include "partials/form_field.html" with field=form.condition %}
+    </div>
+    {% include "partials/form_field.html" with field=form.image_url %}
+
+    <div class="item-form-actions">
+        {# Di dalam dialog, item-dialog.js menutup dialog alih-alih pindah halaman. #}
+        <a class="button button-secondary" href="{{ cancel_url }}" data-dialog-close>Batal</a>
+        <button type="submit" class="button button-primary">{{ submit_label }}</button>
+    </div>
+</form>

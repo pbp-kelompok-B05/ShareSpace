@@ -1,0 +1,10 @@
+{% comment %}Dirender oleh tag {% review_action loan %} (review/templatetags/review_tags.py).{% endcomment %}
+{% if show %}
+    {% if not existing %}
+        <a class="button button-primary button-sm" href="{% url 'review:review_create' loan.pk %}">Beri ulasan</a>
+    {% elif existing.is_hidden %}
+        <span class="card-meta">Ulasanmu disembunyikan admin.</span>
+    {% else %}
+        <a class="button button-secondary button-sm" href="{% url 'review:review_update' existing.pk %}">Ubah ulasanmu ({{ existing.rating }}★)</a>
+    {% endif %}
+{% endif %}

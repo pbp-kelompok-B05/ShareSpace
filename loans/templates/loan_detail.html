@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Detail Transaksi — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/loan_detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="container loan-detail-page">
+    <h1>Detail Peminjaman</h1>
+
+    <div class="loan-detail-panel">
+        {% if loan.item.image_url %}
+            <img class="loan-detail-image" src="{{ loan.item.image_url }}" alt="{{ loan.item.name }}">
+        {% endif %}
+
+        <h2>{{ loan.item.name }}</h2>
+
+        <p><strong>ID Transaksi:</strong> {{ loan.pk }}</p>
+        <p><strong>Peminjam:</strong> {{ loan.borrower.username }}</p>
+        <p><strong>Pemilik:</strong> {{ loan.item.owner.username }}</p>
+        <p><strong>Tanggal Mulai:</strong> {{ loan.start_date }}</p>
+        <p><strong>Tanggal Pengembalian:</strong> {{ loan.due_date }}</p>
+        <p><strong>Status:</strong> {{ loan.get_status_display }}</p>
+        <p><strong>Catatan:</strong> {{ loan.notes|default:"-" }}</p>
+
+        {% if loan.return_requested_at %}
+            <p><strong>Permintaan Pengembalian:</strong>{{ loan.return_requested_at }}</p>
+        {% endif %}
+    </div>
+
+    <div class="loan-detail-actions">
+
+        {% if form %}
+            {% include "components/loan_form_modal.html" with mode="update" %}
+
+            <form id="cancel-form" class="loan-action-form" method="post" action="{% url 'loans:cancel' loan.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="loan-detail-button loan-detail-button-danger">
+                    Batalkan Pengajuan
+                </button>
+            </form>
+
+            <p id="cancel-message" role="alert"></p>
+        {% endif %}
+
+        {% if can_manage %}
+            <form id="approve-form" class="loan-action-form" method="post" action="{% url 'loans:approve' loan.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="loan-detail-button loan-detail-button-primary">
+                    Setujui
+                </button>
+            </form>
+
+            <p id="approve-message" role="alert"></p>
+
+            <form id="reject-form" class="loan-action-form" method="post" action="{% url 'loans:reject' loan.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="loan-detail-button loan-detail-button-danger">
+                    Tolak
+                </button>
+            </form>
+
+            <p id="reject-message" role="alert"></p>
+        {% endif %}
+
+        {% if can_handover %}
+            <form id="borrowed-form" class="loan-action-form" method="post" action="{% url 'loans:mark_borrowed' loan.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="loan-detail-button loan-detail-button-primary">
+                    Barang Diserahkan
+                </button>
+            </form>
+
+            <p id="borrowed-message" role="alert"></p>
+        {% endif %}
+
+        {% if can_request_return %}
+            <form id="return-form" class="loan-action-form" method="post" action="{% url 'loans:request_return' loan.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="loan-detail-button loan-detail-button-primary">
+                    Kembalikan Barang
+                </button>
+            </form>
+
+            <p id="return-message" role="alert"></p>
+        {% endif %}
+
+        {% if can_complete %}
+            <form id="complete-form" class="loan-action-form" method="post" action="{% url 'loans:complete' loan.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="loan-detail-button loan-detail-button-primary">
+                    Konfirmasi Barang Kembali
+                </button>
+            </form>
+
+            <p id="complete-message" role="alert"></p>
+        {% endif %}
+    </div>
+
+    <a class="loan-back-link" href="{% if is_lender %}{% url 'loans:lender_list' %}{% else %}{% url 'loans:list' %}{% endif %}">Kembali ke Transaksi</a>
+</section>
+
+{% if not form and can_manage or not form and can_handover or not form and can_request_return or not form and can_complete %}
+    <script src="{% static 'js/loan_action.js' %}" defer></script>
+{% endif %}
+{% endblock content %}

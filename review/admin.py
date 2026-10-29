@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 
-from review.models import Report
+from review.models import Report, Review
 
 
 @admin.register(Report)
@@ -61,3 +61,36 @@ class ReportAdmin(admin.ModelAdmin):
     @admin.action(description="Tolak laporan")
     def mark_rejected(self, request, queryset):
         self._transition(request, queryset, Report.Status.REJECTED)
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ["__str__", "reviewer", "reviewee", "reviewer_role", "rating", "is_hidden", "created_at"]
+    list_filter = ["rating", "reviewer_role", "is_hidden"]
+    search_fields = ["reviewer__username", "reviewee__username", "comment"]
+    list_select_related = ["reviewer", "reviewee"]
+    # Isi ulasan milik penulisnya; admin hanya bisa menyembunyikan atau menampilkan kembali.
+    readonly_fields = [
+        "loan", "reviewer", "reviewee", "reviewer_role", "rating", "comment",
+        "created_at", "updated_at",
+    ]
+    fields = readonly_fields + ["is_hidden"]
+    actions = ["hide_reviews", "unhide_reviews"]
+
+    def has_add_permission(self, request):
+        # Ulasan hanya lahir dari transaksi selesai lewat halaman ShareSpace.
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # Riwayat ulasan dipakai untuk reputasi; moderasi lewat "Sembunyikan".
+        return False
+
+    @admin.action(description="Sembunyikan ulasan terpilih")
+    def hide_reviews(self, request, queryset):
+        count = queryset.update(is_hidden=True)
+        self.message_user(request, f"{count} ulasan disembunyikan.", messages.SUCCESS)
+
+    @admin.action(description="Tampilkan kembali ulasan terpilih")
+    def unhide_reviews(self, request, queryset):
+        count = queryset.update(is_hidden=False)
+        self.message_user(request, f"{count} ulasan ditampilkan kembali.", messages.SUCCESS)

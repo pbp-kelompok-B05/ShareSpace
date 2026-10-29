@@ -226,6 +226,24 @@ class ReportStatusTransitionTest(ReportTestMixin, TestCase):
         report.transition_to(Report.Status.REJECTED)
         self.assertFalse(report.is_active)
 
+    def test_next_statuses_follow_allowed_transitions_in_order(self):
+        expected = {
+            Report.Status.PENDING: ["reviewing", "rejected"],
+            Report.Status.REVIEWING: ["resolved", "rejected"],
+            Report.Status.RESOLVED: [],
+            Report.Status.REJECTED: [],
+        }
+        for current, values in expected.items():
+            with self.subTest(current=current):
+                report = Report(status=current)
+                self.assertEqual([status.value for status in report.next_statuses], values)
+
+    def test_next_statuses_have_labels(self):
+        report = Report(status=Report.Status.PENDING)
+        self.assertEqual(
+            [status.label for status in report.next_statuses], ["Ditinjau", "Ditolak"]
+        )
+
 
 class ReportPermissionTest(ReportTestMixin, TestCase):
     def test_reporter_can_edit_pending_report(self):

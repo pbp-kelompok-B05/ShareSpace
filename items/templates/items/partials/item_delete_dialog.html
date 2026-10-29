@@ -1,0 +1,9 @@
+{% comment %}
+Isi dialog konfirmasi hapus (dimuat HTMX ke #item-dialog-body di detail.html).
+Sukses dibalas HX-Redirect ke "Barang saya" (pemilik) atau katalog (admin) oleh view; gagal (403/5xx) menutup dialog lewat item-dialog.js.
+{% endcomment %}
+<div class="item-dialog-header">
+    <h2 id="item-dialog-title" class="item-dialog-title">Hapus barang ini?</h2>
+    <button type="button" class="item-dialog-close" data-dialog-close aria-label="Tutup dialog">×</button>
+</div>
+{% include "items/partials/item_delete_form.html" %}

@@ -49,8 +49,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'loans',
     'authentication',
     'items',
+    'cod_location',
     'review',
 ]
 
@@ -66,6 +68,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'ShareSpace.urls'
+
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 TEMPLATES = [
     {
