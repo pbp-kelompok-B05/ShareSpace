@@ -1,17 +1,86 @@
 {% load static %}
 {% comment %}
-Tombol login sosial (UI saja, belum berfungsi). SSO UI di atas Google.
+Tombol login sosial. SSO UI di atas Google.
 Pakai: {% include "partials/social_login.html" with action="Masuk" %}
 {% endcomment %}
 <div class="grid gap-3">
-    <button type="button" class="button button-secondary w-full gap-3" disabled aria-disabled="true">
+    <!-- SSO UI -->
+    <a href="{% url 'authentication:sso_ui_login' %}" class="button button-secondary w-full gap-3" title="{{ action }} dengan akun SSO Universitas Indonesia">
         <img src="{% static 'images/UI.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
-        <span>{{ action }} dengan SSO UI <span class="text-xs font-normal text-muted">(Segera Hadir)</span></span>
-    </button>
-    <button type="button" class="button button-secondary w-full gap-3" disabled aria-disabled="true">
-        <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
-        <span>{{ action }} dengan Google <span class="text-xs font-normal text-muted">(Segera Hadir)</span></span>
-    </button>
+        {{ action }} dengan SSO UI
+    </a>
+
+    <!-- Google OAuth / GSI -->
+    {% if google_client_id %}
+        <div id="g_id_onload"
+             data-client_id="{{ google_client_id }}"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleGoogleLogin"
+             data-auto_prompt="false">
+        </div>
+        <button type="button" class="button button-secondary w-full gap-3" onclick="triggerGoogleSignIn()" title="{{ action }} dengan Google">
+            <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
+            {{ action }} dengan Google
+        </button>
+        <div id="gsi_hidden_wrapper" class="hidden">
+            <div class="g_id_signin" data-type="standard"></div>
+        </div>
+
+        <script>
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            window.triggerGoogleSignIn = function() {
+                if (window.google && google.accounts && google.accounts.id) {
+                    google.accounts.id.prompt();
+                } else {
+                    alert("Sedang memuat Google Sign-In, silakan coba beberapa detik lagi.");
+                }
+            };
+
+            window.handleGoogleLogin = function(response) {
+                if (!response || !response.credential) return;
+
+                fetch("{% url 'authentication:google_login' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                    body: JSON.stringify({ credential: response.credential }),
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        window.location.href = data.redirect_url || "{% url 'landing_page' %}";
+                    } else {
+                        alert(data.message || "Gagal masuk dengan Google.");
+                    }
+                })
+                .catch(e => {
+                    alert("Terjadi kendala jaringan saat menghubungi server.");
+                });
+            };
+        </script>
+    {% else %}
+        <button type="button" class="button button-secondary w-full gap-3" onclick="alert('Google Client ID belum dikonfigurasi pada file .env.');" title="Google OAuth belum dikonfigurasi">
+            <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
+            {{ action }} dengan Google
+        </button>
+    {% endif %}
 </div>
 
 <div class="my-6 flex items-center gap-3 text-xs font-semibold tracking-widest text-muted">

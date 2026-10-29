@@ -2,6 +2,13 @@
 
 {% block title %}Daftar Akun — ShareSpace{% endblock %}
 
+{% block extra_head %}
+{{ block.super }}
+{% if google_client_id %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
+{% endblock %}
+
 {% block panel_heading %}Mulai Berbagi, Hemat Bersama.{% endblock %}
 {% block panel_text %}Buat akun ShareSpace dan mulai pinjam atau pinjamkan barang dengan tetangga dan teman kampus di sekitarmu.{% endblock %}
 {% block panel_points %}
