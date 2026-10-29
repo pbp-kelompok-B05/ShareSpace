@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'loans',
     'authentication',
     'items',
+    'cod_location',
     'review',
 ]
 
@@ -61,6 +62,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'ShareSpace.urls'
+
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 TEMPLATES = [
     {
