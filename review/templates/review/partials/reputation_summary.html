@@ -1,0 +1,29 @@
+{% comment %}
+Ringkasan reputasi: Trust Score + level, rata-rata, sebaran bintang.
+Butuh `reputation` (review.reputation.Reputation). Dipakai reputation_card.html dan user_reviews.html.
+{% endcomment %}
+<div class="review-reputation review-level-{{ reputation.level.key }}">
+    <div class="review-score" aria-label="Trust Score {% if reputation.score is None %}belum tersedia{% else %}{{ reputation.score }} dari 100{% endif %}">
+        <span class="review-score-value" aria-hidden="true">{% if reputation.score is None %}–{% else %}{{ reputation.score }}{% endif %}</span>
+        <span class="review-score-caption" aria-hidden="true">Trust Score</span>
+    </div>
+    <div class="grid gap-1">
+        <span class="badge review-level-badge">{{ reputation.level.label }}</span>
+        <div class="flex flex-wrap items-center gap-2">
+            {% include "review/partials/stars.html" with rating=reputation.rounded_average %}
+            <span class="font-semibold text-ink">{{ reputation.average_display }}</span>
+            <span class="card-meta">({{ reputation.review_count }} ulasan · {{ reputation.completed_count }} transaksi selesai)</span>
+        </div>
+    </div>
+</div>
+{% if reputation.review_count %}
+    <ul class="review-distribution m-0 list-none p-0" aria-label="Sebaran rating">
+        {% for row in reputation.distribution %}
+            <li>
+                <span class="card-meta">{{ row.stars }}★</span>
+                <span class="review-bar" aria-hidden="true"><span style="width: {{ row.percent }}%"></span></span>
+                <span class="card-meta">{{ row.count }}<span class="sr-only"> ulasan bintang {{ row.stars }}</span></span>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

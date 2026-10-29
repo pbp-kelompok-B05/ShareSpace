@@ -1,7 +1,13 @@
 from django.urls import path
 
 from review.moderation import report_list, report_moderate
-from review.review_views import my_reviews, review_create, review_delete, review_update
+from review.review_views import (
+    my_reviews,
+    review_create,
+    review_delete,
+    review_update,
+    user_reviews,
+)
 from review.views import (
     my_reports,
     report_delete,
@@ -19,6 +25,7 @@ urlpatterns = [
     path("new/<uuid:loan_id>/", review_create, name="review_create"),
     path("<uuid:pk>/edit/", review_update, name="review_update"),
     path("<uuid:pk>/delete/", review_delete, name="review_delete"),
+    path("user/<str:username>/", user_reviews, name="user_reviews"),
     # Laporan pengguna
     path("reports/", my_reports, name="my_reports"),
     path("reports/new/item/<int:item_id>/", report_item_create, name="report_item_create"),
