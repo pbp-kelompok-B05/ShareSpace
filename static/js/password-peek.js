@@ -1,25 +1,19 @@
-// Tahan klik pada tombol mata untuk menampilkan password, lepas klik untuk menyembunyikannya lagi.
-// Tombol memakai atribut data-password-peek yang berisi id input password.
-function showPassword(button) {
-    document.getElementById(button.dataset.passwordPeek).type = "text";
-}
+// Toggle tampilkan/sembunyikan password saat tombol mata diklik.
+// Ramah keyboard (Tab + Space/Enter) dan screen reader dengan aria-pressed dan aria-label dinamis.
+document.querySelectorAll("[data-password-toggle]").forEach(function (button) {
+    button.addEventListener("click", function () {
+        var targetId = button.getAttribute("data-password-toggle");
+        var input = document.getElementById(targetId);
+        if (!input) return;
 
-function hidePassword(button) {
-    document.getElementById(button.dataset.passwordPeek).type = "password";
-}
+        var isCurrentlyPassword = input.type === "password";
+        input.type = isCurrentlyPassword ? "text" : "password";
 
-document.querySelectorAll("[data-password-peek]").forEach(function (button) {
-    button.addEventListener("pointerdown", function () {
-        showPassword(button);
-    });
-    button.addEventListener("pointerup", function () {
-        hidePassword(button);
-    });
-    button.addEventListener("pointerleave", function () {
-        hidePassword(button);
-    });
-    button.addEventListener("pointercancel", function () {
-        hidePassword(button);
+        var isVisible = !isCurrentlyPassword;
+        button.setAttribute("aria-pressed", isVisible ? "true" : "false");
+
+        var labelPrefix = isVisible ? "Sembunyikan" : "Tampilkan";
+        var fieldLabel = (button.getAttribute("data-field-label") || "kata sandi").toLowerCase();
+        button.setAttribute("aria-label", labelPrefix + " " + fieldLabel);
     });
 });
-

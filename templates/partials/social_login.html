@@ -4,13 +4,13 @@ Tombol login sosial (UI saja, belum berfungsi). SSO UI di atas Google.
 Pakai: {% include "partials/social_login.html" with action="Masuk" %}
 {% endcomment %}
 <div class="grid gap-3">
-    <button type="button" class="button button-secondary w-full gap-3" disabled title="Segera hadir">
+    <button type="button" class="button button-secondary w-full gap-3" disabled aria-disabled="true">
         <img src="{% static 'images/UI.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
-        {{ action }} dengan SSO UI
+        <span>{{ action }} dengan SSO UI <span class="text-xs font-normal text-muted">(Segera Hadir)</span></span>
     </button>
-    <button type="button" class="button button-secondary w-full gap-3" disabled title="Segera hadir">
+    <button type="button" class="button button-secondary w-full gap-3" disabled aria-disabled="true">
         <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
-        {{ action }} dengan Google
+        <span>{{ action }} dengan Google <span class="text-xs font-normal text-muted">(Segera Hadir)</span></span>
     </button>
 </div>
 
@@ -19,4 +19,3 @@ Pakai: {% include "partials/social_login.html" with action="Masuk" %}
     ATAU DENGAN USERNAME
     <span class="h-px flex-1 bg-line"></span>
 </div>
-
