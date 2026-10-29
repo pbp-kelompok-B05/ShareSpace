@@ -33,6 +33,7 @@ class LoanRequest(models.Model):
     start_date = models.DateField()
     due_date = models.DateField()
     notes = models.TextField(blank=True)
+    return_requested_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -50,9 +51,7 @@ class LoanRequest(models.Model):
             ),
             models.UniqueConstraint(
                 fields=["item"],
-                condition=Q(status__in=[
-                    "approved", "borrowed"
-                ]),
+                condition=Q(status__in=["approved", "borrowed"]),
                 name="loans_one_active_per_item",
             )
         ]

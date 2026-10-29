@@ -1,6 +1,15 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{% if is_create %}Buat laporan{% else %}Ubah laporan{% endif %} — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'review/css/review.css' %}">
+{% endblock %}
+
+{% block extra_js %}
+<script defer src="{% static 'review/js/char-counter.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <section class="container py-10 md:py-14">

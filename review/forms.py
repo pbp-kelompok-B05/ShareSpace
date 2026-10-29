@@ -17,7 +17,13 @@ class ReportForm(forms.ModelForm):
             "description": "Minimal 20 karakter. Sertakan kronologi singkat agar admin mudah meninjau.",
         }
         widgets = {
-            "description": forms.Textarea(attrs={"rows": 6, "maxlength": 1000}),
+            "description": forms.Textarea(attrs={
+                "rows": 6,
+                "maxlength": 1000,
+                # Dipakai static/review/js/char-counter.js; samakan dengan validator model.
+                "data-char-counter": "",
+                "data-min-length": 20,
+            }),
         }
 
 

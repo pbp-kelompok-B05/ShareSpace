@@ -1,6 +1,6 @@
 {% load static %}
 
-<button type="button" id="open-loan-modal">
+<button type="button" id="open-loan-modal" class="loan-detail-button loan-detail-button-primary">
     {% if mode == "update" %}
         Edit Pengajuan
     {% else %}
@@ -8,8 +8,8 @@
     {% endif %}
 </button>
 
-<dialog id="loan-modal">
-    <h2>
+<dialog id="loan-modal" class="loan-dialog" aria-labelledby="loan-modal-title">
+    <h2 id="loan-modal-title">
         {% if mode == "update" %}
             Edit Pengajuan
         {% else %}
@@ -17,7 +17,7 @@
         {% endif %}
     </h2>
 
-    <p>Nama barang: {% if mode == "update" %}{{ loan.item.name }}{% else %}{{ item.name }}{% endif %}</p>
+    <p>Nama barang:{% if mode == "update" %}{{ loan.item.name }}{% else %}{{ item.name }}{% endif %}</p>
 
     <form id="loan-form" method="post"
           data-mode="{{ mode }}"
@@ -26,24 +26,29 @@
         {% csrf_token %}
 
         <label for="start-date">Tanggal Mulai</label>
-        <input type="date" id="start-date" name="start_date"
-               value="{% if mode == 'update' %}{{ loan.start_date|date:'Y-m-d' }}{% endif %}" required>
+        <input type="date" id="start-date" name="start_date" value="{% if mode == 'update' %}{{ loan.start_date|date:'Y-m-d' }}{% endif %}" required>
 
         <label for="due-date">Tanggal Pengembalian</label>
-        <input type="date" id="due-date" name="due_date"
-               value="{% if mode == 'update' %}{{ loan.due_date|date:'Y-m-d' }}{% endif %}" required>
+        <input type="date" id="due-date" name="due_date" value="{% if mode == 'update' %}{{ loan.due_date|date:'Y-m-d' }}{% endif %}" required>
 
         <label for="notes">Catatan</label>
-        <textarea id="notes" name="notes" rows="3">{% if mode == "update" %}{{ loan.notes }}{% endif %}</textarea>
+        <textarea id="notes" name="notes" rows="3">{% if mode == 'update' %}{{ loan.notes }}{% endif %}</textarea>
 
-        <button type="submit">
-            {% if mode == "update" %}Simpan Perubahan{% else %}Kirim Pengajuan{% endif %}
-        </button>
+        <div class="loan-form-buttons">
+            <button type="submit"
+                    class="loan-detail-button loan-detail-button-primary">
+                {% if mode == "update" %}
+                    Simpan Perubahan
+                {% else %}
+                    Kirim Pengajuan
+                {% endif %}
+            </button>
 
-        <button type="button" id="close-loan-modal">Batal</button>
+            <button type="button" id="close-loan-modal" class="loan-detail-button">Batal</button>
+        </div>
     </form>
 
     <p id="loan-message" role="alert" style="white-space: pre-line;"></p>
 </dialog>
 
-<script src="{% static 'loans/loan_actions.js' %}" defer></script>
+<script src="{% static 'js/loan_action.js' %}" defer></script>

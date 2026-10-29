@@ -27,10 +27,10 @@ class LoanRequestForm(ModelForm):
         due_date = cleaned_data.get("due_date")
 
         if start_date and start_date < timezone.localdate():
-            self.add_error("start_date", "Tanggal mulai tidak boleh di masa lalu.")
+            if self.instance._state.adding or "start_date" in self.changed_data:
+                self.add_error("start_date", "Tanggal mulai tidak boleh di masa lalu.")
 
         if start_date and due_date and due_date < start_date:
-            if self.instance._state.adding or "start_date" in self.changed_data:
-                self.add_error("due_date", "Tanggal selesai harus setelah atau sama dengan tanggal mulai.")
+            self.add_error("due_date", "Tanggal selesai harus setelah atau sama dengan tanggal mulai.")
 
         return cleaned_data
