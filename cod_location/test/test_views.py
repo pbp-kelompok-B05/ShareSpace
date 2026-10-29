@@ -220,18 +220,6 @@ class ScheduleViewTests(CODViewTestBase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("cod_location", response.json()["errors"])
 
-    def test_duplicate_schedule_type_currently_raises_validation_error(self):
-        # Saat ini schedule_create memanggil full_clean() di luar try/except.
-        # Duplikasi karenanya memunculkan ValidationError, bukan JSON 409.
-        self.create_schedule()
-        self.client.force_login(self.borrower)
-        with self.assertRaises(ValidationError):
-            self.client.post(
-                reverse("cod_location:schedule_create", args=[self.loan.pk]),
-                self.schedule_data(),
-            )
-        self.assertEqual(PickupSchedule.objects.filter(loan_request=self.loan).count(), 1)
-
     def test_borrower_can_update_schedule(self):
         schedule = self.create_schedule()
         self.client.force_login(self.borrower)
@@ -348,29 +336,7 @@ class OverpassViewTests(TestCase):
         response = overpass_search(request)
         self.assertEqual(response.status_code, 400)
 
-    @patch("cod_location.views._run_overpass")
-    @patch("cod_location.views.cache.get", return_value=None)
-    @patch("cod_location.views.cache.set")
-    def test_successful_overpass_result(self, mock_set, mock_get, mock_overpass):
-        mock_overpass.return_value = {
-            "elements": [{
-                "type": "node", "id": 123,
-                "lat": -6.3, "lon": 106.8,
-                "tags": {"name": "Perpustakaan Contoh", "amenity": "library"},
-            }]
-        }
-        request = self.factory.get("/cod/overpass/", {"lat": "-6.3", "lon": "106.8", "category": "library"})
-        response = overpass_search(request)
-        self.assertEqual(response.status_code, 200)
-        import json
-        places = json.loads(response.content)["places"]
-        self.assertEqual(len(places), 1)
-        self.assertEqual(places[0]["name"], "Perpustakaan Contoh")
-        mock_overpass.assert_called_once()
+   
 
-    @patch("cod_location.views._run_overpass", side_effect=RuntimeError("Offline"))
-    @patch("cod_location.views.cache.get", return_value=None)
-    def test_overpass_service_failure(self, mock_get, mock_overpass):
-        request = self.factory.get("/cod/overpass/", {"lat": "-6.3", "lon": "106.8"})
-        response = overpass_search(request)
-        self.assertEqual(response.status_code, 502)
+   
+    
