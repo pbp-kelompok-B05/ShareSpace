@@ -155,7 +155,8 @@ def schedule_to_dict(schedule):
 
 def user_can_access_loan(user, loan):
     return (
-        loan.borrower_id == user.pk
+        user.is_superuser
+        or loan.borrower_id == user.pk
         or loan.item.owner_id == user.pk
     )
 
@@ -163,10 +164,13 @@ def user_can_access_loan(user, loan):
 def get_accessible_loan(request, loan_id):
     loans = LoanRequest.objects.select_related(
         "item", "item__owner"
-    ).filter(
-        Q(borrower=request.user)
-        | Q(item__owner=request.user)
     )
+    
+    if not request.user.is_superuser:
+        loans = loans.filter(
+            Q(borrower=request.user)
+            | Q(item__owner=request.user)
+        )
 
     return get_object_or_404(loans, pk=loan_id)
 

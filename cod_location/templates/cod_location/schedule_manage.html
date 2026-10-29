@@ -1,168 +1,139 @@
-
 {% extends "base.html" %}
 {% load static %}
 
+{% block extra_head %}
+    {{ block.super }}
+    <title>Pengaturan Jadwal COD — ShareSpace</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="{% static 'css/schedule_manage.css' %}">
+{% endblock extra_head %}
+
 {% block content %}
-<main class="container">
-    <section class="cod-schedule-section">
+<main class="cod-schedule-page">
+    <div class="container cod-schedule-container">
+        <nav class="cod-schedule-breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'loans:detail' loan.pk %}">Detail Peminjaman</a>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Pengaturan COD</span>
+        </nav>
 
-        <h1>Pengaturan COD</h1>
-        <p>
-            Tentukan lokasi dan jadwal pertemuan
-            untuk pengambilan atau pengembalian barang.
-        </p>
+        <header class="cod-schedule-heading">
+            <div>
+                <span class="cod-schedule-kicker">PENGAMBILAN & PENGEMBALIAN</span>
+                <h1>Pengaturan <em>Jadwal COD</em></h1>
+                <p>Tentukan lokasi dan waktu pertemuan untuk pengambilan atau pengembalian barang.</p>
+            </div>
+            <a class="button button-secondary cod-schedule-back" href="{% url 'loans:detail' loan.pk %}">Kembali ke Peminjaman</a>
+        </header>
 
-        <!-- INFORMASI PEMINJAMAN -->
-        <div class="loan-information">
-            <h2>Informasi Peminjaman</h2>
+        <section class="cod-schedule-card cod-schedule-loan" aria-labelledby="loan-info-heading">
+            <div class="cod-schedule-card-heading">
+                <div>
+                    <span class="cod-schedule-overline">RINGKASAN TRANSAKSI</span>
+                    <h2 id="loan-info-heading">Informasi Peminjaman</h2>
+                </div>
+                <span class="badge badge-status badge-status-{% if loan.status == 'pending' %}pending{% elif loan.status == 'approved' %}approved{% elif loan.status == 'borrowed' %}active{% elif loan.status == 'completed' %}done{% elif loan.status == 'rejected' %}rejected{% else %}cancelled{% endif %}">{{ loan.get_status_display }}</span>
+            </div>
+            <dl class="cod-schedule-facts">
+                <div><dt>Barang</dt><dd>{{ loan.item.name }}</dd></div>
+                <div><dt>Peminjam</dt><dd>{{ loan.borrower.username }}</dd></div>
+                <div><dt>Pemilik</dt><dd>{{ loan.item.owner.username }}</dd></div>
+                <div><dt>Tanggal Mulai</dt><dd>{{ loan.start_date|date:'d M Y' }}</dd></div>
+                <div><dt>Batas Pengembalian</dt><dd>{{ loan.due_date|date:'d M Y' }}</dd></div>
+            </dl>
+        </section>
 
-            <p>
-                <strong>Barang:</strong>
-                {{ loan.item.name }}
-            </p>
-
-            <p>
-                <strong>Peminjam:</strong>
-                {{ loan.borrower.username }}
-            </p>
-
-            <p>
-                <strong>Pemilik:</strong>
-                {{ loan.item.owner.username }}
-            </p>
-
-            <p>
-                <strong>Status:</strong>
-                {{ loan.get_status_display }}
-            </p>
-
-            <p>
-                <strong>Tanggal Mulai:</strong>
-                {{ loan.start_date }}
-            </p>
-
-            <p>
-                <strong>Batas Pengembalian:</strong>
-                {{ loan.due_date }}
-            </p>
-        </div>
-
-        <!-- DAFTAR JADWAL COD -->
-        <section class="cod-schedule-list">
-            <h2>Jadwal COD</h2>
-
-            <div id="schedule-list">
-                Memuat jadwal COD...
+        <section class="cod-schedule-card cod-schedule-existing" aria-labelledby="schedule-list-heading">
+            <div class="cod-schedule-card-heading">
+                <div>
+                    <span class="cod-schedule-overline">RENCANA PERTEMUAN</span>
+                    <h2 id="schedule-list-heading">Jadwal COD</h2>
+                </div>
+                <span class="cod-schedule-counter" id="schedule-count" aria-live="polite">Memuat...</span>
+            </div>
+            <div id="schedule-list" class="cod-schedule-list" aria-live="polite">
+                <p class="cod-schedule-muted">Memuat jadwal COD...</p>
             </div>
         </section>
 
-        <!-- FORM JADWAL COD -->
-        <section class="cod-schedule-form">
-            <h2>Tambah Jadwal COD</h2>
-
-            <form id="schedule-form">
-                {% csrf_token %}
-
-                <div>
-                    <label for="schedule-type">
-                        Jenis Jadwal
-                    </label>
-
-                    <select
-                        id="schedule-type"
-                        name="schedule_type"
-                        required
-                    >
-                        <option value="pickup">
-                            Pengambilan Barang
-                        </option>
-
-                        <option value="return">
-                            Pengembalian Barang
-                        </option>
-                    </select>
+        <section class="cod-schedule-workspace" aria-label="Formulir dan peta lokasi jadwal COD">
+            <div class="cod-schedule-card cod-schedule-form-panel">
+                <div class="cod-schedule-card-heading">
+                    <div>
+                        <span class="cod-schedule-overline">ATUR PERTEMUAN</span>
+                        <h2 id="schedule-form-heading">Tambah Jadwal COD</h2>
+                    </div>
                 </div>
 
-                <div>
-                    <label for="cod-location">
-                        Lokasi COD
-                    </label>
+                {% if loan.status == 'pending' or loan.status == 'approved' or loan.status == 'borrowed' %}
+                <form id="schedule-form" method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="cod-schedule-field">
+                        <label for="schedule-type">Jenis Jadwal <span aria-hidden="true">*</span></label>
+                        <select id="schedule-type" name="schedule_type" required>
+                            <option value="pickup">Pengambilan Barang</option>
+                            <option value="return">Pengembalian Barang</option>
+                        </select>
+                    </div>
+                    <div class="cod-schedule-field">
+                        <label for="cod-location">Lokasi COD <span aria-hidden="true">*</span></label>
+                        <select id="cod-location" name="cod_location" required>
+                            <option value="">Memuat pilihan lokasi...</option>
+                        </select>
+                        <p class="cod-schedule-hint">Pilih lokasi COD yang telah tersimpan. Kamu juga bisa menambah lokasi melalui halaman Peta Lokasi COD.</p>
+                    </div>
+                    <div class="cod-schedule-field">
+                        <label for="scheduled-time">Waktu Pertemuan <span aria-hidden="true">*</span></label>
+                        <input type="datetime-local" id="scheduled-time" name="scheduled_time" required>
+                    </div>
+                    <div class="cod-schedule-field">
+                        <label for="schedule-notes">Catatan (opsional)</label>
+                        <textarea id="schedule-notes" name="notes" rows="3" placeholder="Contoh: Bertemu di pintu utama perpustakaan"></textarea>
+                    </div>
+                    <div class="cod-schedule-form-actions">
+                        <button type="submit" class="button button-primary" id="schedule-submit-btn">Simpan Jadwal</button>
+                        <button type="button" class="button button-secondary" id="cancel-edit-btn" hidden>Batal Edit</button>
+                    </div>
+                    <p id="schedule-message" class="cod-schedule-message" role="status" aria-live="polite"></p>
+                </form>
+                {% else %}
+                    <p class="cod-schedule-notice">Status transaksi ini tidak mengizinkan pembuatan atau perubahan jadwal COD.</p>
+                {% endif %}
+                <a class="cod-schedule-inline-link" href="{% url 'cod_location:map' %}">Buka Peta & Kelola Lokasi COD <span aria-hidden="true">↗</span></a>
+            </div>
 
-                    <select
-                        id="cod-location"
-                        name="cod_location"
-                        required
-                    >
-                        <option value="">
-                            Pilih lokasi COD
-                        </option>
-                    </select>
+            <div class="cod-schedule-card cod-schedule-map-panel">
+                <div class="cod-schedule-map-heading">
+                    <div>
+                        <span class="cod-schedule-overline">PREVIEW LOKASI</span>
+                        <h2>Peta Titik Pertemuan</h2>
+                    </div>
+                    <span class="cod-schedule-map-live"><span aria-hidden="true"></span> Lokasi COD</span>
                 </div>
-
-                <div>
-                    <label for="scheduled-time">
-                        Waktu Pertemuan
-                    </label>
-
-                    <input
-                        type="datetime-local"
-                        id="scheduled-time"
-                        name="scheduled_time"
-                        required
-                    >
+                <p class="cod-schedule-map-description">Pilih tempat pada formulir atau klik penandanya di peta. Semua lokasi COD yang tersedia dari daftar lokasi akan ditampilkan pada peta.</p>
+                <div id="schedule-map" role="region" aria-label="Peta titik pertemuan COD"></div>
+                <div class="cod-schedule-selection" id="selected-location" aria-live="polite">
+                    <strong>Belum ada lokasi dipilih</strong>
+                    <span>Pilih lokasi COD untuk melihat titik pertemuan.</span>
                 </div>
-
-                <div>
-                    <label for="schedule-notes">
-                        Catatan
-                    </label>
-
-                    <textarea
-                        id="schedule-notes"
-                        name="notes"
-                        rows="3"
-                        placeholder="Contoh: Bertemu di depan perpustakaan"
-                    ></textarea>
-                </div>
-
-                <button type="submit" id="schedule-submit-btn">
-                    Simpan Jadwal
-                </button>
-
-                <button type="button" id="cancel-edit-btn" hidden>
-                    Batal Edit
-                </button>
-
-                <p id="schedule-message" role="status"></p>
-            </form>
+            </div>
         </section>
-
-        <div>
-            <a href="{% url 'cod_location:map' %}">
-                Lihat Peta Lokasi COD
-            </a>
-        </div>
-
-        <div>
-            <a href="{% url 'loans:detail' loan.pk %}">
-                Kembali ke Detail Peminjaman
-            </a>
-        </div>
-
-    </section>
+    </div>
 </main>
 
-<!-- KONFIGURASI ENDPOINT -->
-<div
-    id="schedule-config"
-    data-list-url="{% url 'cod_location:schedule_list' loan.pk %}"
-    data-create-url="{% url 'cod_location:schedule_create' loan.pk %}"
-    data-locations-url="{% url 'cod_location:location_list' %}"
-    data-update-url="{% url 'cod_location:schedule_update' '00000000-0000-0000-0000-000000000000' %}"
-    data-delete-url="{% url 'cod_location:schedule_delete' '00000000-0000-0000-0000-000000000000' %}"
-    hidden
-></div>
+<div id="schedule-config"
+     data-list-url="{% url 'cod_location:schedule_list' loan.pk %}"
+     data-create-url="{% url 'cod_location:schedule_create' loan.pk %}"
+     data-locations-url="{% url 'cod_location:location_list' %}"
+     data-update-url="{% url 'cod_location:schedule_update' '00000000-0000-0000-0000-000000000000' %}"
+     data-delete-url="{% url 'cod_location:schedule_delete' '00000000-0000-0000-0000-000000000000' %}"
+     data-allow-edit="{% if loan.status == 'pending' or loan.status == 'approved' or loan.status == 'borrowed' %}true{% else %}false{% endif %}"
+     data-allow-delete="{% if loan.status == 'pending' or loan.status == 'approved' %}true{% else %}false{% endif %}"
+     hidden></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
 <script src="{% static 'cod_location/js/schedule_manage.js' %}" defer></script>
-
 {% endblock content %}

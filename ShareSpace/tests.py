@@ -308,7 +308,7 @@ class NavbarModuleLinksTest(TestCase):
     def test_public_links_for_anonymous(self):
         response = self.client.get("/auth/login/")
         self.assertContains(response, 'href="/items/"')
-        self.assertContains(response, 'href="/cod/"')
+        self.assertNotContains(response, 'href="/cod/"')
         self.assertNotContains(response, 'href="/items/mine/"')
         self.assertNotContains(response, 'href="/loans/"')
 
