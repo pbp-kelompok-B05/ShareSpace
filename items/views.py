@@ -22,6 +22,8 @@ MY_ITEMS_PAGE_SIZE = 20  # daftar baris lebih padat daripada grid card katalog
 ITEM_CREATE_RATE_LIMIT = 10  # POST per jam per user
 ITEM_UPDATE_RATE_LIMIT = 30  # POST per jam per user
 ITEM_BULK_RATE_LIMIT = 60  # POST per jam per user; aksi cepat per baris ikut dihitung
+# Header yang menentukan partial vs halaman penuh (lihat _is_htmx_partial).
+HTMX_VARY_HEADERS = ("HX-Request", "HX-History-Restore-Request")
 
 
 def _visible_items():
@@ -58,7 +60,7 @@ def catalog(request):
     template = "items/partials/item_list.html" if _is_htmx_partial(request) else "items/catalog.html"
     response = render(request, template, context)
     # Halaman penuh dan partial memakai URL sama; cache browser harus membedakannya.
-    patch_vary_headers(response, ["HX-Request"])
+    patch_vary_headers(response, HTMX_VARY_HEADERS)
     return response
 
 
@@ -93,7 +95,7 @@ def my_items(request):
         template = "items/my_items.html"
         context["stats"] = _my_items_stats(request.user)
     response = render(request, template, context)
-    patch_vary_headers(response, ["HX-Request"])
+    patch_vary_headers(response, HTMX_VARY_HEADERS)
     return response
 
 
