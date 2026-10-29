@@ -45,7 +45,6 @@ class LoanTestBase(TestCase):
     def url(self, name, loan=None):
         return reverse(f"loans:{name}", args=[loan.pk] if loan else None)
 
-
 # Pengujian model peminjaman
 class LoanModelTests(LoanTestBase):
     # Memastikan transaksi memiliki UUID, status pending, dan waktu pembuatan.
@@ -89,7 +88,6 @@ class LoanModelTests(LoanTestBase):
         with self.assertRaises(ProtectedError):
             self.item.delete()
 
-
 # Pengujian form peminjaman
 class LoanFormTests(LoanTestBase):
     # Memastikan form menerima tanggal peminjaman yang valid.
@@ -125,7 +123,6 @@ class LoanFormTests(LoanTestBase):
         loan = self.make_loan(start_date=yesterday, due_date=self.due)
         form = LoanRequestForm(data=self.loan_data(start_date=yesterday.isoformat(), notes="Catatan diperbarui"), instance=loan)
         self.assertTrue(form.is_valid())
-
 
 # Pengujian halaman transaksi
 class LoanPageTests(LoanTestBase):
@@ -169,7 +166,6 @@ class LoanPageTests(LoanTestBase):
         self.login_as(self.borrower)
         response = self.client.get(self.url("detail", loan))
         self.assertTrue(response.context["can_request_return"])
-
 
 # Pengujian daftar transaksi melalui AJAX
 class LoanListDataTests(LoanTestBase):
@@ -224,7 +220,7 @@ class LoanListDataTests(LoanTestBase):
 
     # Memastikan nama dan nomor telepon pemilik atau peminjam muncul pada respons AJAX.
     def test_profile_name_and_phone_are_in_response(self):
-        self.make_loan()
+        self.make_loan(status=LoanRequest.Status.APPROVED)
         UserProfile.objects.create(user=self.owner, full_name="Leon S. Kennedy", phone_number="0812345678")
         UserProfile.objects.create(user=self.borrower, full_name="Ada Wong", phone_number="0898765432")
         self.login_as(self.borrower)
@@ -238,12 +234,28 @@ class LoanListDataTests(LoanTestBase):
 
     # Memastikan email digunakan sebagai kontak jika profil belum tersedia.
     def test_contact_falls_back_to_email_when_no_profile(self):
-        self.make_loan()
+        self.make_loan(status=LoanRequest.Status.APPROVED)
         self.login_as(self.borrower)
         data = self.client.get(self.url("data")).json()["loans"][0]
         self.assertEqual(data["person_name"], self.owner.username)
         self.assertEqual(data["contact_url"], "mailto:leon@example.com")
 
+    # Memastikan kontak hanya dikirim selama status approved atau borrowed.
+    def test_contact_only_visible_during_active_loan(self):
+        loan = self.make_loan()
+        UserProfile.objects.create(user=self.owner, full_name="Leon S. Kennedy", phone_number="0812345678")
+        UserProfile.objects.create(user=self.borrower, full_name="Ada Wong", phone_number="0898765432")
+        for status in LoanRequest.Status.values:
+            loan.status = status
+            loan.save()
+            for user, endpoint in ((self.borrower, "data"), (self.owner, "lender_data")):
+                with self.subTest(status=status, endpoint=endpoint):
+                    self.login_as(user)
+                    data = self.client.get(self.url(endpoint)).json()["loans"][0]
+                    if status in (LoanRequest.Status.APPROVED, LoanRequest.Status.BORROWED):
+                        self.assertIsNotNone(data["contact_url"])
+                    else:
+                        self.assertIsNone(data["contact_url"])
 
 # Pengujian pengajuan peminjaman
 class LoanCreateTests(LoanTestBase):
@@ -312,7 +324,6 @@ class LoanCreateTests(LoanTestBase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(LoanRequest.objects.count(), 2)
 
-
 # Pengujian pengubahan dan pembatalan
 class LoanEditCancelTests(LoanTestBase):
     # Memastikan Ada dapat mengubah catatan transaksi yang masih pending.
@@ -353,7 +364,6 @@ class LoanEditCancelTests(LoanTestBase):
         self.login_as(self.borrower)
         self.assertEqual(self.client.post(self.url("update", loan), self.loan_data()).status_code, 409)
         self.assertEqual(self.client.post(self.url("cancel", loan)).status_code, 409)
-
 
 # Pengujian alur dan perubahan status transaksi
 class LoanStatusFlowTests(LoanTestBase):
@@ -490,7 +500,6 @@ class LoanStatusFlowTests(LoanTestBase):
         self.item.refresh_from_db()
         self.assertTrue(self.item.is_deleted)
         self.assertFalse(self.item.is_available)
-
 
 # Pengujian login dan metode HTTP
 class LoanAccessAndMethodTests(LoanTestBase):

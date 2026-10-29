@@ -56,7 +56,9 @@ def loan_list_data(request):
         profile = getattr(owner, "userprofile", None)
         owner_name = profile.full_name.strip() if profile and profile.full_name.strip() else owner.username
         phone = profile.phone_number.strip() if profile else ""
-        contact_url = "tel:" + phone if phone else ("mailto:" + owner.email if owner.email else None)
+        contact_url = None
+        if loan.status in [LoanRequest.Status.APPROVED, LoanRequest.Status.BORROWED]:
+            contact_url = "tel:" + phone if phone else ("mailto:" + owner.email if owner.email else None)
 
         data.append({
             "id": str(loan.pk),
@@ -100,7 +102,9 @@ def loan_lender_list_data(request):
         profile = getattr(borrower, "userprofile", None)
         borrower_name = profile.full_name.strip() if profile and profile.full_name.strip() else borrower.username
         phone = profile.phone_number.strip() if profile else ""
-        contact_url = "tel:" + phone if phone else ("mailto:" + borrower.email if borrower.email else None)
+        contact_url = None
+        if loan.status in [LoanRequest.Status.APPROVED, LoanRequest.Status.BORROWED]:
+            contact_url = "tel:" + phone if phone else ("mailto:" + borrower.email if borrower.email else None)
 
         data.append({
             "id": str(loan.pk),
