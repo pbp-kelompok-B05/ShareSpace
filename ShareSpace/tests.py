@@ -73,6 +73,17 @@ urlpatterns = [
     path("_test/forbidden-plain/", _forbidden_plain),
 ]
 
+class MinimalUrlconf:
+    """Urlconf tanpa URL modul mana pun, untuk menguji navbar saat modul belum ter-merge.
+
+    Berupa class (bukan modul) karena urlconf cukup objek hashable yang punya urlpatterns.
+    """
+
+    urlpatterns = [
+        path("", landing_page, name="landing_page"),
+        path("auth/", include((auth_urls.urlpatterns, "authentication"))),
+    ]
+
 
 class BaseTemplateStructureTest(TestCase):
     """Base template dipecah ke partial dan tetap dipakai semua halaman yang ada."""
@@ -278,11 +289,12 @@ class NavbarTest(TestCase):
         self.assertContains(self.client.get(reverse("landing_page")), anchor)
         self.assertNotContains(self.client.get(reverse("authentication:login")), anchor)
 
+    @override_settings(ROOT_URLCONF=MinimalUrlconf)
     def test_module_links_hidden_when_urls_missing(self):
-        # Urlconf proyek di branch ini belum punya URL Lokasi COD; halaman tetap render tanpa error.
-        # Jika cod_location sudah di-merge, ganti dengan modul lain yang belum ada atau pakai urlconf test.
+        # Tanpa URL modul, {% url ... as var %} kosong: halaman tetap render dan link modul tidak tampil.
         response = self.client.get(reverse("authentication:login"))
         self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Katalog Komunitas")
         self.assertNotContains(response, "Lokasi COD")
 
     def test_mobile_menu_toggle_accessible(self):
