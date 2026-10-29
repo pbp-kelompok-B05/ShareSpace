@@ -27,13 +27,7 @@
     <div id="toast-region" class="toast-region" aria-live="polite" aria-relevant="additions">
         {# Halaman yang merender messages sendiri cukup meng-override block ini dengan isi kosong. #}
         {% block messages %}
-            {% comment %}
-            Guard sementara: login.html/register.html masih merender messages sendiri.
-            Hapus kondisi ini setelah keduanya meng-override {% block messages %}{% endblock %}.
-            {% endcomment %}
-            {% if request.resolver_match.namespace != 'authentication' %}
-                {% include "partials/messages.html" %}
-            {% endif %}
+            {% include "partials/messages.html" %}
         {% endblock %}
     </div>
     <main id="konten">{% block content %}{% endblock %}</main>

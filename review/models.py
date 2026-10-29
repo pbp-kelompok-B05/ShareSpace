@@ -2,12 +2,13 @@ import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxLengthValidator
+from django.core.validators import MaxLengthValidator, MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 
 from items.models import Item
 from items.validators import StrippedMinLengthValidator
+from loans.models import LoanRequest
 
 
 class Report(models.Model):
@@ -165,3 +166,125 @@ class Report(models.Model):
             self.admin_note = note
             update_fields.append("admin_note")
         self.save(update_fields=update_fields)
+
+
+class ReviewQuerySet(models.QuerySet):
+    def visible(self):
+        """Ulasan yang tampil publik (tidak disembunyikan admin)."""
+        return self.filter(is_hidden=False)
+
+
+class Review(models.Model):
+    """Ulasan satu pihak terhadap pihak lain setelah transaksi peminjaman selesai.
+
+    Setiap transaksi bisa punya dua ulasan: peminjam menilai pemilik, dan sebaliknya.
+    Buat lewat Review.for_loan() agar reviewee dan peran terisi otomatis.
+    """
+
+    class Role(models.TextChoices):
+        BORROWER = "borrower", "Peminjam"
+        LENDER = "lender", "Pemilik barang"
+
+    MIN_RATING = 1
+    MAX_RATING = 5
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    loan = models.ForeignKey(
+        "loans.LoanRequest",
+        on_delete=models.PROTECT,
+        related_name="reviews",
+    )
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reviews_written",
+    )
+    reviewee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reviews_received",
+    )
+    # Peran penulis ulasan dalam transaksi (peminjam menilai pemilik, atau sebaliknya).
+    reviewer_role = models.CharField(max_length=10, choices=Role.choices)
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(MIN_RATING), MaxValueValidator(MAX_RATING)],
+    )
+    comment = models.TextField(max_length=1000, blank=True, validators=[MaxLengthValidator(1000)])
+    # Moderasi admin: ulasan tidak pantas disembunyikan, bukan dihapus.
+    is_hidden = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = ReviewQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["reviewee", "is_hidden"], name="review_reviewee_idx"),
+            models.Index(fields=["-created_at"], name="review_created_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(rating__gte=1, rating__lte=5),
+                name="review_rating_range",
+                violation_error_message="Rating harus antara 1 dan 5.",
+            ),
+            models.UniqueConstraint(
+                fields=["loan", "reviewer"],
+                name="review_one_per_reviewer_per_loan",
+                violation_error_message="Kamu sudah memberi ulasan untuk transaksi ini.",
+            ),
+            models.CheckConstraint(
+                condition=~Q(reviewer=F("reviewee")),
+                name="review_not_self",
+                violation_error_message="Kamu tidak dapat mengulas dirimu sendiri.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.rating}★ untuk {self.reviewee} ({self.get_reviewer_role_display()})"
+
+    @staticmethod
+    def _counterpart(loan, user):
+        """(reviewee, peran reviewer) untuk user dalam loan, atau None jika bukan pihak transaksi."""
+        # loan.item lewat base manager, jadi barang yang sudah di-soft delete tetap terbaca.
+        if user.pk == loan.borrower_id:
+            return loan.item.owner, Review.Role.BORROWER
+        if user.pk == loan.item.owner_id:
+            return loan.borrower, Review.Role.LENDER
+        return None
+
+    @classmethod
+    def for_loan(cls, loan, reviewer):
+        """Ulasan baru (belum disimpan) dengan reviewee dan peran terisi otomatis."""
+        counterpart = cls._counterpart(loan, reviewer)
+        if counterpart is None:
+            raise ValidationError("Hanya pihak dalam transaksi ini yang dapat memberi ulasan.")
+        reviewee, role = counterpart
+        return cls(loan=loan, reviewer=reviewer, reviewee=reviewee, reviewer_role=role)
+
+    @classmethod
+    def can_be_written(cls, loan, user):
+        """True jika user boleh menulis ulasan baru untuk loan (untuk tombol "Beri ulasan")."""
+        if not user.is_authenticated or cls._counterpart(loan, user) is None:
+            return False
+        if loan.status != LoanRequest.Status.COMPLETED:
+            return False
+        return not cls.objects.filter(loan=loan, reviewer=user).exists()
+
+    def clean(self):
+        # Pesan dibuat tanpa kunci field: ModelForm ulasan hanya memuat rating dan komentar.
+        if not self.loan_id or not self.reviewer_id:
+            return
+        if self.loan.status != LoanRequest.Status.COMPLETED:
+            raise ValidationError("Ulasan hanya dapat diberikan setelah transaksi selesai.")
+        counterpart = self._counterpart(self.loan, self.reviewer)
+        if counterpart is None:
+            raise ValidationError("Hanya pihak dalam transaksi ini yang dapat memberi ulasan.")
+        reviewee, role = counterpart
+        if self.reviewee_id != reviewee.pk or self.reviewer_role != role:
+            raise ValidationError("Ulasan harus ditujukan ke pihak lain dalam transaksi ini.")
+
+    def is_editable_by(self, user):
+        """Penulis boleh mengubah/menghapus ulasannya, kecuali sudah disembunyikan admin."""
+        return user.pk == self.reviewer_id and not self.is_hidden

@@ -22,7 +22,9 @@ from ShareSpace.views import landing_page
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', landing_page, name='landing_page'),
+    path('loans/', include('loans.urls')),
     path('auth/', include('authentication.urls')),
     path('katalog/', include('items.urls')),
+    path('cod/', include('cod_location.urls')),
     path('review/', include('review.urls')),
 ]

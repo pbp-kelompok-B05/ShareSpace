@@ -1,0 +1,374 @@
+/* Loan transaction dashboard */
+.loan-page {
+    padding: 30px 0 56px;
+    color: var(--ink, #1c3029);
+}
+
+.loan-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.loan-heading h1 {
+    max-width: none;
+    margin: 0 0 6px;
+    font-size: clamp(21px, 2.8vw, 27px);
+    line-height: 1.3;
+    letter-spacing: -0.03em;
+}
+
+.loan-heading p {
+    margin: 0;
+    color: var(--muted, #607168);
+    font-size: 13px;
+}
+
+/* Borrower and lender tabs */
+.loan-role-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 5px;
+    background: #ffffff;
+    border: 1px solid #e1e7db;
+    border-radius: 12px;
+}
+
+.loan-role-tab {
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #526159;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.loan-role-tab:hover {
+    background: #eef4eb;
+}
+
+.loan-role-tab.active,
+.loan-role-tab.active:hover {
+    background: var(--green, #216c4c);
+    color: #ffffff;
+}
+
+/* Status filters */
+.loan-toolbar {
+    padding-bottom: 15px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #e1e7db;
+}
+
+.loan-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.loan-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 12px;
+    border: 1px solid #e1e7db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #526159;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.loan-filter:hover {
+    border-color: #b6cfbb;
+    background: #f4f8f2;
+}
+
+.loan-filter.active,
+.loan-filter.active:hover {
+    background: var(--green, #216c4c);
+    border-color: var(--green, #216c4c);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.loan-dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+}
+
+.loan-dot.pending { background: #e6ac13; }
+.loan-dot.approved { background: #397dd7; }
+.loan-dot.borrowed { background: #27a465; }
+.loan-dot.completed { background: #89958e; }
+.loan-dot.rejected { background: #dd4a4a; }
+.loan-dot.cancelled { background: #89958e; }
+
+/* Loan cards */
+#loan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 60px;
+}
+
+#loan-message:not(:empty) {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border: 1px solid #cfe4d4;
+    border-radius: 9px;
+    background: #edf7ee;
+    color: #23593e;
+    font-size: 13px;
+}
+
+.loan-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--line, #e1e7db);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px #edf1eb;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.loan-card:hover,
+.loan-card:focus-within {
+    border-color: #b7cfb8;
+    box-shadow: 0 8px 22px #d9e5d8;
+}
+
+.loan-item-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 11px;
+    background: #eef3ea;
+    font-size: 25px;
+}
+
+.loan-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.loan-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.loan-card-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-bottom: 7px;
+}
+
+.loan-status {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.loan-status.status-pending {
+    background: #fff5d2;
+    color: #986b00;
+}
+
+.loan-status.status-approved {
+    background: #e7efff;
+    color: #2d65b9;
+}
+
+.loan-status.status-borrowed {
+    background: #dbf8e4;
+    color: #177a48;
+}
+
+.loan-status.status-completed {
+    background: #eef0f2;
+    color: #63716a;
+}
+
+.loan-status.status-rejected {
+    background: #ffebeb;
+    color: #ba3434;
+}
+
+.loan-status.status-cancelled {
+    background: #f0f0f0;
+    color: #727272;
+}
+
+.loan-transaction-id {
+    color: #7a8980;
+    font-size: 11px;
+}
+
+.loan-card-body h2 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.loan-card-body p {
+    margin: 0;
+    color: var(--muted, #607168);
+    font-size: 12px;
+}
+
+.loan-card-body .loan-return-note {
+    margin-top: 8px;
+    color: #986b00;
+    font-weight: 700;
+}
+
+/* Transaction actions */
+.loan-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.loan-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.loan-action:hover:not(:disabled) {
+    box-shadow: 0 3px 8px #e0e8db;
+}
+
+.loan-action-primary {
+    background: var(--green, #216c4c);
+    color: #ffffff;
+}
+
+.loan-action-primary:hover:not(:disabled) {
+    background: var(--green-dark, #184c38);
+    color: #ffffff;
+}
+
+.loan-action-secondary {
+    border-color: #dbe6da;
+    background: #f4f7f2;
+    color: #30483b;
+}
+
+.loan-action-secondary:hover:not(:disabled) {
+    background: #e7f0e3;
+    border-color: #b7cfb8;
+    color: #1c3029;
+}
+
+.loan-action-danger {
+    border-color: #f2c8c8;
+    background: #ffffff;
+    color: #c93535;
+}
+
+.loan-action-danger:hover:not(:disabled) {
+    background: #fff0f0;
+    border-color: #e7a6a6;
+    color: #b32a2a;
+}
+
+.loan-action:focus-visible,
+.loan-filter:focus-visible,
+.loan-role-tab:focus-visible {
+    outline: 2px solid var(--green, #216c4c);
+    outline-offset: 3px;
+}
+
+.loan-action:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* Responsive layout */
+@media (max-width: 900px) {
+    .loan-card {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .loan-card-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 650px) {
+    .loan-page {
+        padding-top: 24px;
+    }
+
+    .loan-heading {
+        align-items: stretch;
+    }
+
+    .loan-role-tabs {
+        width: 100%;
+    }
+
+    .loan-role-tab {
+        flex: 1;
+        white-space: normal;
+    }
+
+    .loan-card {
+        padding: 14px;
+        gap: 12px;
+    }
+
+    .loan-item-image {
+        width: 54px;
+        height: 54px;
+    }
+
+    .loan-action {
+        white-space: normal;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loan-role-tab,
+    .loan-filter,
+    .loan-action,
+    .loan-card,
+    .loan-item-image img {
+        transition: none;
+    }
+}
