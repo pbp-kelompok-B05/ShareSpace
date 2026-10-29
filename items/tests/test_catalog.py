@@ -383,11 +383,17 @@ class CatalogHtmxTest(CatalogTestMixin, TestCase):
         self.assertTemplateUsed(response, "base.html")
         self.assertTemplateUsed(response, "items/partials/item_list.html")
 
-    def test_response_varies_on_htmx_header(self):
-        for headers in ({}, {"HX-Request": "true"}):
+    def test_response_varies_on_htmx_headers(self):
+        # Kedua header menentukan partial vs halaman penuh, jadi keduanya wajib ada di Vary.
+        for headers in (
+            {},
+            {"HX-Request": "true"},
+            {"HX-Request": "true", "HX-History-Restore-Request": "true"},
+        ):
             with self.subTest(headers=headers):
-                response = self.get(headers=headers)
-                self.assertIn("HX-Request", response.headers.get("Vary", ""))
+                vary = self.get(headers=headers).headers.get("Vary", "")
+                self.assertIn("HX-Request", vary)
+                self.assertIn("HX-History-Restore-Request", vary)
 
 
 class CatalogQueryTest(CatalogTestMixin, TestCase):

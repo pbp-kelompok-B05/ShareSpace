@@ -289,10 +289,13 @@ class MyItemsHtmxTest(MyItemsTestMixin, TestCase):
         response = self.get(headers={**HTMX_HEADERS, "HX-History-Restore-Request": "true"})
         self.assertTemplateUsed(response, "base.html")
 
-    def test_response_varies_on_htmx_header(self):
-        for headers in ({}, HTMX_HEADERS):
+    def test_response_varies_on_htmx_headers(self):
+        # Kedua header menentukan partial vs halaman penuh, jadi keduanya wajib ada di Vary.
+        for headers in ({}, HTMX_HEADERS, {**HTMX_HEADERS, "HX-History-Restore-Request": "true"}):
             with self.subTest(headers=headers):
-                self.assertIn("HX-Request", self.get(headers=headers).headers.get("Vary", ""))
+                vary = self.get(headers=headers).headers.get("Vary", "")
+                self.assertIn("HX-Request", vary)
+                self.assertIn("HX-History-Restore-Request", vary)
 
 
 class MyItemsEmptyStateTest(MyItemsTestMixin, TestCase):
