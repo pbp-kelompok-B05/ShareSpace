@@ -224,8 +224,21 @@ def location_create(request):
 
     location = form.save(commit=False)
     location.created_by = request.user
-    location.full_clean()
-    location.save()
+
+    try:
+        location.full_clean()
+        location.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data lokasi tidak valid.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
 
     return JsonResponse({
         "success": True,
@@ -257,8 +270,21 @@ def location_update(request, pk):
         return form_errors(form)
 
     location = form.save(commit=False)
-    location.full_clean()
-    location.save()
+
+    try:
+        location.full_clean()
+        location.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data lokasi tidak valid.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
 
     return JsonResponse({
         "success": True,
@@ -430,11 +456,24 @@ def schedule_update(request, pk):
         return form_errors(form)
 
     schedule = form.save(commit=False)
-    schedule.full_clean()
 
     try:
+        schedule.full_clean()
+
         with transaction.atomic():
             schedule.save()
+
+    except ValidationError as e:
+        return JsonResponse({
+            "success": False,
+            "message": "Data jadwal tidak valid atau jenis jadwal sudah digunakan.",
+            "errors": (
+                e.message_dict
+                if hasattr(e, "message_dict")
+                else {"__all__": e.messages}
+            ),
+        }, status=400)
+
     except IntegrityError:
         return JsonResponse({
             "success": False,
