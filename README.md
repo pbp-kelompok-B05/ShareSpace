@@ -229,6 +229,39 @@ Setiap push ke branch `main` menjalankan GitHub Actions (`.github/workflows/depl
 
 ## 🤖 AI Disclosure
 
+### Azka Nur Jauhar (Modul 1: Autentikasi & Manajemen Akun)
+
+Saya menggunakan **Google Antigravity IDE** (dengan model Google Gemini 3.8 Flash) sebagai asisten *pair-programming* utama untuk mengembangkan Modul 1 (Autentikasi, Profil Pengguna, Reputasi & Trust Score, serta Login Helpdesk). Antigravity dimanfaatkan untuk membantu penulisan kode dasar pada form Django, implementasi backend autentikasi eksternal (Google Identity Services GSI dan CAS SSO UI), integrasi AJAX Trust Score & ulasan profil, pembuatan validator hierarki moderasi admin (`AdminModerationPermission` dan `UserDeletionValidator`), serta penyusunan 126 unit test komprehensif yang mencapai cakupan pengujian (*coverage*) hingga 99%.
+
+Strategi prompt saya:
+* **Role-Based Persona:** Mengondisikan AI bertindak sebagai rekan mahasiswa programming, dengan batasan untuk selalu menerapkan konsep OOP SOLID (inheritance, polymorphism, encapsulation), tidak menggunakan pustaka eksternal di luar panduan PBP.
+* **Test-Driven & Defensive Verification:** Mewajibkan AI merancang skenario pengujian unit test dan coverage terlebih dahulu sebelum melakukan implementasi fitur guna mencegah terjadinya regresi (*regression testing*).
+* **Non-Destructive Git Workflow:** Memberlakukan aturan ketat di mana AI dilarang keras mengeksekusi git commit atau push secara mandiri; setiap tindakan commit dan push wajib melalui konfirmasi bertingkat 2–3 kali kepada saya untuk memastikan integritas branch.
+
+#### Keterbatasan AI yang saya temukan
+- **Salah Asumsi Hak Akses Verifikasi (*Logical Business Flaw*).** Pada implementasi awal Google OAuth, AI mengasumsikan bahwa semua pengguna yang berhasil login via Google berhak langsung mendapatkan centang hijau `is_verified = True`. Padahal, siapa pun dapat membuat akun Google publik, sehingga tidak membuktikan bahwa pengguna tersebut adalah mahasiswa/civitas akademika UI yang tepercaya.
+- **Lokalisasi Waktu Campuran (*Hybrid Localization*).** Saat memformat waktu ulasan relatif, AI menggabungkan fungsi bawaan Django `timesince` secara mentah: `f"{timesince(dt)} yang lalu"`, sehingga menghasilkan tampilan bahasa campuran yang rancu seperti *"1 month yang lalu"* atau *"2 weeks yang lalu"*.
+- **Penanganan Exception Parser yang Tidak Lengkap.** Pada fungsi parser XML CAS SSO UI (`parse_cas_xml`), AI awalnya hanya menangani `ValueError` dan `AttributeError`. Ketika server SSO UI mengembalikan respons `None` atau string kosong, terjadi error `TypeError: argument of type 'NoneType' is not iterable` yang meloloskan exception tak tertangani.
+- **Pemblokiran WAF / Nginx Server SSO UI.** AI memanggil endpoint validasi tiket SSO UI menggunakan `requests.get()` standar tanpa menyadari bahwa Nginx server `sso.ui.ac.id` memblokir *User-Agent* default Python (`python-requests`) dengan status HTTP 400 Bad Request, sehingga login SSO UI selalu gagal di browser.
+- **Kebocoran Informasi Pengguna (*User Enumeration*).** Pada form helpdesk publik (`LoginHelpRequestForm`), AI menerapkan validasi `User.objects.filter(...)` yang menampilkan pesan error *"Akun tidak ditemukan"* jika username belum terdaftar. Hal ini membuka celah keamanan *user enumeration* di mana pihak asing bisa mengecek username/email mana saja yang terdaftar di ShareSpace.
+
+#### Koreksi dan perbaikan manual
+- Saya meluruskan logika verifikasi akun: status `is_verified = True` hanya diberikan secara otomatis jika email akun berakhiran `@ui.ac.id` atau `@office.ui.ac.id`, atau diverifikasi manual oleh admin di panel profil publik.
+- Saya merancang fungsi helper waktu relatif berbahasa Indonesia murni (`format_relative_time_id`) untuk menggantikan `timesince`, menghasilkan frasa alami seperti *"Baru saja"*, *"3 hari yang lalu"*, *"2 minggu yang lalu"*, atau *"1 bulan yang lalu"*.
+- Saya menambal penanganan exception pada backend autentikasi eksternal dengan menambahkan `TypeError` pada blok `try-except` serta merancang fallback yang aman.
+- Saya menganalisis kegagalan respons HTTP 400 dari Nginx UI dan menambahkan header `User-Agent` peramban standar pada pemanggilan `requests.get` di `SSOUIAuthBackend.validate_ticket` sehingga tiket CAS SSO UI berhasil diverifikasi dengan HTTP 200.
+- Saya menghapus validasi keberadaan akun pada form helpdesk publik dan menyamakan pesan sukses feedback (*"Permohonan bantuan Anda telah diterima. Jika akun terdaftar, admin akan menghubungi email kontakmu."*) serta menambahkan decorator `@rate_limit` untuk mencegah spamming dan kebocoran identitas akun.
+- Saya menyusun kelas perizinan moderasi `AdminModerationPermission` berbasis OOP SOLID untuk mencegah staf biasa memoderasi akun superuser atau sesama staf (*privilege escalation*), dan mengondisikan panel admin pada template profil agar disembunyikan bagi staf non-otoritas.
+
+#### Chat Antigravity (Gemini)
+- Tidak dapat share link. Transcript chat ada di folder [`Transcript AI Modul 1 (Azka Nur Jauhar)`](<Transcript AI Modul 1 (Azka Nur Jauhar)/>) yang terbagi menjadi:
+  - [`Tahap 1: Integrasi Google Identity Services (GSI), CAS SSO UI, dan Custom Auth Backends`](<Transcript AI Modul 1 (Azka Nur Jauhar)/tahap1-google-oauth-sso-backends.md>)
+  - [`Tahap 2: Profil Pengguna, AJAX Trust Score, Ulasan Komunitas, dan Integrasi Lintas-Modul`](<Transcript AI Modul 1 (Azka Nur Jauhar)/tahap2-profile-reputation-trust-score.md>)
+  - [`Tahap 3: Form Bantuan Login Helpdesk, Anti-Enumeration, Rate Limit, dan Hierarki Moderasi Admin`](<Transcript AI Modul 1 (Azka Nur Jauhar)/tahap3-login-helpdesk-admin-moderation.md>)
+
+---
+
+
 ### Matthew Raeann Alexandra (Modul 2: Katalog & Manajemen Barang, Base Template & Design System)
 
 Saya memakai **Claude Code** (aplikasi Claude Desktop, model Claude Opus 5.5) sebagai asisten utama, ditambah Figma MCP untuk membaca desain dan browser bawaan Claude untuk memverifikasi halaman di server lokal. Hampir seluruh kode di app `items` dan base template ditulis oleh Claude: model `Item` dengan soft delete, form dan validator, views HTML/JSON, decorator kepemilikan dan rate limit, interaksi HTMX dan JS (dialog edit/hapus, bulk action dengan optimistic UI), test unit dan functional test Selenium, serta `templates/base.html`, partials, dark mode, toast, dan `docs/DESIGN_SYSTEM.md`. Data seed (7 user `demo_*` dan 53 barang) juga data sintetis buatan Claude. Claude juga saya pakai untuk mereview PR anggota lain (#5, #13, #14) dan mengecek integrasi antarmodul.
