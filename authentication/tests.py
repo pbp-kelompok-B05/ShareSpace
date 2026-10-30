@@ -1,4 +1,6 @@
 import datetime
+from unittest.mock import MagicMock, patch
+import requests
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -1310,4 +1312,60 @@ class AdminModerationActionsTest(TestCase):
             reverse("authentication:public_profile", args=[self.target_user.username])
         )
         self.assertEqual(normal_response.status_code, 404)
+
+class BackendsCoverageTest(TestCase):
+    def test_get_user_invalid_id_type(self):
+        backend = GoogleAuthBackend()
+        self.assertIsNone(backend.get_user("bukan_angka_id"))
+
+    def test_get_or_create_user_inactive_email(self):
+        User.objects.create_user(username="inact_acc", email="inact@test.com", is_active=False)
+        backend = GoogleAuthBackend()
+        res = backend.get_or_create_user("inact_acc", "inact@test.com", "Inact", UserProfile.AuthProvider.GOOGLE)
+        self.assertIsNone(res)
+
+    def test_google_verify_token_status_not_200(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID="valid_id"):
+            mock_res = MagicMock(status_code=400)
+            with patch("requests.get", return_value=mock_res):
+                self.assertIsNone(backend.verify_token("bad_token"))
+
+    def test_google_verify_token_request_exception(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID="valid_id"):
+            with patch("requests.get", side_effect=requests.RequestException("Network error")):
+                self.assertIsNone(backend.verify_token("any_token"))
+
+    def test_sso_ui_parse_cas_xml_type_error(self):
+        backend = SSOUIAuthBackend()
+        self.assertIsNone(backend.parse_cas_xml(None))
+
+    def test_sso_ui_validate_ticket_non_200(self):
+        backend = SSOUIAuthBackend()
+        mock_res = MagicMock(status_code=500)
+        with patch("requests.get", return_value=mock_res):
+            self.assertIsNone(backend.validate_ticket("tkt", "http://service"))
+
+    def test_sso_ui_validate_ticket_request_exception(self):
+        backend = SSOUIAuthBackend()
+        with patch("requests.get", side_effect=requests.RequestException("CAS error")):
+            self.assertIsNone(backend.validate_ticket("tkt", "http://service"))
+
+    def test_sso_ui_validate_ticket_success(self):
+        backend = SSOUIAuthBackend()
+        cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
+            <cas:authenticationSuccess>
+                <cas:user>budi.santoso</cas:user>
+                <cas:attributes>
+                    <cas:nama>Budi Santoso</cas:nama>
+                    <cas:npm>2506998877</cas:npm>
+                </cas:attributes>
+            </cas:authenticationSuccess>
+        </cas:serviceResponse>"""
+        mock_res = MagicMock(status_code=200, text=cas_xml)
+        with patch("requests.get", return_value=mock_res):
+            res = backend.validate_ticket("valid_tkt", "http://service")
+            self.assertIsNotNone(res)
+            self.assertEqual(res["username"], "budi.santoso")
 

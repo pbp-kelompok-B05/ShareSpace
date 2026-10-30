@@ -183,7 +183,7 @@ class SSOUIAuthBackend(BaseExternalAuthBackend):
                 "nama": nama,
                 "npm": npm,
             }
-        except (re.error, ValueError, AttributeError) as e:
+        except (re.error, ValueError, AttributeError, TypeError) as e:
             return None
 
     def validate_ticket(self, ticket, service_url):
