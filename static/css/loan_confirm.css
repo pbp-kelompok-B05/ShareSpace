@@ -1,20 +1,22 @@
-/* Modal konfirmasi transaksi */
+/* Loan confirmation dialog */
 .loan-confirm-dialog {
     width: min(430px, calc(100% - 32px));
     max-height: calc(100dvh - 32px);
     padding: 26px;
     overflow-y: auto;
-    border: 1px solid var(--line, #e1e7db);
+    border: 1px solid var(--line);
     border-radius: 16px;
-    background: var(--surface, #ffffff);
-    color: var(--ink, #1c3029);
-    box-shadow: 0 22px 60px #00000033;
+    background: var(--surface);
+    color: var(--ink);
+    color-scheme: inherit;
+    box-shadow: none;
 }
 
 .loan-confirm-dialog::backdrop {
-    background: #10281b99;
+    background: rgb(0 0 0 / 55%);
 }
 
+/* Confirmation icon */
 .loan-confirm-icon {
     display: grid;
     place-items: center;
@@ -22,25 +24,28 @@
     height: 44px;
     margin-bottom: 16px;
     border-radius: 12px;
-    background: var(--surface-soft, #edf4e5);
-    color: var(--green, #216c4c);
+    background: var(--surface-soft);
+    color: var(--green);
     font-size: 25px;
     font-weight: 800;
 }
 
+/* Confirmation text */
 .loan-confirm-dialog h2 {
     margin: 0 0 8px;
+    color: var(--ink);
     font-size: 20px;
     line-height: 1.4;
 }
 
 .loan-confirm-dialog p {
     margin: 0 0 24px;
-    color: var(--muted, #607168);
+    color: var(--muted);
     font-size: 14px;
     line-height: 1.6;
 }
 
+/* Confirmation actions */
 .loan-confirm-buttons {
     display: flex;
     justify-content: flex-end;
@@ -49,58 +54,72 @@
 }
 
 .loan-confirm-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-width: 105px;
     min-height: 42px;
     padding: 10px 15px;
-    border: 1px solid var(--line, #e1e7db);
+    border: 1px solid var(--input-border);
     border-radius: 9px;
-    background: var(--surface, #ffffff);
-    color: var(--ink, #1c3029);
+    background: var(--surface);
+    color: var(--ink);
     font: inherit;
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.loan-confirm-secondary {
+    border-color: var(--input-border);
+    background: var(--surface);
+    color: var(--ink);
 }
 
 .loan-confirm-secondary:hover {
-    background: var(--surface-muted, #f0f3e9);
+    background: var(--surface-muted);
 }
 
 .loan-confirm-primary {
-    background: var(--green, #216c4c);
-    border-color: var(--green, #216c4c);
-    color: var(--on-primary, #ffffff);
+    border-color: var(--green);
+    background: var(--green);
+    color: var(--on-primary);
 }
 
 .loan-confirm-primary:hover {
-    background: var(--green-dark, #184c38);
+    border-color: var(--green-dark);
+    background: var(--green-dark);
+    color: var(--on-primary);
 }
 
 .loan-confirm-danger {
-    background: var(--danger, #9b1c1c);
-    border-color: var(--danger, #9b1c1c);
-    color: #ffffff;
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--surface);
 }
 
 .loan-confirm-danger:hover {
-    background: #821717;
+    opacity: 0.9;
 }
 
+/* Keyboard accessibility */
 .loan-confirm-button:focus-visible {
-    outline: 2px solid var(--green, #216c4c);
-    outline-offset: 3px;
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
 }
 
-/* Trigger bawaan modal disembunyikan hanya pada detail barang */
-.item-detail ~ #open-loan-modal {
-    display: none;
+.loan-confirm-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
+/* Responsive layout */
 @media (max-width: 500px) {
     .loan-confirm-dialog {
         padding: 20px;
     }
+
     .loan-confirm-buttons > button {
         flex: 1;
     }
