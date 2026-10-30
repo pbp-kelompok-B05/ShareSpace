@@ -1,5 +1,6 @@
 """View ulasan transaksi (CRUD Review) untuk pengguna."""
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -9,10 +10,14 @@ from django.views.decorators.http import require_http_methods
 
 from loans.models import LoanRequest
 from review.forms import ReviewForm
-from review.htmx import render_list
+from review.htmx import render_list, wants_partial
 from review.models import Review
+from review.reputation import get_reputation
+
+User = get_user_model()
 
 REVIEWS_PER_PAGE = 10
+USER_REVIEWS_PER_PAGE = 5
 PENDING_LOANS_LIMIT = 5
 TABS = ("written", "received")
 
@@ -110,4 +115,21 @@ def my_reviews(request):
     context = {"tab": tab, "page_obj": page_obj, "pending_loans": pending_loans}
     return render_list(
         request, "review/my_reviews.html", "review/partials/my_review_list.html", context
+    )
+
+
+@login_required
+def user_reviews(request, username):
+    """Ulasan publik yang diterima seorang pengguna, dengan tombol "Muat lebih banyak"."""
+    target_user = get_object_or_404(User, username=username, is_active=True)
+    reviews = Review.objects.visible().filter(reviewee=target_user).select_related(
+        "reviewer", "loan__item"
+    )
+    page_obj = Paginator(reviews, USER_REVIEWS_PER_PAGE).get_page(request.GET.get("page"))
+    context = {"target_user": target_user, "page_obj": page_obj}
+    # Ringkasan reputasi hanya perlu di halaman penuh, bukan saat memuat halaman berikutnya.
+    if not wants_partial(request):
+        context["reputation"] = get_reputation(target_user)
+    return render_list(
+        request, "review/user_reviews.html", "review/partials/user_review_items.html", context
     )

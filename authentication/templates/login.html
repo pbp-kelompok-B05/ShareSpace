@@ -2,6 +2,13 @@
 
 {% block title %}Login — ShareSpace{% endblock %}
 
+{% block extra_head %}
+{{ block.super }}
+{% if google_client_id %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
+{% endblock %}
+
 {% block panel_heading %}Satu Komunitas, Berjuta Solusi Berbagi.{% endblock %}
 {% block panel_text %}Bergabunglah bersama ribuan mahasiswa dan warga sekitar yang saling meminjamkan barang tanpa rasa cemas.{% endblock %}
 {% block panel_points %}
