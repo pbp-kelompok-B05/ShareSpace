@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -278,14 +279,21 @@ class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
     def test_form_on_detail_creates_loan_request(self):
         # is_verified=True agar test tidak bergantung pada aturan verifikasi di loans yang sedang diubah.
         item = self.make_item(is_verified=True)
-        action = self.loan_form_action(self.get_detail(item, self.other))
-        self.assertEqual(resolve(action).func, loan_create)
-        start = timezone.localdate()
-        response = self.client.post(action, {
-            "start_date": start.isoformat(),
-            "due_date": (start + timedelta(days=3)).isoformat(),
-            "notes": "Untuk kegiatan kampus.",
-        })
+        # loans:create mewajibkan reCAPTCHA (#22); verifikasi ke Google di-mock agar test tidak butuh jaringan.
+        with override_settings(RECAPTCHA_SITE_KEY="test-site-key", RECAPTCHA_SECRET_KEY="test-secret-key"), \
+                mock.patch("loans.views.verify_recaptcha", return_value=True) as verify:
+            detail = self.get_detail(item, self.other)
+            self.assertContains(detail, 'id="loan-recaptcha"')
+            action = self.loan_form_action(detail)
+            self.assertEqual(resolve(action).func, loan_create)
+            start = timezone.localdate()
+            response = self.client.post(action, {
+                "start_date": start.isoformat(),
+                "due_date": (start + timedelta(days=3)).isoformat(),
+                "notes": "Untuk kegiatan kampus.",
+                "g-recaptcha-response": "test-token",
+            })
+        verify.assert_called_once_with("test-token")
         self.assertEqual(response.status_code, 201)
         loan = LoanRequest.objects.get(item=item, borrower=self.other)
         self.assertEqual(loan.status, LoanRequest.Status.PENDING)
