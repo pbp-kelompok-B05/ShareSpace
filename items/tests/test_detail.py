@@ -1,11 +1,17 @@
+import re
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.templatetags.static import static
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
-from django.urls import reverse
+from django.urls import resolve, reverse
+from django.utils import timezone
 
 from items.models import Item
+from loans.models import LoanRequest
+from loans.views import loan_create
 from items.serializers import serialize_item
 from items.tests.test_models import ItemTestMixin
 
@@ -176,6 +182,27 @@ class ItemDetailActionsTest(DetailTestMixin, TestCase):
             with self.subTest(hidden=key):
                 self.assertNotContains(response, hrefs[key])
 
+    def assertLoanDialog(self, response, item, shown):
+        """loans:create hanya menerima POST: pengajuan lewat modal form dari loans, bukan link GET."""
+        # Pola di bawah tidak boleh muncul sama sekali, apa pun perannya.
+        self.assertNotContains(response, f'href="{reverse("loans:create", args=[item.pk])}"')
+        parts = {
+            "trigger": "data-open-loan-dialog",
+            "dialog": 'id="loan-modal"',
+            "form": 'id="loan-form" method="post"',
+            "action": f'action="{reverse("loans:create", args=[item.pk])}"',
+            "loan_js": static("js/loan_action.js"),
+            "loan_css": static("css/loan_detail.css"),
+            "item_js": static("items/js/item-loan.js"),
+        }
+        self.assertEqual(response.context["show_loan_dialog"], shown)
+        for key, text in parts.items():
+            with self.subTest(loan_dialog=key, shown=shown):
+                if shown:
+                    self.assertContains(response, text)
+                else:
+                    self.assertNotContains(response, text)
+
     def test_context_flags_manage_permission(self):
         item = self.make_item()
         self.assertTrue(self.get_detail(item, self.owner).context["can_manage"])
@@ -186,33 +213,49 @@ class ItemDetailActionsTest(DetailTestMixin, TestCase):
         item = self.make_item()
         response = self.get_detail(item, self.owner)
         self.assertLinks(response, item, shown=["edit", "delete"], hidden=["loan", "report", "login"])
+        self.assertLoanDialog(response, item, shown=False)
         self.assertContains(response, "Edit Barang")
         self.assertContains(response, "Hapus Barang")
 
     def test_staff_can_manage_and_borrow_other_users_item(self):
         item = self.make_item()
         response = self.get_detail(item, self.staff)
-        self.assertLinks(response, item, shown=["edit", "delete", "loan", "report"], hidden=["login"])
+        self.assertLinks(response, item, shown=["edit", "delete", "report"], hidden=["loan", "login"])
+        self.assertLoanDialog(response, item, shown=True)
 
     def test_other_user_can_borrow_and_report(self):
         item = self.make_item()
         response = self.get_detail(item, self.other)
-        self.assertLinks(response, item, shown=["loan", "report"], hidden=["edit", "delete", "login"])
+        self.assertLinks(response, item, shown=["report"], hidden=["loan", "edit", "delete", "login"])
+        self.assertLoanDialog(response, item, shown=True)
         self.assertContains(response, "Ajukan Peminjaman")
         self.assertContains(response, "Laporkan barang")
+
+    def test_loan_trigger_is_button_that_opens_dialog(self):
+        item = self.make_item()
+        response = self.get_detail(item, self.other)
+        self.assertContains(
+            response,
+            '<button type="button" class="button button-primary" data-open-loan-dialog '
+            'aria-haspopup="dialog" aria-controls="loan-modal">Ajukan Peminjaman</button>',
+            html=True,
+        )
 
     def test_anonymous_gets_login_link_with_next(self):
         item = self.make_item()
         response = self.get_detail(item)
         self.assertLinks(response, item, shown=["login", "report"], hidden=["edit", "delete", "loan"])
+        self.assertLoanDialog(response, item, shown=False)
         self.assertContains(response, "Masuk untuk meminjam")
 
     def test_borrowed_item_cannot_be_requested(self):
         item = self.make_item(is_available=False)
-        for user in (None, self.other):
+        for user in (None, self.other, self.staff):
             with self.subTest(user=user):
+                self.client.logout()
                 response = self.get_detail(item, user)
                 self.assertLinks(response, item, shown=["report"], hidden=["loan", "login"])
+                self.assertLoanDialog(response, item, shown=False)
                 self.assertContains(response, "sedang dipinjam")
 
     def test_borrowed_item_cannot_be_edited_or_deleted(self):
@@ -222,6 +265,41 @@ class ItemDetailActionsTest(DetailTestMixin, TestCase):
                 response = self.get_detail(item, user)
                 self.assertLinks(response, item, shown=[], hidden=["edit", "delete"])
                 self.assertContains(response, "tidak dapat diubah atau dihapus")
+
+
+class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
+    """Urlconf proyek yang asli: form di detail barang benar-benar membuat LoanRequest lewat view loans."""
+
+    def loan_form_action(self, response):
+        match = re.search(r'<form id="loan-form"[^>]*\saction="([^"]+)"', response.content.decode())
+        self.assertIsNotNone(match, "Form pengajuan pinjaman tidak ada di halaman detail.")
+        return match.group(1)
+
+    def test_form_on_detail_creates_loan_request(self):
+        # is_verified=True agar test tidak bergantung pada aturan verifikasi di loans yang sedang diubah.
+        item = self.make_item(is_verified=True)
+        action = self.loan_form_action(self.get_detail(item, self.other))
+        self.assertEqual(resolve(action).func, loan_create)
+        start = timezone.localdate()
+        response = self.client.post(action, {
+            "start_date": start.isoformat(),
+            "due_date": (start + timedelta(days=3)).isoformat(),
+            "notes": "Untuk kegiatan kampus.",
+        })
+        self.assertEqual(response.status_code, 201)
+        loan = LoanRequest.objects.get(item=item, borrower=self.other)
+        self.assertEqual(loan.status, LoanRequest.Status.PENDING)
+        self.assertEqual(response.json()["detail_url"], reverse("loans:detail", args=[loan.pk]))
+
+    def test_no_get_link_to_post_only_endpoint(self):
+        # Regresi: dulu tombol pinjam adalah link GET ke loans:create sehingga user mendapat JSON 405.
+        item = self.make_item()
+        create_url = reverse("loans:create", args=[item.pk])
+        self.assertEqual(self.client.get(create_url).status_code, 302)  # tamu diarahkan ke login dulu
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(create_url).status_code, 405)
+        self.assertNotContains(self.get_detail(item), f'href="{create_url}"')
+        self.assertNotContains(self.get_detail(item, self.other), f'href="{create_url}"')
 
 
 @override_settings(ROOT_URLCONF="items.tests.urls_without_actions")

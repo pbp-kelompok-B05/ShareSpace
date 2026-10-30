@@ -94,6 +94,9 @@ katalog barang yang sedang dipinjamkan, dan bagian Ulasan Komunitas di bawah.
                            hx-swap="innerHTML"
                            hx-push-url="true">Ubah profil</a>
                         <a class="button button-secondary" href="{% firstof my_reports_url '#' %}">Laporan saya</a>
+                        {% if user.is_staff %}
+                            <a class="button button-secondary" href="{% url 'admin:authentication_loginhelprequest_changelist' %}" target="_blank" rel="noopener">Login helpdesk</a>
+                        {% endif %}
                     </div>
                     <a class="button button-danger-outline" href="{% url 'authentication:deactivate_account' %}">Nonaktifkan akun</a>
                 </div>
@@ -261,22 +264,22 @@ katalog barang yang sedang dipinjamkan, dan bagian Ulasan Komunitas di bawah.
 
             <div id="reviews-list-container">
                 <!-- Loading State (Tutorial 05) -->
-                <div id="loading" class="empty-state hide">
+                <div id="loading" class="empty-state hidden">
                     <p class="empty-state-text">Memuat ulasan komunitas...</p>
                 </div>
 
                 <!-- Error State (Tutorial 05) -->
-                <div id="error" class="empty-state hide">
+                <div id="error" class="empty-state hidden">
                     <p class="empty-state-text text-danger font-medium">Gagal memuat data ulasan. Silakan segarkan halaman.</p>
                 </div>
 
                 <!-- Empty State (Tutorial 05) -->
-                <div id="empty" class="empty-state{% if reviews %} hide{% endif %}">
+                <div id="empty" class="empty-state{% if reviews %} hidden{% endif %}">
                     {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan dari peminjam atau pemilik barang akan muncul di sini setelah transaksi selesai." heading_level=3 %}
                 </div>
 
                 <!-- Reviews Grid Container (Tutorial 05) -->
-                <div id="grid" class="reviews-grid{% if not reviews %} hide{% endif %}">
+                <div id="grid" class="reviews-grid{% if not reviews %} hidden{% endif %}">
                     <ul id="reviews-items-list" class="m-0 grid list-none gap-4 p-0">
                         {% for review in reviews %}
                             <li>

@@ -105,7 +105,11 @@ class CatalogFlowSeleniumTest(StaticLiveServerTestCase):
         login_url = self.driver.current_url
         self.driver.find_element(By.ID, "id_username").send_keys(self.user.username)
         self.driver.find_element(By.ID, "id_password").send_keys(PASSWORD)
-        self.driver.find_element(By.CSS_SELECTOR, "button.auth-submit-btn").click()
+        # Pilih lewat action form, bukan class styling, agar tahan terhadap desain ulang halaman login.
+        login_path = reverse("authentication:login")
+        self.driver.find_element(
+            By.CSS_SELECTOR, f"form[action='{login_path}'] button[type='submit']",
+        ).click()
         self.wait.until(EC.url_changes(login_url))
 
     def test_owner_adds_item_then_finds_it_in_catalog_without_reload(self):

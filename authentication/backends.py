@@ -183,15 +183,23 @@ class SSOUIAuthBackend(BaseExternalAuthBackend):
                 "nama": nama,
                 "npm": npm,
             }
-        except (re.error, ValueError, AttributeError) as e:
+        except (re.error, ValueError, AttributeError, TypeError) as e:
             return None
 
     def validate_ticket(self, ticket, service_url):
         """Memvalidasi tiket CAS ke endpoint serviceValidate SSO UI."""
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
         try:
             response = requests.get(
                 self.CAS_VALIDATE_URL,
                 params={"service": service_url, "ticket": ticket},
+                headers=headers,
                 timeout=10,
             )
             if response.status_code != 200:

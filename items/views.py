@@ -157,6 +157,10 @@ def item_detail(request, pk):
         "can_manage": can_manage,
         # Dialog edit/hapus hanya dipasang jika aksinya memang boleh dilakukan.
         "show_item_dialog": can_manage and item.is_available,
+        # Modal pengajuan dari loans: untuk user login selain pemilik, selama barang tersedia.
+        "show_loan_dialog": (
+            request.user.is_authenticated and item.owner_id != request.user.pk and item.is_available
+        ),
     }
     return render(request, "items/detail.html", context)
 

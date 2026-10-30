@@ -252,6 +252,15 @@ class ItemEditSubmitTest(ItemEditTestMixin, TestCase):
         response = self.post(htmx=True)
         self.assertContains(response, f'hx-get="{self.url}"')
 
+    def test_htmx_updated_detail_keeps_loan_trigger_without_second_dialog(self):
+        # Staff boleh mengedit sekaligus meminjam barang orang lain. Dialog dan loan_action.js ada di luar
+        # #item-detail; jika ikut di-swap, script dijalankan ulang dan tombol pinjam tidak merespons.
+        self.login(self.staff)
+        response = self.post(htmx=True)
+        self.assertContains(response, "data-open-loan-dialog")
+        self.assertNotContains(response, 'id="loan-modal"')
+        self.assertNotContains(response, "loan_action.js")
+
     def test_user_input_escaped_in_updated_detail(self):
         self.login()
         response = self.post(valid_data(name="<b>Kipas</b>", description=UPDATED_DESCRIPTION), htmx=True)

@@ -43,3 +43,53 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s Profile"
+
+
+class LoginHelpRequest(models.Model):
+    class IssueType(models.TextChoices):
+        FORGOT_PASSWORD = "forgot_password", "Lupa Password Akun Lokal"
+        ACCOUNT_LOCKED = "account_locked", "Akun Terkunci / Dinonaktifkan"
+        OTHER = "other", "Kendala Login Lainnya"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Menunggu Bantuan"
+        RESOLVED = "resolved", "Selesai Ditangani"
+
+    email_or_username = models.CharField(
+        max_length=255,
+        help_text="Username atau email akun yang mengalami kendala.",
+    )
+    contact_email = models.EmailField(
+        help_text="Email aktif yang dapat dihubungi oleh admin.",
+    )
+    issue_type = models.CharField(
+        max_length=30,
+        choices=IssueType.choices,
+        default=IssueType.FORGOT_PASSWORD,
+        help_text="Jenis kendala yang dialami pengguna.",
+    )
+    message = models.TextField(
+        max_length=1000,
+        help_text="Penjelasan detail kendala dari pengguna.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        help_text="Status tindak lanjut permohonan bantuan.",
+    )
+    admin_notes = models.TextField(
+        blank=True,
+        max_length=1000,
+        help_text="Catatan internal admin saat menindaklanjuti kendala.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Permohonan Bantuan Login"
+        verbose_name_plural = "Permohonan Bantuan Login"
+
+    def __str__(self):
+        return f"{self.email_or_username} ({self.get_issue_type_display()}) - {self.get_status_display()}"
