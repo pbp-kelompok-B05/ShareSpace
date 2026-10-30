@@ -1,8 +1,8 @@
 from django.core.exceptions import ValidationError
-from django.forms import ModelForm, TextInput, Textarea, URLInput
+from django.forms import EmailInput, ModelForm, Select, TextInput, Textarea, URLInput
 from django.utils.html import strip_tags
 
-from authentication.models import UserProfile
+from authentication.models import LoginHelpRequest, UserProfile
 
 
 class UserProfileForm(ModelForm):
@@ -104,3 +104,62 @@ class UserProfileForm(ModelForm):
             if not (url.startswith("http://") or url.startswith("https://")):
                 raise ValidationError("URL foto profil harus diawali dengan http:// atau https://.")
         return url
+
+class LoginHelpRequestForm(ModelForm):
+    class Meta:
+        model = LoginHelpRequest
+        fields = [
+            "email_or_username",
+            "contact_email",
+            "issue_type",
+            "message",
+        ]
+
+        labels = {
+            "email_or_username": "Username atau Email Akun",
+            "contact_email": "Email Kontak Aktif",
+            "issue_type": "Jenis Kendala",
+            "message": "Detail Kendala",
+        }
+
+        help_texts = {
+            "email_or_username": "Masukkan username atau email akun yang bermasalah.",
+            "contact_email": "Email aktif yang dapat kami hubungi untuk proses bantuan.",
+            "issue_type": "Pilih jenis kendala yang paling sesuai dengan situasi Anda.",
+            "message": "Jelaskan kronologi atau kendala login yang dialami secara jelas.",
+        }
+
+        widgets = {
+            "email_or_username": TextInput(
+                attrs={
+                    "placeholder": "Contoh: frieren atau frieren@ui.ac.id",
+                    "maxlength": 255,
+                }
+            ),
+            "contact_email": EmailInput(
+                attrs={
+                    "placeholder": "nama@email.com",
+                    "maxlength": 254,
+                }
+            ),
+            "issue_type": Select(),
+            "message": Textarea(
+                attrs={
+                    "placeholder": "Ceritakan kendala yang Anda alami saat mencoba masuk...",
+                    "rows": 4,
+                    "maxlength": 1000,
+                }
+            ),
+        }
+
+    def clean_email_or_username(self):
+        return strip_tags(self.cleaned_data.get("email_or_username", "")).strip()
+
+    def clean_contact_email(self):
+        contact_email = self.cleaned_data.get("contact_email", "")
+        return strip_tags(contact_email).strip().lower()
+
+    def clean_message(self):
+        message = self.cleaned_data.get("message", "")
+        return strip_tags(message).strip()
+

@@ -43,4 +43,7 @@
 <p class="mb-0 mt-6 text-center text-sm text-muted">
     Belum punya akun? <a class="font-bold text-primary hover:underline" href="{% url 'authentication:register' %}">Daftar sekarang</a>
 </p>
+<p class="mb-0 mt-3 text-center text-xs text-muted">
+    Lupa password atau terkendala masuk? <a class="font-medium text-primary hover:underline" href="{% url 'authentication:login_help_request' %}">Hubungi Bantuan Admin</a>
+</p>
 {% endblock %}

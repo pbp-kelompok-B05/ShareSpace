@@ -13,14 +13,16 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from django.utils.timesince import timesince
+from items.decorators import rate_limit
 from items.models import Item
 from loans.models import LoanRequest
-from review.models import Review
+from review.moderation import staff_required
+from review.models import Report, Review
 from review.reputation import get_reputation
 
 from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
-from authentication.forms import UserProfileForm
-from authentication.models import UserProfile
+from authentication.forms import LoginHelpRequestForm, UserProfileForm
+from authentication.models import LoginHelpRequest, UserProfile
 
 
 def format_relative_time_id(dt):
@@ -241,9 +243,71 @@ def deactivate_account(request):
     return render(request, "deactivate_account.html")
 
 
+class AdminModerationPermission:
+    """Validator hierarki perizinan aksi moderasi akun oleh staf dan superuser (OOP SOLID)."""
+
+    @classmethod
+    def can_moderate(cls, actor, target_user):
+        """
+        Memeriksa apakah actor memiliki izin memoderasi target_user.
+        Aturan:
+        1. Aktor harus berupa staf yang terautentikasi.
+        2. Pengguna tidak diizinkan memoderasi akun miliknya sendiri.
+        3. Staf biasa tidak boleh memoderasi akun superuser maupun sesama akun staf.
+        4. Superuser tidak boleh memoderasi akun superuser lainnya melalui panel ini.
+        """
+        if not actor or not actor.is_authenticated or not actor.is_staff:
+            return False, "Anda tidak memiliki izin staf."
+        if target_user.pk == actor.pk:
+            return False, "Anda tidak dapat memoderasi akun Anda sendiri."
+        if target_user.is_superuser or (target_user.is_staff and not actor.is_superuser):
+            return False, "Kamu tidak punya izin memoderasi akun admin."
+        return True, ""
+
+
+class UserDeletionValidator:
+    """Validator untuk memeriksa kelayakan penghapusan akun pengguna (OOP SOLID)."""
+
+    @staticmethod
+    def get_blocking_reasons(user):
+        """Mengembalikan list alasan mengapa akun pengguna belum dapat dihapus."""
+        reasons = []
+
+        # 1. Transaksi peminjaman aktif (sebagai peminjam atau sebagai pemilik barang)
+        active_statuses = [
+            LoanRequest.Status.PENDING,
+            LoanRequest.Status.APPROVED,
+            LoanRequest.Status.BORROWED,
+        ]
+        has_borrowed_loans = LoanRequest.objects.filter(borrower=user, status__in=active_statuses).exists()
+        has_lent_loans = LoanRequest.objects.filter(item__owner=user, status__in=active_statuses).exists()
+        if has_borrowed_loans or has_lent_loans:
+            reasons.append("Pengguna masih memiliki transaksi peminjaman aktif.")
+
+        # 2. Barang aktif (belum di-soft delete)
+        active_items = Item.objects.filter(owner=user, is_deleted=False)
+        if active_items.exists():
+            reasons.append("Pengguna masih memiliki barang yang aktif di katalog.")
+
+        # 3. Laporan aktif (sebagai pelapor, terlapor langsung, atau pihak transaksi yang dilaporkan)
+        has_filed_reports = Report.objects.filter(reporter=user, status__in=Report.ACTIVE_STATUSES).exists()
+        has_targeted_reports = Report.objects.filter(target_user=user, status__in=Report.ACTIVE_STATUSES).exists()
+        has_loan_reports = (
+            Report.objects.filter(target_loan__borrower=user, status__in=Report.ACTIVE_STATUSES).exists()
+            or Report.objects.filter(target_loan__item__owner=user, status__in=Report.ACTIVE_STATUSES).exists()
+        )
+        if has_filed_reports or has_targeted_reports or has_loan_reports:
+            reasons.append("Pengguna masih terlibat dalam laporan yang sedang diproses.")
+
+        return reasons
+
+
 @login_required
 def public_profile(request, username):
-    target_user = get_object_or_404(User, username=username, is_active=True)
+    if request.user.is_staff:
+        target_user = get_object_or_404(User, username=username)
+    else:
+        target_user = get_object_or_404(User, username=username, is_active=True)
 
     if target_user.pk == request.user.pk:
         return redirect("authentication:profile")
@@ -252,9 +316,17 @@ def public_profile(request, username):
     profile = UserProfile.objects.filter(user=target_user).first()
     reputation_ctx = reputation_service.get_reputation_context(target_user)
 
+    can_moderate, _ = AdminModerationPermission.can_moderate(request.user, target_user)
+    deletion_reasons = []
+    if can_moderate:
+        deletion_reasons = UserDeletionValidator.get_blocking_reasons(target_user)
+
     context = {
         "target_user": target_user,
         "profile": profile,
+        "can_moderate": can_moderate,
+        "can_be_deleted": can_moderate and len(deletion_reasons) == 0,
+        "deletion_reasons": deletion_reasons,
         **reputation_ctx,
     }
     return render(request, "public_profile.html", context)
@@ -413,4 +485,115 @@ def profile_reputation_api(request, username=None):
             "user_items": items_data,
         }
     )
+
+@require_http_methods(["GET", "POST"])
+@rate_limit(scope="login_help", limit=5, period=60)
+def login_help_request(request):
+    """
+    View publik untuk mengajukan permohonan bantuan kendala login atau lupa password.
+    Hanya dapat diakses oleh tamu yang belum login (unauthenticated).
+    """
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
+    if request.method == "POST":
+        form = LoginHelpRequestForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                "Permohonan bantuan Anda telah diterima. Jika akun terdaftar, admin akan menghubungi email kontakmu.",
+            )
+            return redirect("authentication:login")
+    else:
+        form = LoginHelpRequestForm()
+
+    context = {
+        "form": form,
+    }
+    return render(request, "login_help_form.html", context)
+
+
+@staff_required
+@require_http_methods(["POST"])
+def admin_toggle_verify(request, username):
+    """
+    Mengubah status verifikasi profil pengguna (is_verified).
+    Hanya dapat diakses oleh staff/admin dengan hierarki moderasi yang valid.
+    """
+    target_user = get_object_or_404(User, username=username)
+
+    allowed, error_msg = AdminModerationPermission.can_moderate(request.user, target_user)
+    if not allowed:
+        messages.error(request, error_msg)
+        return redirect("authentication:public_profile", username=username)
+
+    profile, _ = UserProfile.objects.get_or_create(user=target_user)
+    profile.is_verified = not profile.is_verified
+    profile.save()
+
+    status_str = "terverifikasi" if profile.is_verified else "tidak terverifikasi"
+    messages.success(
+        request,
+        f"Status verifikasi akun {target_user.username} berhasil diubah menjadi {status_str}.",
+    )
+    return redirect("authentication:public_profile", username=username)
+
+
+@staff_required
+@require_http_methods(["POST"])
+def admin_toggle_active(request, username):
+    """
+    Mengubah status aktif akun pengguna (is_active).
+    Admin tidak diizinkan menonaktifkan akun admin lain tanpa hak superuser atau akunnya sendiri.
+    """
+    target_user = get_object_or_404(User, username=username)
+
+    allowed, error_msg = AdminModerationPermission.can_moderate(request.user, target_user)
+    if not allowed:
+        messages.error(request, error_msg)
+        return redirect("authentication:public_profile", username=username)
+
+    target_user.is_active = not target_user.is_active
+    target_user.save()
+
+    status_str = "aktif" if target_user.is_active else "nonaktif"
+    messages.success(
+        request,
+        f"Status akun {target_user.username} berhasil diubah menjadi {status_str}.",
+    )
+    return redirect("authentication:public_profile", username=username)
+
+
+@staff_required
+@require_http_methods(["POST"])
+def admin_delete_user(request, username):
+    """
+    Menghapus akun pengguna secara aman setelah memeriksa ketiadaan relasi data aktif.
+    Admin tidak diizinkan menghapus akun admin lain tanpa hak superuser atau akunnya sendiri.
+    """
+    target_user = get_object_or_404(User, username=username)
+
+    allowed, error_msg = AdminModerationPermission.can_moderate(request.user, target_user)
+    if not allowed:
+        messages.error(request, error_msg)
+        return redirect("authentication:public_profile", username=username)
+
+    reasons = UserDeletionValidator.get_blocking_reasons(target_user)
+    if reasons:
+        error_msg = "Akun tidak dapat dihapus: " + " ".join(reasons)
+        messages.error(request, error_msg)
+        return redirect("authentication:public_profile", username=username)
+
+    try:
+        deleted_username = target_user.username
+        target_user.delete()
+        messages.success(request, f"Akun pengguna {deleted_username} berhasil dihapus.")
+        return redirect("landing_page")
+    except Exception as e:
+        messages.error(
+            request,
+            "Gagal menghapus pengguna karena masih ada relasi data yang dilindungi di sistem.",
+        )
+        return redirect("authentication:public_profile", username=username)
 

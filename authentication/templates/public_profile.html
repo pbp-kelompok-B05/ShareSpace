@@ -20,6 +20,106 @@
         </div>
     </div>
 
+    {% if can_moderate %}
+    <!-- Panel Moderasi Admin -->
+    <div class="mb-6 rounded-2xl border-2 border-line bg-surface p-6 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
+            <div>
+                <h2 class="card-title m-0 text-lg font-bold text-ink">Panel Moderasi Admin</h2>
+                <p class="card-meta m-0 text-xs">Aksi cepat manajemen akun pengguna khusus staf.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{% url 'admin:authentication_loginhelprequest_changelist' %}" class="button button-secondary button-sm" target="_blank" rel="noopener">
+                    Login helpdesk
+                </a>
+                <a href="{% url 'admin:auth_user_change' target_user.pk %}" class="button button-secondary button-sm" target="_blank" rel="noopener">
+                    Kelola Lengkap di Django Admin
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+            <!-- Aksi Verifikasi -->
+            <form method="post" action="{% url 'authentication:admin_toggle_verify' target_user.username %}" class="inline">
+                {% csrf_token %}
+                {% if profile.is_verified %}
+                    <button type="submit" class="button button-secondary button-sm">
+                        Cabut Verifikasi
+                    </button>
+                {% else %}
+                    <button type="submit" class="button button-primary button-sm">
+                        Beri Verifikasi UI
+                    </button>
+                {% endif %}
+            </form>
+
+            <!-- Aksi Status Aktif -->
+            {% if target_user.pk == request.user.pk %}
+                <button type="button" class="button button-secondary button-sm cursor-not-allowed opacity-50" disabled title="Anda tidak dapat menonaktifkan akun sendiri">
+                    Nonaktifkan Akun Ini
+                </button>
+            {% else %}
+                <form method="post" action="{% url 'authentication:admin_toggle_active' target_user.username %}" class="inline">
+                    {% csrf_token %}
+                    {% if target_user.is_active %}
+                        <button type="submit" class="button button-secondary button-sm">
+                            Nonaktifkan Akun Ini
+                        </button>
+                    {% else %}
+                        <button type="submit" class="button button-primary button-sm">
+                            Aktifkan Kembali
+                        </button>
+                    {% endif %}
+                </form>
+            {% endif %}
+
+            <!-- Aksi Bahaya: Hapus Akun -->
+            {% if target_user.pk == request.user.pk %}
+                <button type="button" class="button button-danger-outline button-sm cursor-not-allowed opacity-50" disabled title="Admin tidak dapat menghapus akun sendiri">
+                    Hapus Akun
+                </button>
+            {% elif not can_be_deleted %}
+                <button type="button" class="button button-danger-outline button-sm cursor-not-allowed opacity-50" disabled title="{% for reason in deletion_reasons %}{{ reason }} {% endfor %}">
+                    Hapus Akun (Data Terikat)
+                </button>
+            {% else %}
+                <button type="button" class="button button-danger-outline button-sm" onclick="document.getElementById('delete-user-modal').showModal()">
+                    Hapus Akun
+                </button>
+            {% endif %}
+        </div>
+
+        {% if not can_be_deleted and target_user.pk != request.user.pk and deletion_reasons %}
+            <div class="mt-3 rounded-lg bg-surface-muted p-3 text-xs text-muted">
+                <strong>Status Kelayakan Hapus:</strong> Pengguna tidak dapat dihapus saat ini karena:
+                <ul class="mb-0 mt-1 list-disc pl-4">
+                    {% for reason in deletion_reasons %}
+                        <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Akun -->
+    {% if can_be_deleted %}
+    <dialog id="delete-user-modal" class="rounded-2xl border border-line bg-surface p-6 shadow-xl backdrop:bg-ink/50 max-w-md w-full">
+        <form method="post" action="{% url 'authentication:admin_delete_user' target_user.username %}">
+            {% csrf_token %}
+            <h3 class="m-0 text-xl font-bold text-danger">Konfirmasi Hapus Akun</h3>
+            <p class="mt-2 text-sm text-muted">
+                Apakah Anda yakin ingin menghapus akun <strong>@{{ target_user.username }}</strong>?
+                Tindakan ini permanen dan akan menghapus seluruh data profil pengguna.
+            </p>
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" class="button button-secondary button-sm" onclick="document.getElementById('delete-user-modal').close()">Batal</button>
+                <button type="submit" class="button button-danger button-sm">Ya, Hapus Akun</button>
+            </div>
+        </form>
+    </dialog>
+    {% endif %}
+    {% endif %}
+
     <!-- Grid Profil & Sidebar Trust Score -->
     <div class="grid gap-6 md:grid-cols-3">
         <!-- Kartu Identitas Publik -->
@@ -38,6 +138,9 @@
                         <div class="space-y-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                                {% if not target_user.is_active %}
+                                    <span class="badge badge-unavailable" title="Akun Dinonaktifkan">Nonaktif</span>
+                                {% endif %}
                                 {% if profile.is_verified %}
                                     <span class="badge badge-verified" title="Akun Terverifikasi">✓ Terverifikasi</span>
                                 {% endif %}
