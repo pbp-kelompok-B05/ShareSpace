@@ -12,5 +12,37 @@ Dengan perubahan ini, fitur pencarian menjadi lebih stabil karena **tidak lagi b
 
 ## AI DIsclosure COD-LOCATION APP ##
 
-Sebagian besar tugas ini dibantu oleh AI, terutama bagian HTML untuk app cod semuanya dibuat oleh AI saya hanya mencek apakah html sdh sesuai atau tidak. Unit testing juga dibuatkan oleh AI.
-Untuk permasalahan Overpass API juga dibantu oleh AI awalnya mencoba berbagai penyedia public overpass API namun semuanya tetap sama, akhirnya AI menawarkan menggunakan overpass API hanya untuk mengimport data lokasi, sehingga jika lokasi yang tidak ada didalam data JSON tidak dapat ditemukan.
+Sebagian besar pengembangan modul COD Location dibantu oleh AI, terutama dalam pembuatan kode HTML, JavaScript, serta unit testing. Berikut penjelasan penggunaan AI, keterbatasannya, dan proses pengecekan yang dilakukan secara manual.
+
+### 1. Penggunaan AI
+
+- **Frontend:** Sebagian besar kode HTML dan JavaScript pada modul COD dibuat dengan bantuan AI. Peran saya terutama memeriksa kesesuaian tampilan, fitur, dan alur pengguna dengan kebutuhan aplikasi.
+- **Unit Testing:** AI membantu membuat unit test untuk memeriksa fungsionalitas modul COD, termasuk pengelolaan lokasi, penjadwalan, dan pencarian tempat.
+- **Debugging:** AI digunakan untuk membantu menganalisis error dan memberikan alternatif solusi selama proses pengembangan.
+- **Integrasi Overpass API:** AI membantu mencari solusi atas permasalahan timeout dan kegagalan request ketika menggunakan layanan Overpass API secara langsung.
+
+### 2. Keterbatasan AI dan Solusi yang Diterapkan
+
+**Permasalahan Overpass API**
+
+Pada awalnya, AI menyarankan penggunaan Overpass API secara langsung untuk mencari lokasi. Namun, implementasi tersebut sering mengalami timeout dan kegagalan respons saat dijalankan.
+
+Beberapa endpoint Overpass API publik telah dicoba, tetapi permasalahan serupa masih terjadi. Akhirnya, AI menyarankan pendekatan alternatif, yaitu mengambil data dari Overpass API terlebih dahulu, lalu mengimpornya ke database melalui model `Place`.
+
+Solusi ini membuat pencarian lebih stabil karena tidak lagi bergantung pada API eksternal setiap kali pengguna melakukan pencarian. Namun, **terdapat keterbatasan penting: hanya lokasi yang sudah tersedia dalam data JSON hasil pengambilan sebelumnya yang dapat ditemukan**. Lokasi baru atau lokasi yang belum diimpor tidak akan muncul, sehingga data perlu diperbarui secara berkala apabila ingin menjaga kelengkapan informasi.
+
+**Keterbatasan Kode yang Dihasilkan AI**
+
+Kode yang dihasilkan AI tidak selalu langsung sesuai dengan kebutuhan proyek atau terintegrasi dengan modul lain. Oleh karena itu, kode tetap perlu diperiksa dan diuji. Unit test yang dibuat AI juga tidak menjamin seluruh fitur berjalan dengan benar tanpa pengujian tambahan.
+
+### 3. Pengecekan dan Perbaikan Manual
+
+Meskipun sebagian besar implementasi dibantu AI, saya tetap melakukan pengecekan dan penyesuaian, antara lain:
+
+- Memeriksa kesesuaian tampilan dan alur fitur COD dengan kebutuhan aplikasi.
+- Mencoba fitur CRUD lokasi, pengelolaan jadwal, dan pencarian tempat secara langsung.
+- Menguji berbagai endpoint Overpass publik untuk memastikan masalah timeout yang terjadi.
+- Menjalankan unit test serta memeriksa hasil pengujiannya.
+- Menyesuaikan implementasi berdasarkan error yang ditemukan dan masukan dari code review.
+
+Dengan demikian, AI digunakan sebagai alat bantu utama dalam penulisan kode dan pencarian solusi, sedangkan pengecekan, pengujian, serta keputusan penerapan solusi tetap dilakukan berdasarkan kebutuhan dan hasil pengujian aplikasi.
