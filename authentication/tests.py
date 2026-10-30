@@ -7,12 +7,10 @@ from django.urls import reverse
 from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
-from authentication.reputation import (
-    BaseReputationCalculator,
-    BaseTimeFormatter,
-    BayesianTrustScoreCalculator,
-    IndonesianRelativeTimeFormatter,
-    UserReputationService,
+from authentication.views import (
+    BaseProfileReputationProvider,
+    ReviewModuleReputationProvider,
+    reputation_service,
 )
 from items.models import Item
 from loans.models import LoanRequest
@@ -397,7 +395,7 @@ class AuthenticationTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Trust Score")
         self.assertContains(response, "★ – / 5.0")
-        self.assertContains(response, "Pengguna Baru")
+        self.assertContains(response, "Pengguna baru")
         self.assertContains(response, "Ulasan Komunitas (0)")
         self.assertContains(response, "Belum ada ulasan")
 
@@ -668,66 +666,35 @@ class AuthBackendsTest(TestCase):
         self.assertIsNone(backend.authenticate(None, google_credential="unverified_token"))
 
 
-class ReputationCalculatorTest(TestCase):
-    def test_base_calculator_not_implemented(self):
-        base = BaseReputationCalculator()
-        with self.assertRaises(NotImplementedError):
-            base.calculate_trust_score(0, 0, 0, 0)
-        with self.assertRaises(NotImplementedError):
-            base.determine_trust_level(100, 0, 0)
-
-    def test_bayesian_trust_score_new_user(self):
-        calc = BayesianTrustScoreCalculator()
-        score = calc.calculate_trust_score(completed_loans=0, review_count=0, rating_sum=0, resolved_reports=0)
-        self.assertIsNone(score)
-        level, desc = calc.determine_trust_level(score, completed_loans=0, review_count=0)
-        self.assertEqual(level, "Pengguna Baru")
-
-    def test_bayesian_trust_score_calculation_and_levels(self):
-        calc = BayesianTrustScoreCalculator()
-        # 1 ulasan 5 bintang, 1 transaksi
-        score = calc.calculate_trust_score(completed_loans=1, review_count=1, rating_sum=5, resolved_reports=0)
-        self.assertIsNotNone(score)
-        self.assertTrue(0 <= score <= 100)
-
-        # Level test
-        level, _ = calc.determine_trust_level(90, 10, 10)
-        self.assertEqual(level, "Sangat Terpercaya")
-        level, _ = calc.determine_trust_level(75, 5, 5)
-        self.assertEqual(level, "Terpercaya")
-        level, _ = calc.determine_trust_level(60, 2, 2)
-        self.assertEqual(level, "Cukup Terpercaya")
-        level, _ = calc.determine_trust_level(40, 1, 1)
-        self.assertEqual(level, "Perlu Perhatian")
-
-    def test_bayesian_trust_score_penalty(self):
-        calc = BayesianTrustScoreCalculator()
-        score_clean = calc.calculate_trust_score(completed_loans=5, review_count=5, rating_sum=25, resolved_reports=0)
-        score_penalized = calc.calculate_trust_score(completed_loans=5, review_count=5, rating_sum=25, resolved_reports=2)
-        self.assertLess(score_penalized, score_clean)
-
-
-class UserReputationServiceTest(TestCase):
+class ProfileReputationProviderTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="test_rep_user", password="Password123.")
         self.other_user = User.objects.create_user(username="other_rep_user", password="Password123.")
         UserProfile.objects.create(user=self.user, full_name="Rep User")
         UserProfile.objects.create(user=self.other_user, full_name="Other Rep User")
 
-    def test_service_context_empty(self):
-        service = UserReputationService()
-        ctx = service.get_reputation_context(self.user)
+    def test_base_provider_not_implemented(self):
+        base = BaseProfileReputationProvider()
+        with self.assertRaises(NotImplementedError):
+            base.get_reputation_context(self.user)
+
+    def test_provider_inheritance_and_polymorphism(self):
+        provider = ReviewModuleReputationProvider()
+        self.assertIsInstance(provider, BaseProfileReputationProvider)
+
+    def test_provider_context_empty(self):
+        ctx = reputation_service.get_reputation_context(self.user)
         self.assertEqual(ctx["reviews_count"], 0)
         self.assertIsNone(ctx["average_rating"])
         self.assertEqual(ctx["completed_loans_count"], 0)
         self.assertEqual(ctx["borrowed_loans_count"], 0)
         self.assertEqual(ctx["owned_items_count"], 0)
         self.assertIsNone(ctx["trust_score"])
-        self.assertEqual(ctx["trust_level"], "Pengguna Baru")
+        self.assertEqual(ctx["trust_level"], "Pengguna baru")
         self.assertEqual(len(ctx["reviews"]), 0)
         self.assertEqual(len(ctx["user_items"]), 0)
 
-    def test_service_context_with_loans_and_reviews(self):
+    def test_provider_context_with_loans_and_reviews(self):
         item = Item.objects.create(
             owner=self.user,
             name="Kamera DSLR",
@@ -758,8 +725,7 @@ class UserReputationServiceTest(TestCase):
             status=Report.Status.RESOLVED,
         )
 
-        service = UserReputationService()
-        ctx = service.get_reputation_context(self.user)
+        ctx = reputation_service.get_reputation_context(self.user)
         self.assertEqual(ctx["reviews_count"], 1)
         self.assertEqual(ctx["average_rating"], 5.0)
         self.assertEqual(ctx["completed_loans_count"], 1)
@@ -771,31 +737,6 @@ class UserReputationServiceTest(TestCase):
         self.assertEqual(ctx["reviews"][0].reviewer_initial, "O")
         self.assertEqual(ctx["reviews"][0].reviewer_display_name, "Other Rep User")
         self.assertTrue(len(ctx["reviews"][0].relative_time) > 0)
-
-
-class TimeFormatterTest(TestCase):
-    def test_base_formatter_not_implemented(self):
-        base = BaseTimeFormatter()
-        with self.assertRaises(NotImplementedError):
-            base.format_relative_time(datetime.datetime.now(datetime.timezone.utc))
-
-    def test_indonesian_relative_time_formatter(self):
-        from django.utils import timezone
-
-        formatter = IndonesianRelativeTimeFormatter()
-        now = timezone.now()
-
-        self.assertEqual(formatter.format_relative_time(None), "")
-        self.assertEqual(formatter.format_relative_time(now + datetime.timedelta(minutes=5)), "baru saja")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(seconds=20)), "baru saja")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(minutes=5)), "5 menit lalu")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(hours=3)), "3 jam lalu")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=1, hours=2)), "kemarin")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=4)), "4 hari lalu")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=10)), "1 pekan lalu")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=20)), "2 pekan lalu")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=45)), "1 bulan lalu")
-        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=400)), "1 tahun lalu")
 
 
 class ProfileReputationApiTest(TestCase):
