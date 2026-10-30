@@ -165,6 +165,62 @@ Modul ini membangun rasa aman dan kepercayaan antaranggota ShareSpace melalui ul
 
   Menunggu → Ditinjau → Selesai / Ditolak
 
+## 🛠️ Cara Menjalankan Secara Lokal
+
+**Prasyarat:** Python 3.12 atau lebih baru (dikembangkan dengan Python 3.13 dan Django 5.2), Git, dan Google Chrome (hanya untuk functional test Selenium).
+
+1. Clone repositori dan masuk ke foldernya.
+   ```bash
+   git clone https://github.com/pbp-kelompok-B05/ShareSpace.git
+   cd ShareSpace
+   ```
+2. Buat dan aktifkan virtual environment.
+   ```bash
+   python -m venv env
+   env\Scripts\activate        # Windows
+   source env/bin/activate     # macOS/Linux
+   ```
+3. Install dependency.
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Jalankan migration. Data awal (user dummy `demo_*` dan barang katalog) ikut dimuat otomatis lewat data migration, tanpa perintah `loaddata`.
+   ```bash
+   python manage.py migrate
+   ```
+5. (Opsional) Buat akun admin untuk moderasi dan Django admin.
+   ```bash
+   python manage.py createsuperuser
+   ```
+6. Jalankan server, lalu buka http://127.0.0.1:8000/.
+   ```bash
+   python manage.py runserver
+   ```
+
+**Konfigurasi environment:** secara lokal tidak perlu file `.env`; aplikasi memakai SQLite (`db.sqlite3`). Di PWS, variabel `PRODUCTION=true` beserta `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `SCHEMA` mengaktifkan PostgreSQL. Jangan commit nilai variabel tersebut.
+
+Akun `demo_*` dari data awal sengaja tidak bisa dipakai login. Untuk mencoba fitur, daftar akun baru lewat halaman register.
+
+### Menjalankan Test
+
+```bash
+python manage.py test                                   # seluruh test proyek
+python manage.py test items                             # test satu app
+python manage.py test --exclude-tag functional          # lewati functional test Selenium
+```
+
+Functional test Selenium membutuhkan Google Chrome dan otomatis dilewati jika Chrome atau driver-nya tidak tersedia. Untuk laporan coverage:
+
+```bash
+pip install coverage
+coverage run --source=items manage.py test items
+coverage report -m
+```
+
+### Deployment
+
+Setiap push ke branch `main` menjalankan GitHub Actions (`.github/workflows/deploy.yml`) yang mendorong kode ke PWS. Alur kerja kelompok: `feature/*` → Pull Request ke `dev` (minimal 1 approval + AI review) → `dev` di-merge ke `main` → deploy otomatis ke PWS.
+
 ## 🔗 Tautan Penting
 *   **Tautan Deployment (PWS):** `https://pws.cs.ui.ac.id/maximus.quinn/sharespace`
 *   **Tautan Desain (Figma):** `https://www.figma.com/files/folder/655547835`
