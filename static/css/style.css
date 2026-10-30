@@ -245,6 +245,9 @@ button.button{border:0;font-family:inherit;cursor:pointer}
 .chip:has(input:checked),.chip[aria-pressed="true"]{background:var(--green);color:var(--on-primary)}
 .chip:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
 
+/* Helper class untuk AJAX state management sesuai Tutorial 05 */
+.hide { display: none !important; }
+
 /* Button danger outline untuk aksi berisiko yang bukan aksi utama (mis. Hapus di kartu). */
 .button-danger-outline{background:var(--surface);color:var(--danger);box-shadow:inset 0 0 0 1px var(--danger-line)}
 .button-danger-outline:hover{background:var(--danger-bg)}
