@@ -56,3 +56,6 @@
 .item-dialog-close:hover{background:var(--surface-muted);color:var(--ink)}
 @keyframes item-dialog-in{from{opacity:0;transform:translateY(8px)}}
 @media(max-width:600px){.item-dialog-body{padding:16px}}
+
+/* Modal pengajuan pinjaman milik loans. Tombol bawaan komponen disembunyikan; pemicunya [data-open-loan-dialog] di area aksi. */
+.item-loan-dialog #open-loan-modal{display:none}
