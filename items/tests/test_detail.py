@@ -276,7 +276,9 @@ class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
         self.assertIsNotNone(match, "Form pengajuan pinjaman tidak ada di halaman detail.")
         return match.group(1)
 
-    def test_form_on_detail_creates_loan_request(self):
+    @override_settings(RECAPTCHA_SITE_KEY="test", RECAPTCHA_SECRET_KEY="test")
+    @mock.patch("loans.views.verify_recaptcha", return_value=True)
+    def test_form_on_detail_creates_loan_request(self, mock_recaptcha):
         # is_verified=True agar test tidak bergantung pada aturan verifikasi di loans yang sedang diubah.
         item = self.make_item(is_verified=True)
         # loans:create mewajibkan reCAPTCHA (#22); verifikasi ke Google di-mock agar test tidak butuh jaringan.
