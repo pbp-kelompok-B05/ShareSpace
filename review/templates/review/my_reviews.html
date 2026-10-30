@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ulasan saya — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'review/css/review.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <span class="section-label">ULASAN</span>
+    <h1 class="m-0 mb-3 text-3xl md:text-4xl">Ulasan saya</h1>
+    <p class="mb-6">Ulasan yang kamu tulis dan yang kamu terima dari transaksi yang sudah selesai.</p>
+
+    {% if pending_loans %}
+        <div class="card mb-6">
+            <div class="card-body">
+                <h2 class="m-0 text-lg">Menunggu ulasanmu</h2>
+                <ul class="m-0 grid list-none gap-3 p-0">
+                    {% for loan in pending_loans %}
+                        <li class="flex flex-wrap items-center justify-between gap-3">
+                            <span class="text-ink">{{ loan.item.name }}</span>
+                            <a class="button button-primary button-sm" href="{% url 'review:review_create' loan.pk %}">Beri ulasan</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+
+    <div id="review-list" aria-live="polite">
+        {% include "review/partials/my_review_list.html" %}
+    </div>
+</section>
+{% endblock %}

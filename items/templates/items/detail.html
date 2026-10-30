@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ item.name }} — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'items/css/detail.css' %}">
+{% if show_item_dialog %}<link rel="stylesheet" href="{% static 'items/css/form.css' %}">{% endif %}
+{% url 'loans:create' item.pk as loan_url %}
+{% if show_loan_dialog and loan_url %}<link rel="stylesheet" href="{% static 'css/loan_detail.css' %}">{% endif %}
+{% endblock %}
+
+{% block content %}
+{% include "items/partials/item_detail_body.html" %}
+
+{% if show_item_dialog %}
+    {# Di luar #item-detail agar tidak ikut terganti saat detail di-swap setelah edit. Isi dimuat HTMX. #}
+    <dialog id="item-dialog" class="item-dialog" aria-labelledby="item-dialog-title">
+        <div id="item-dialog-body" class="item-dialog-body"></div>
+    </dialog>
+{% endif %}
+
+{% url 'loans:create' item.pk as loan_url %}
+{% if show_loan_dialog and loan_url %}
+    {# Modal form pengajuan milik loans (POST via loan_action.js). Di luar #item-detail: jika ikut di-swap, #}
+    {# loan_action.js dijalankan ulang dan error. Tombol bawaannya disembunyikan; pemicunya di area aksi. #}
+    <div class="item-loan-dialog">
+        {% include "components/loan_form_modal.html" with mode="create" %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if show_item_dialog %}<script defer src="{% static 'items/js/item-dialog.js' %}"></script>{% endif %}
+{% url 'loans:create' item.pk as loan_url %}
+{% if show_loan_dialog and loan_url %}<script defer src="{% static 'items/js/item-loan.js' %}"></script>{% endif %}
+{% endblock %}

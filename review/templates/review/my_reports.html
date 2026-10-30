@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Laporan saya — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'review/css/review.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <span class="section-label">LAPORAN</span>
+    <h1 class="m-0 mb-3 text-3xl md:text-4xl">Laporan saya</h1>
+    <p class="mb-6">Pantau status laporan yang kamu kirim ke admin.</p>
+
+    {# Tanpa JS: form GET biasa. Dengan HTMX: daftar diganti saat chip dipilih, URL ikut berubah. #}
+    <form method="get" class="mb-6 flex flex-wrap items-center gap-3"
+          hx-get="{% url 'review:my_reports' %}"
+          hx-target="#report-list"
+          hx-push-url="true"
+          hx-trigger="change, submit"
+          hx-indicator="#filter-loading">
+        <fieldset class="chip-group">
+            <legend class="sr-only">Filter status</legend>
+            <label class="chip"><input type="radio" name="status" value=""{% if not current_status %} checked{% endif %}>Semua</label>
+            {% for value, label in statuses %}
+                <label class="chip"><input type="radio" name="status" value="{{ value }}"{% if current_status == value %} checked{% endif %}>{{ label }}</label>
+            {% endfor %}
+        </fieldset>
+        {# Hanya diperlukan tanpa JS; dengan JS filter langsung berlaku saat chip dipilih. #}
+        <button type="submit" class="button button-secondary button-sm review-nojs-only">Terapkan</button>
+        <span id="filter-loading" class="spinner htmx-indicator" aria-hidden="true"></span>
+    </form>
+
+    <div id="report-list" aria-live="polite">
+        {% include "review/partials/my_report_list.html" %}
+    </div>
+</section>
+{% endblock %}

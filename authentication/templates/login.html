@@ -1,0 +1,49 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Login — ShareSpace{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+{% if google_client_id %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block panel_heading %}Satu Komunitas, Berjuta Solusi Berbagi.{% endblock %}
+{% block panel_text %}Bergabunglah bersama ribuan mahasiswa dan warga sekitar yang saling meminjamkan barang tanpa rasa cemas.{% endblock %}
+{% block form_area %}
+<h1 class="m-0 mb-2 text-3xl tracking-tight">Selamat Datang Kembali</h1>
+<p class="mb-6 text-sm text-muted">Masuk ke akun ShareSpace Anda untuk melanjutkan transaksi.</p>
+
+{% if messages %}
+    <div class="mb-5 grid gap-2" role="status">
+        {% for message in messages %}
+            <div class="rounded-lg border px-4 py-3 text-sm font-medium text-primary" style="background: var(--success-bg); border-color: var(--success-line);">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% include "partials/social_login.html" with action="Masuk" %}
+
+<form method="post" action="{% url 'authentication:login' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/password_field.html" with field=form.password %}
+
+    <button type="submit" class="button button-primary auth-submit-btn mt-2 w-full">Masuk</button>
+</form>
+
+<p class="mb-0 mt-6 text-center text-sm text-muted">
+    Belum punya akun? <a class="font-bold text-primary hover:underline" href="{% url 'authentication:register' %}">Daftar sekarang</a>
+</p>
+<p class="mb-0 mt-3 text-center text-xs text-muted">
+    Lupa password atau terkendala masuk? <a class="font-medium text-primary hover:underline" href="{% url 'authentication:login_help_request' %}">Hubungi Bantuan Admin</a>
+</p>
+{% endblock %}

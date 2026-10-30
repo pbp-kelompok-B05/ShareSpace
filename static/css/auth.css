@@ -1,0 +1,180 @@
+/* Dekorasi panel hijau halaman login & register (ShareSpace).
+   Layout, form, dan tombol memakai Tailwind + style.css; file ini hanya untuk dekorasi
+   yang tidak bisa dibuat dengan utility Tailwind. Warna memakai variabel dari style.css. */
+
+.auth-panel {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 15% 10%, #2f8a62 0%, transparent 45%),
+        linear-gradient(160deg, #216c4c 0%, #184c38 60%, #10291f 100%);
+}
+
+/* Lingkaran besar transparan di pojok kanan atas dan kiri bawah */
+.auth-panel::before,
+.auth-panel::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.auth-panel::before {
+    top: -140px;
+    right: -120px;
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(217, 238, 169, 0.28) 0%, rgba(217, 238, 169, 0) 70%);
+}
+
+.auth-panel::after {
+    bottom: -160px;
+    left: -140px;
+    width: 420px;
+    height: 420px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+/* Cincin tipis berlapis sebagai aksen di sudut bawah kanan */
+.auth-ring {
+    position: absolute;
+    z-index: -1;
+    right: -90px;
+    bottom: -90px;
+    width: 300px;
+    height: 300px;
+    border: 1px solid rgba(217, 238, 169, 0.22);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.auth-ring::before,
+.auth-ring::after {
+    content: "";
+    position: absolute;
+    border: 1px solid rgba(217, 238, 169, 0.16);
+    border-radius: 50%;
+}
+
+.auth-ring::before {
+    inset: 40px;
+}
+
+.auth-ring::after {
+    inset: 80px;
+}
+
+/* Titik kecil sebagai aksen di sudut kiri atas */
+.auth-dots {
+    position: absolute;
+    z-index: -1;
+    top: 28px;
+    right: 32px;
+    width: 96px;
+    height: 96px;
+    background-image: radial-gradient(rgba(217, 238, 169, 0.45) 1.5px, transparent 1.5px);
+    background-size: 16px 16px;
+    pointer-events: none;
+}
+
+/* Lingkaran ceklis pada daftar keunggulan */
+.auth-check {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(217, 238, 169, 0.16);
+    color: #d9eea9;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+/* External Auth Buttons & Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 20px 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid var(--line);
+}
+
+.auth-divider span {
+    padding: 0 12px;
+}
+
+.auth-external-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.btn-sso-ui {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 11px 16px;
+    background: #f7a800;
+    color: #1a1a1a;
+    border: 1px solid #e09600;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background-color 0.2s, transform 0.1s;
+    cursor: pointer;
+}
+
+.btn-sso-ui:hover {
+    background: #e69800;
+    color: #000;
+}
+
+.btn-google-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.btn-auth-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.btn-google-custom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--white);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background-color 0.2s, border-color 0.2s;
+    cursor: pointer;
+}
+
+.btn-google-custom:hover {
+    background: var(--surface-muted);
+    border-color: #bbb;
+}

@@ -1,0 +1,69 @@
+{% load static %}
+{% comment %}
+Satu baris di "Barang saya". Pakai: {% include "items/partials/my_item_row.html" with item=item %}
+Context tambahan: show_deleted (tab Terhapus). Barang yang sedang dipinjam terkunci di tab aktif.
+{% endcomment %}
+{% url 'items:detail' item.pk as detail_url %}
+{% url 'items:edit' item.pk as edit_url %}
+{% url 'items:delete' item.pk as delete_url %}
+{% url 'items:bulk_action' as bulk_url %}
+{% with locked=item.is_available|yesno:",locked" %}
+<article class="my-item-row{% if locked and not show_deleted %} is-locked{% endif %}" id="my-item-{{ item.pk }}" data-item-row>
+    <div class="my-item-select">
+        <input type="checkbox" name="items" value="{{ item.pk }}" form="bulk-form" aria-label="Pilih {{ item.name }}"{% if locked and not show_deleted %} disabled{% endif %}>
+    </div>
+    <div class="my-item-thumb">
+        {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">
+        {% else %}
+            <img class="my-item-placeholder" src="{% static item.placeholder_path %}" alt="" loading="lazy">
+        {% endif %}
+    </div>
+    <div class="my-item-main">
+        {# Barang terhapus tidak punya halaman detail (404), jadi namanya bukan link. #}
+        <h2 class="my-item-name">{% if show_deleted %}{{ item.name }}{% else %}<a href="{{ detail_url }}">{{ item.name }}</a>{% endif %}</h2>
+        <p class="my-item-meta">
+            <span>{{ item.get_category_display }}</span>
+            <span aria-hidden="true">·</span>
+            <span>Kondisi {{ item.get_condition_display }}</span>
+        </p>
+    </div>
+    <div class="my-item-status">
+        {% if show_deleted %}
+            <span class="badge badge-warning">Terhapus</span>
+        {% elif item.is_available %}
+            <span class="badge badge-available">Tersedia</span>
+        {% else %}
+            <span class="badge badge-unavailable">Sedang Dipinjam</span>
+        {% endif %}
+        {% if item.is_verified %}<span class="badge badge-verified">✓ Terverifikasi</span>{% endif %}
+    </div>
+    <p class="my-item-date">
+        {% if show_deleted %}
+            Dihapus <time datetime="{{ item.deleted_at|date:'c' }}">{{ item.deleted_at|date:"d/m/Y" }}</time>
+        {% else %}
+            <span class="sr-only">Ditambahkan </span><time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at|date:"d/m/Y" }}</time>
+        {% endif %}
+    </p>
+    <div class="my-item-actions">
+        {% if show_deleted %}
+            <form method="post" action="{{ bulk_url }}" hx-post="{{ bulk_url }}" hx-target="#my-item-list"
+                  hx-include="#my-items-filter, #my-items-page">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="restore">
+                <input type="hidden" name="items" value="{{ item.pk }}">
+                <button type="submit" class="button button-secondary button-sm">Pulihkan<span class="sr-only"> {{ item.name }}</span></button>
+            </form>
+        {% elif locked %}
+            <p class="my-item-note">Sedang dipinjam, tidak dapat diubah atau dihapus.</p>
+        {% else %}
+            <a class="button button-secondary button-sm" href="{{ edit_url }}">Edit<span class="sr-only"> {{ item.name }}</span></a>
+            {# Tanpa JS: halaman konfirmasi hapus. Dengan HTMX: lewat endpoint bulk dengan satu barang. #}
+            <a class="button button-danger-outline button-sm" href="{{ delete_url }}"
+               hx-post="{{ bulk_url }}" hx-vals='{"action": "delete", "items": "{{ item.pk }}"}'
+               hx-target="#my-item-list" hx-include="#my-items-filter, #my-items-page"
+               hx-confirm="Hapus {{ item.name }}?">Hapus<span class="sr-only"> {{ item.name }}</span></a>
+        {% endif %}
+    </div>
+</article>
+{% endwith %}

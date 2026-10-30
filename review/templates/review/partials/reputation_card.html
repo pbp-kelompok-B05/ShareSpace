@@ -1,0 +1,26 @@
+{% comment %}
+Kartu reputasi untuk profil. Dirender oleh tag {% reputation_card target_user %}.
+CSS ada di review/css/review.css; halaman pemakai perlu memuatnya di block extra_head.
+{% endcomment %}
+<section class="card" aria-labelledby="reputation-title-{{ target_user.pk }}">
+    <div class="card-body gap-4">
+        <h2 class="card-title m-0 text-lg" id="reputation-title-{{ target_user.pk }}">Reputasi &amp; Ulasan</h2>
+        {% include "review/partials/reputation_summary.html" %}
+        {% if latest_reviews %}
+            <ul class="m-0 grid list-none gap-3 p-0">
+                {% for review in latest_reviews %}
+                    <li class="review-snippet">
+                        <div class="flex flex-wrap items-center gap-2">
+                            {% include "review/partials/stars.html" with rating=review.rating %}
+                            <span class="card-meta">{{ review.reviewer.username }}</span>
+                        </div>
+                        {% if review.comment %}<p class="m-0 text-ink">{{ review.comment|truncatechars:140 }}</p>{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+            <a class="text-link" href="{% url 'review:user_reviews' target_user.username %}">Lihat semua ulasan <span aria-hidden="true">→</span></a>
+        {% else %}
+            {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan muncul setelah transaksi peminjaman selesai." icon="⭐" heading_level=3 %}
+        {% endif %}
+    </div>
+</section>

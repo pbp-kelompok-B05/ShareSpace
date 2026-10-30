@@ -1,0 +1,19 @@
+{% comment %}
+Item ulasan + tombol "Muat lebih banyak". Dirender di user_reviews.html dan sendirian untuk HTMX:
+tombol meminta halaman berikutnya lalu menggantikan dirinya sendiri (outerHTML) dengan item baru
+beserta tombol berikutnya. Tanpa JS, tombol tetap berupa link biasa ke ?page=N.
+{% endcomment %}
+{% for review in page_obj %}
+    <li>{% include "review/partials/review_item.html" %}</li>
+{% endfor %}
+{% if page_obj.has_next %}
+    <li class="flex justify-center">
+        <a class="button button-secondary" href="?page={{ page_obj.next_page_number }}"
+           hx-get="?page={{ page_obj.next_page_number }}"
+           hx-target="closest li"
+           hx-swap="outerHTML"
+           hx-indicator="#load-more-loading">
+            Muat lebih banyak <span id="load-more-loading" class="spinner htmx-indicator" aria-hidden="true"></span>
+        </a>
+    </li>
+{% endif %}

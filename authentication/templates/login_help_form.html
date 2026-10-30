@@ -1,0 +1,54 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Bantuan Kendala Login — ShareSpace{% endblock %}
+
+{% block panel_heading %}Pusat Bantuan Akun{% endblock %}
+{% block panel_text %}Terkendala saat masuk ke akun atau lupa kata sandi akun lokal? Sampaikan kendala Anda kepada tim admin agar akun dapat segera dibantu.{% endblock %}
+
+{% block form_area %}
+<h1 class="m-0 mb-2 text-3xl tracking-tight">Bantuan Kendala Login</h1>
+<p class="mb-4 text-sm text-muted">Kirimkan rincian akun dan kendala login Anda ke tim admin ShareSpace.</p>
+
+<!-- Catatan Edukasi SSO UI & Google -->
+<div class="mb-6 rounded-xl border border-line bg-surface-soft p-4 text-xs leading-relaxed text-ink/80 shadow-sm">
+    <div class="flex items-start gap-2.5">
+        <span class="text-base" aria-hidden="true">💡</span>
+        <div>
+            <strong class="font-bold text-ink">Catatan untuk Pengguna SSO UI &amp; Google:</strong>
+            <p class="mt-1 mb-0 text-muted">
+                Jika Anda mendaftar atau masuk menggunakan akun <strong>Google</strong> atau <strong>SSO UI</strong>, akun Anda tidak memerlukan password lokal. Anda dapat langsung memilih tombol masuk Google atau SSO UI di halaman login.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+    <div class="mb-5 grid gap-2" role="status">
+        {% for message in messages %}
+            <div class="rounded-lg border px-4 py-3 text-sm font-medium text-primary" style="background: var(--success-bg); border-color: var(--success-line);">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<form method="post" action="{% url 'authentication:login_help_request' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% include "partials/form_field.html" with field=form.email_or_username %}
+    {% include "partials/form_field.html" with field=form.contact_email %}
+    {% include "partials/form_field.html" with field=form.issue_type %}
+    {% include "partials/form_field.html" with field=form.message %}
+
+    <button type="submit" class="button button-primary auth-submit-btn mt-2 w-full">Kirim Permohonan Bantuan</button>
+</form>
+
+<p class="mb-0 mt-6 text-center text-sm text-muted">
+    Sudah ingat akun atau ingin mencoba lagi? <a class="font-bold text-primary hover:underline" href="{% url 'authentication:login' %}">Kembali ke Login</a>
+</p>
+{% endblock %}
+

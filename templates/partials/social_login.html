@@ -1,0 +1,51 @@
+{% load static %}
+{% comment %}
+Tombol login sosial. SSO UI di atas Google.
+Pakai: {% include "partials/social_login.html" with action="Masuk" %}
+{% endcomment %}
+<div class="grid gap-3">
+    <!-- SSO UI -->
+    <a href="{% url 'authentication:sso_ui_login' %}" class="button button-secondary w-full gap-3" title="{{ action }} dengan akun SSO Universitas Indonesia">
+        <img src="{% static 'images/UI.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
+        {{ action }} dengan SSO UI
+    </a>
+
+    <!-- Google OAuth / GSI -->
+    {% if google_client_id %}
+        <div id="g_id_onload"
+             data-client_id="{{ google_client_id }}"
+             data-context="signin"
+             data-ux_mode="popup"
+             data-callback="handleGoogleLogin"
+             data-auto_prompt="false">
+        </div>
+        <button id="btn-google-signin"
+                type="button"
+                class="button button-secondary w-full gap-3"
+                data-endpoint="{% url 'authentication:google_login' %}"
+                data-default-redirect="{% url 'landing_page' %}"
+                title="{{ action }} dengan Google">
+            <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
+            {{ action }} dengan Google
+        </button>
+        <div id="gsi_hidden_wrapper" class="hidden">
+            <div class="g_id_signin" data-type="standard"></div>
+        </div>
+        <script defer src="{% static 'authentication/js/google-login.js' %}"></script>
+    {% else %}
+        <button id="btn-google-unconfigured"
+                type="button"
+                class="button button-secondary w-full gap-3"
+                title="Google OAuth belum dikonfigurasi">
+            <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
+            {{ action }} dengan Google
+        </button>
+        <script defer src="{% static 'authentication/js/google-login.js' %}"></script>
+    {% endif %}
+</div>
+
+<div class="my-6 flex items-center gap-3 text-xs font-semibold tracking-widest text-muted">
+    <span class="h-px flex-1 bg-line"></span>
+    ATAU DENGAN USERNAME
+    <span class="h-px flex-1 bg-line"></span>
+</div>

@@ -1,0 +1,16 @@
+{% comment %}
+Konfirmasi hapus (soft delete). Dipakai halaman konfirmasi (tanpa JS) dan dialog di detail (HTMX).
+Context: item, form_action, cancel_url. Fokus awal di Batal karena aksinya destruktif.
+{% endcomment %}
+<form id="item-delete-form" class="item-delete-form" method="post" action="{{ form_action }}"
+      hx-post="{{ form_action }}" hx-disabled-elt="find button[type='submit']">
+    {% csrf_token %}
+    <p class="item-delete-text">
+        <strong>{{ item.name }}</strong> akan disembunyikan dari katalog dan tidak bisa dipinjam lagi.
+        Riwayat peminjaman barang ini tetap tersimpan.
+    </p>
+    <div class="item-form-actions">
+        <a class="button button-secondary" href="{{ cancel_url }}" data-dialog-close autofocus>Batal</a>
+        <button type="submit" class="button button-danger">Ya, hapus barang</button>
+    </div>
+</form>

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Profil Saya — ShareSpace{% endblock %}
+
+{% block content %}
+{% include "profile_content.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script defer src="{% static 'authentication/js/profile.js' %}"></script>
+{% endblock %}

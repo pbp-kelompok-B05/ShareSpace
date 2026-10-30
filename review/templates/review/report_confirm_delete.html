@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Batalkan laporan — ShareSpace{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <div class="mx-auto max-w-xl">
+        <span class="section-label">LAPORAN</span>
+        <h1 class="m-0 mb-3 text-3xl md:text-4xl">Batalkan laporan ini?</h1>
+        <p>Laporan <strong>{{ report.get_reason_display }}</strong> akan dihapus permanen dan tidak bisa dipulihkan.</p>
+
+        <div class="card my-6">
+            <div class="card-body">
+                <div class="flex flex-wrap items-center gap-2">
+                    {% include "review/partials/report_target.html" with report=report %}
+                </div>
+                <p class="card-meta m-0">Dikirim {{ report.created_at|date:"j M Y, H:i" }}</p>
+            </div>
+        </div>
+
+        <form method="post" class="flex flex-wrap items-center gap-3">
+            {% csrf_token %}
+            <button type="submit" class="button button-danger">Ya, batalkan laporan</button>
+            <a class="button button-ghost" href="{% url 'review:report_detail' report.pk %}">Kembali</a>
+        </form>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Daftar Akun — ShareSpace{% endblock %}
+
+{% block extra_head %}
+{{ block.super }}
+{% if google_client_id %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block panel_heading %}Mulai Berbagi, Hemat Bersama.{% endblock %}
+{% block panel_text %}Buat akun ShareSpace dan mulai pinjam atau pinjamkan barang dengan tetangga dan teman kampus di sekitarmu.{% endblock %}
+{% block form_area %}
+<h1 class="m-0 mb-2 text-3xl tracking-tight">Buat Akun Baru</h1>
+<p class="mb-6 text-sm text-muted">Bergabung bersama komunitas ShareSpace sekarang.</p>
+
+{% include "partials/social_login.html" with action="Daftar" %}
+
+<form method="post" action="{% url 'authentication:register' %}" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="form-errors" role="alert">
+            {% for error in form.non_field_errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        </div>
+    {% endif %}
+
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/password_field.html" with field=form.password1 %}
+    {% include "partials/password_field.html" with field=form.password2 %}
+
+    <button type="submit" class="button button-primary mt-2 w-full">Daftar Akun</button>
+</form>
+
+<p class="mb-0 mt-6 text-center text-sm text-muted">
+    Sudah punya akun? <a class="font-bold text-primary hover:underline" href="{% url 'authentication:login' %}">Masuk di sini</a>
+</p>
+{% endblock %}

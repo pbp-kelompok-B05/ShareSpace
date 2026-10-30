@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% comment %}
+Dirender otomatis oleh handler 404 bawaan Django saat DEBUG=False (Http404 / URL tidak cocok).
+Tidak perlu handler404 di urls.py.
+{% endcomment %}
+
+{% block title %}Halaman tidak ditemukan — ShareSpace{% endblock %}
+
+{% block content %}
+{% url 'items:catalog' as catalog_url %}
+<section class="error-page" aria-labelledby="error-title">
+    <div class="container error-inner">
+        <p class="error-code" aria-hidden="true">404</p>
+        <span class="section-label">ERROR 404</span>
+        <h1 id="error-title" class="error-title">Halaman tidak ditemukan</h1>
+        <p class="error-text">Halaman yang kamu cari mungkin sudah dipindahkan, dihapus, atau alamatnya salah ketik.</p>
+        <div class="error-actions">
+            <a class="button button-primary" href="{% url 'landing_page' %}">Kembali ke beranda</a>
+            {% if catalog_url %}<a class="text-link" href="{{ catalog_url }}">Jelajahi katalog <span aria-hidden="true">↗</span></a>{% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

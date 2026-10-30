@@ -7,38 +7,34 @@
     <meta name="theme-color" content="#f6f7f1">
     <meta name="description" content="ShareSpace menghubungkan tetangga untuk saling meminjam barang, menghemat biaya, dan mengurangi limbah.">
     <title>{% block title %}ShareSpace — Pakai bersama, lebih bermakna{% endblock %}</title>
+    {# Sengaja tanpa defer: tema harus terpasang sebelum CSS dan halaman digambar. #}
+    <script src="{% static 'js/theme-init.js' %}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {# Tailwind Play CDN v3 (versi di-pin); config harus dimuat setelah script CDN. #}
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="{% static 'js/tailwind.config.js' %}"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js" integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg" crossorigin="anonymous"></script>
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+{# Header CSRF global: semua request HTMX (POST/PUT/DELETE) otomatis membawa token. #}
+<body class="flex min-h-screen flex-col" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <a class="skip-link" href="#konten">Lewati ke konten</a>
-    <header class="site-header">
-        <div class="container header-inner">
-            <a class="brand" href="{% url 'landing_page' %}" aria-label="ShareSpace, kembali ke beranda">
-                <span class="brand-mark" aria-hidden="true">✳</span>
-                <span>share<span class="brand-accent">space</span><span class="brand-dot">.</span></span>
-            </a>
-            <nav class="main-nav" aria-label="Navigasi utama">
-                <a href="{% url 'landing_page' %}#tentang">Tentang</a>
-                <a href="{% url 'landing_page' %}#cara-kerja">Cara kerja</a>
-                <a href="{% url 'landing_page' %}#manfaat">Manfaat</a>
-            </nav>
-            <a class="header-cta" href="{% url 'landing_page' %}#cara-kerja">Mulai jelajahi <span aria-hidden="true">↗</span></a>
-        </div>
-    </header>
-    <main id="konten">{% block content %}{% endblock %}</main>
-    <footer class="site-footer">
-        <div class="container footer-inner">
-            <a class="brand footer-brand" href="{% url 'landing_page' %}" aria-label="ShareSpace, kembali ke beranda">
-                <span class="brand-mark" aria-hidden="true">✳</span>
-                <span>share<span class="brand-accent">space</span><span class="brand-dot">.</span></span>
-            </a>
-            <p>Lebih sedikit membeli. Lebih banyak berbagi.</p>
-            <span>Proyek kelompok PBP 5 · ShareSpace</span>
-        </div>
-    </footer>
+    {% include "partials/header.html" %}
+    {# Region selalu ada agar toast dari JS/HTMX tetap bisa tampil walau block messages di-override. #}
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-relevant="additions">
+        {# Halaman yang merender messages sendiri cukup meng-override block ini dengan isi kosong. #}
+        {% block messages %}
+            {% include "partials/messages.html" %}
+        {% endblock %}
+    </div>
+    <main id="konten" class="flex flex-1 flex-col">{% block content %}{% endblock %}</main>
+    {% include "partials/footer.html" %}
+    <script defer src="{% static 'js/theme.js' %}"></script>
+    <script defer src="{% static 'js/nav.js' %}"></script>
+    <script defer src="{% static 'js/toast.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

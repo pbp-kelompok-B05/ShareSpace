@@ -1,0 +1,11 @@
+{% comment %}
+Ringkasan "Barang saya". Context: stats. oob=True dipakai respons bulk action agar ikut diperbarui (hx-swap-oob).
+{% endcomment %}
+<dl id="my-items-stats" class="my-items-stats"{% if oob %} hx-swap-oob="true"{% endif %}>
+    <div class="my-items-stat"><dt>Total barang</dt>
+        <dd>{{ stats.total }}</dd></div>
+    <div class="my-items-stat"><dt>Tersedia</dt>
+        <dd>{{ stats.available }}</dd></div>
+    <div class="my-items-stat"><dt>Sedang dipinjam</dt>
+        <dd>{{ stats.borrowed }}</dd></div>
+</dl>

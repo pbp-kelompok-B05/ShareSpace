@@ -1,0 +1,343 @@
+{% comment %}
+Partial profil sendiri. Dirender penuh lewat profile.html, atau langsung di-swap ke #konten oleh HTMX.
+Menampilkan identitas pengguna, kartu Trust Score di samping, ringkasan statistik aktivitas,
+katalog barang yang sedang dipinjamkan, dan bagian Ulasan Komunitas di bawah.
+{% endcomment %}
+{% firstof profile.full_name user.username as display_name %}
+{% url 'review:my_reports' as my_reports_url %}
+{% url 'items:create' as create_item_url %}
+{% url 'items:my_items' as my_items_url %}
+<section class="container py-10 md:py-14" id="profile-reputation-container" data-reputation-endpoint="{% url 'authentication:profile_reputation_api' %}">
+    <!-- Header Halaman Profil -->
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+            <span class="section-label">PROFIL</span>
+            <h1 class="m-0 text-3xl md:text-4xl">Profil saya</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="btn-refresh-reputation" type="button" class="button button-secondary button-sm" title="Sinkronkan data reputasi via AJAX">
+                <span id="reputation-loading-spinner" class="spinner hidden" aria-hidden="true"></span>
+                <span>Sinkronkan</span>
+            </button>
+            <a class="button button-primary button-sm"
+               href="{% url 'authentication:edit_profile' %}"
+               hx-get="{% url 'authentication:edit_profile' %}"
+               hx-target="#konten"
+               hx-swap="innerHTML"
+               hx-push-url="true">
+                Ubah profil
+            </a>
+        </div>
+    </div>
+
+    <!-- Grid Profil & Sidebar Trust Score -->
+    <div class="grid gap-6 md:grid-cols-3">
+        <!-- Kartu Identitas Pengguna -->
+        <article class="card md:col-span-2">
+            <div class="card-body gap-6 p-6 md:p-8">
+                <!-- Header Profil: Avatar, Nama, Status -->
+                <div class="flex flex-wrap items-center gap-5">
+                    <div class="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-surface-soft font-heading text-3xl font-bold text-primary shadow-sm">
+                        {% if profile.profile_picture_url %}
+                            <img class="h-full w-full object-cover" src="{{ profile.profile_picture_url }}" alt="Foto profil {{ display_name }}">
+                        {% else %}
+                            <span aria-hidden="true">{{ display_name|first|upper }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                            {% if profile.is_verified %}
+                                <span class="badge badge-verified" title="Akun Terverifikasi">✓ Terverifikasi</span>
+                            {% endif %}
+                            {% if profile.auth_provider == 'sso_ui' %}
+                                <span class="badge badge-category" title="Civitas Akademika Universitas Indonesia">SSO UI</span>
+                            {% elif profile.auth_provider == 'google' %}
+                                <span class="badge badge-category" title="Akun Terhubung Google">Google</span>
+                            {% endif %}
+                        </div>
+                        <p class="card-meta m-0">@{{ user.username }} · Anggota sejak {{ user.date_joined|date:"j M Y" }}</p>
+                    </div>
+                </div>
+
+                <hr class="m-0 border-line">
+
+                <!-- Detail Informasi Pengguna -->
+                <div class="grid gap-4 sm:grid-cols-2">
+                    {% if profile.npm %}
+                    <div class="rounded-xl border border-line bg-surface-muted p-4">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">NPM</span>
+                        <span class="font-medium text-ink">{{ profile.npm }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="rounded-xl border border-line bg-surface-muted p-4">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Nomor Telepon</span>
+                        <span class="font-medium text-ink">{{ profile.phone_number|default:"Belum diatur" }}</span>
+                    </div>
+                    <div class="rounded-xl border border-line bg-surface-muted p-4">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Domisili / Alamat Kost</span>
+                        <span class="font-medium text-ink">{{ profile.address|default:"Belum diatur" }}</span>
+                    </div>
+                    <div class="rounded-xl border border-line bg-surface-muted p-4{% if not profile.npm %} sm:col-span-2{% endif %}">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Sesi Login Terakhir</span>
+                        <span class="font-medium text-ink">{{ last_login }}</span>
+                    </div>
+                </div>
+
+                <!-- Footer Aksi Akun -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a class="button button-primary"
+                           href="{% url 'authentication:edit_profile' %}"
+                           hx-get="{% url 'authentication:edit_profile' %}"
+                           hx-target="#konten"
+                           hx-swap="innerHTML"
+                           hx-push-url="true">Ubah profil</a>
+                        <a class="button button-secondary" href="{% firstof my_reports_url '#' %}">Laporan saya</a>
+                        {% if user.is_staff %}
+                            <a class="button button-secondary" href="{% url 'admin:authentication_loginhelprequest_changelist' %}" target="_blank" rel="noopener">Login helpdesk</a>
+                        {% endif %}
+                    </div>
+                    <a class="button button-danger-outline" href="{% url 'authentication:deactivate_account' %}">Nonaktifkan akun</a>
+                </div>
+            </div>
+        </article>
+
+        <!-- Sidebar Trust Score -->
+        <aside class="card">
+            <div class="card-body gap-4 p-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title text-lg">Trust Score</h2>
+                    <span id="trust-score-badge" class="badge badge-warning">★ {% if average_rating %}{{ average_rating|floatformat:1 }}{% else %}–{% endif %} / 5.0</span>
+                </div>
+
+                <!-- Nilai Trust Score & Status -->
+                <div class="rounded-2xl border border-line bg-surface-muted p-5 text-center">
+                    {% if trust_score is not None %}
+                        <div class="inline-flex items-baseline gap-1">
+                            <span id="trust-score-sidebar-value" class="font-heading text-4xl font-extrabold text-primary">{{ trust_score }}/100</span>
+                        </div>
+                        <div class="mt-2">
+                            <span id="trust-level-badge" class="badge badge-verified">{{ trust_level }}</span>
+                        </div>
+                    {% else %}
+                        <div class="inline-flex items-baseline gap-1">
+                            <span id="trust-score-sidebar-value" class="font-heading text-4xl font-extrabold text-muted">–</span>
+                        </div>
+                        <div class="mt-2">
+                            <span id="trust-level-badge" class="badge">{{ trust_level }}</span>
+                        </div>
+                    {% endif %}
+                    <p id="trust-score-description" class="card-meta mt-3 text-xs">{{ trust_description }}</p>
+                </div>
+
+                <!-- Ringkasan Statistik Singkat -->
+                <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="rounded-xl border border-line bg-surface-muted p-3">
+                        <span id="sidebar-completed-loans" class="block font-heading text-xl font-bold text-ink">{{ completed_loans_count }}</span>
+                        <span class="card-meta text-xs">Transaksi Selesai</span>
+                    </div>
+                    <div class="rounded-xl border border-line bg-surface-muted p-3">
+                        <span id="sidebar-reviews-count" class="block font-heading text-xl font-bold text-ink">{{ reviews_count }}</span>
+                        <span class="card-meta text-xs">Ulasan Diterima</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Banner Statistik Aktivitas Pengguna (Image 2) -->
+    <section class="card mt-6" aria-label="Statistik Aktivitas Pengguna">
+        <div class="card-body p-6 md:p-8">
+            <div class="grid grid-cols-2 gap-6 md:grid-cols-4">
+                <!-- TRUST SCORE -->
+                <div class="space-y-1">
+                    <span class="card-meta block text-xs font-bold uppercase tracking-wider">Trust Score</span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="banner-trust-score" class="font-heading text-2xl font-extrabold text-primary md:text-3xl">
+                            {% if trust_score is not None %}{{ trust_score }}/100{% else %}–{% endif %}
+                        </span>
+                        {% if trust_score is not None %}
+                            <span id="banner-trust-level" class="badge badge-verified text-xs">{{ trust_level }}</span>
+                        {% else %}
+                            <span id="banner-trust-level" class="badge text-xs">{{ trust_level }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- BARANG DIPINJAMKAN -->
+                <div class="space-y-1">
+                    <span class="card-meta block text-xs font-bold uppercase tracking-wider">Barang Dipinjamkan</span>
+                    <span id="banner-items-count" class="block font-heading text-2xl font-bold text-ink md:text-3xl">{{ owned_items_count }} Barang</span>
+                </div>
+
+                <!-- BARANG DIPINJAM -->
+                <div class="space-y-1">
+                    <span class="card-meta block text-xs font-bold uppercase tracking-wider">Barang Dipinjam</span>
+                    <span id="banner-borrowed-count" class="block font-heading text-2xl font-bold text-ink md:text-3xl">{{ borrowed_loans_count }} Kali</span>
+                </div>
+
+                <!-- TRANSAKSI SELESAI -->
+                <div class="space-y-1">
+                    <span class="card-meta block text-xs font-bold uppercase tracking-wider">Transaksi Selesai</span>
+                    <span id="banner-completed-count" class="block font-heading text-2xl font-bold text-ink md:text-3xl">{{ completed_loans_count }} Selesai</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bagian Barang yang Sedang Dipinjamkan (Image 1) -->
+    <section class="card mt-6" id="user-items-section">
+        <div class="card-body gap-6 p-6 md:p-8">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
+                <div>
+                    <h2 class="card-title m-0 text-xl font-bold text-ink">
+                        Barang yang Sedang Dipinjamkan ({{ owned_items_count }})
+                    </h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    {% if my_items_url and owned_items_count > 0 %}
+                        <a class="card-meta text-xs font-bold text-primary hover:underline" href="{{ my_items_url }}">
+                            Kelola barang saya →
+                        </a>
+                    {% endif %}
+                    {% if create_item_url %}
+                        <a class="button button-primary button-sm" href="{{ create_item_url }}">
+                            + Tambah Barang
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if user_items %}
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {% for item in user_items %}
+                        <article class="card card-interactive flex flex-row items-center gap-4 rounded-2xl border border-line bg-surface-muted/60 p-4 transition-all">
+                            <div class="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-surface-soft text-2xl shadow-sm">
+                                {% if item.image_url %}
+                                    <img class="h-full w-full object-cover" src="{{ item.image_url }}" alt="{{ item.name }}">
+                                {% else %}
+                                    <span aria-hidden="true">📦</span>
+                                {% endif %}
+                            </div>
+                            <div class="min-w-0 flex-1 space-y-1">
+                                <h3 class="m-0 truncate font-heading text-base font-bold text-ink">
+                                    {% url 'items:detail' item.pk as item_detail_url %}
+                                    {% if item_detail_url %}
+                                        <a class="card-link" href="{{ item_detail_url }}">{{ item.name }}</a>
+                                    {% else %}
+                                        <span>{{ item.name }}</span>
+                                    {% endif %}
+                                </h3>
+                                <div>
+                                    {% if item.is_available %}
+                                        <span class="badge badge-available">Tersedia</span>
+                                    {% else %}
+                                        <span class="badge badge-unavailable">Sedang Dipinjam</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {% include "partials/empty_state.html" with title="Belum ada barang yang dipinjamkan" text="Kamu belum mendaftarkan barang untuk dipinjamkan ke sesama warga kampus. Mulai pinjamkan barang yang jarang kamu pakai sekarang!" action_url=create_item_url action_label="+ Tambah barang" icon="📦" heading_level=3 %}
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Bagian Ulasan Komunitas (Full Width di Bawah) -->
+    <section class="card mt-6">
+        <div class="card-body gap-4 p-6 md:p-8">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
+                <div class="flex items-center gap-2">
+                    <h2 id="reviews-heading" class="card-title text-xl font-bold text-ink">
+                        Ulasan Komunitas ({{ reviews_count }})
+                    </h2>
+                    <span class="badge badge-category text-xs font-semibold">Komunitas</span>
+                </div>
+                <div class="flex items-center gap-1.5 font-bold text-primary">
+                    <span class="text-amber" style="color: var(--amber);">★</span>
+                    <span id="reviews-average-rating" class="font-heading">{% if average_rating %}{{ average_rating|floatformat:1 }} Rata-rata{% else %}– Rata-rata{% endif %}</span>
+                </div>
+            </div>
+
+            <div id="reviews-list-container">
+                <!-- Loading State (Tutorial 05) -->
+                <div id="loading" class="empty-state hidden">
+                    <p class="empty-state-text">Memuat ulasan komunitas...</p>
+                </div>
+
+                <!-- Error State (Tutorial 05) -->
+                <div id="error" class="empty-state hidden">
+                    <p class="empty-state-text text-danger font-medium">Gagal memuat data ulasan. Silakan segarkan halaman.</p>
+                </div>
+
+                <!-- Empty State (Tutorial 05) -->
+                <div id="empty" class="empty-state{% if reviews %} hidden{% endif %}">
+                    {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan dari peminjam atau pemilik barang akan muncul di sini setelah transaksi selesai." heading_level=3 %}
+                </div>
+
+                <!-- Reviews Grid Container (Tutorial 05) -->
+                <div id="grid" class="reviews-grid{% if not reviews %} hidden{% endif %}">
+                    <ul id="reviews-items-list" class="m-0 grid list-none gap-4 p-0">
+                        {% for review in reviews %}
+                            <li>
+                                <article class="card card-interactive border border-solid border-line p-5 transition-all"
+                                         style="background-color: var(--surface-soft); border: 1px solid var(--line); border-radius: 16px;">
+                                    <div class="flex flex-col gap-3">
+                                        <!-- Header Ulasan: Profil Pengulas, Status Transaksi, Rating Bintang, dan Waktu -->
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="flex items-center gap-3">
+                                                <!-- Avatar Inisial Pengulas -->
+                                                <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full font-heading text-sm font-bold shadow-sm"
+                                                     style="background-color: var(--surface); color: var(--green); border: 1px solid var(--line);">
+                                                    {% firstof review.reviewer_initial review.reviewer.username|slice:":1"|upper %}
+                                                </div>
+                                                <div>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <span class="font-heading font-bold text-ink">
+                                                            {% firstof review.reviewer_display_name review.reviewer.userprofile.full_name review.reviewer.username %}
+                                                        </span>
+                                                        <span class="badge badge-category text-[11px] font-semibold">
+                                                            {% if review.reviewer_role == "borrower" %}Peminjam{% else %}Pemilik Barang{% endif %}
+                                                        </span>
+                                                    </div>
+                                                    {% if review.loan and review.loan.item %}
+                                                        <span class="card-meta block text-xs">
+                                                            Transaksi: <span class="font-medium text-ink">{{ review.loan.item.name }}</span>
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+
+                                            <!-- Rating Bintang & Tanggal Relatif -->
+                                            <div class="flex flex-col items-end gap-1">
+                                                <div class="flex items-center gap-1.5" title="{{ review.rating }} dari 5 bintang">
+                                                    <span class="review-stars text-base font-bold" style="color: var(--amber); letter-spacing: 2px;" aria-hidden="true">
+                                                        {% for _ in "12345" %}{% if forloop.counter <= review.rating %}★{% else %}☆{% endif %}{% endfor %}
+                                                    </span>
+                                                    <span class="font-heading text-xs font-bold text-ink/75">{{ review.rating }}.0</span>
+                                                </div>
+                                                <span class="card-meta text-xs">
+                                                    {% firstof review.relative_time review.created_at|date:"j M Y" %}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Isi Komentar Ulasan -->
+                                        <div class="rounded-xl p-3 md:p-4" style="background-color: var(--surface); border: 1px solid var(--line);">
+                                            <p class="m-0 text-sm leading-relaxed text-ink/90 italic">
+                                                “{% firstof review.comment 'Pengguna tidak menyertakan komentar tertulis.' %}”
+                                            </p>
+                                        </div>
+                                    </div>
+                                </article>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+</section>

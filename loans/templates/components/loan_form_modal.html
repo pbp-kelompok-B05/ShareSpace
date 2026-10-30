@@ -1,0 +1,67 @@
+{% load static loan_recaptcha %}
+{% recaptcha_site_key as captcha_site_key %}
+
+<button type="button" id="open-loan-modal" class="loan-detail-button loan-detail-button-primary">
+    {% if mode == "update" %}
+        Edit Pengajuan
+    {% else %}
+        Ajukan Peminjaman
+    {% endif %}
+</button>
+
+<dialog id="loan-modal" class="loan-dialog" aria-labelledby="loan-modal-title">
+    <h2 id="loan-modal-title">
+        {% if mode == "update" %}
+            Edit Pengajuan
+        {% else %}
+            Ajukan Peminjaman
+        {% endif %}
+    </h2>
+
+    <p>Nama barang:{% if mode == "update" %}{{ loan.item.name }}{% else %}{{ item.name }}{% endif %}</p>
+
+    <form id="loan-form" method="post"
+          data-mode="{{ mode }}"
+          action="{% if mode == 'update' %}{% url 'loans:update' loan.pk %}{% else %}{% url 'loans:create' item.pk %}{% endif %}">
+
+        {% csrf_token %}
+
+        <label for="start-date">Tanggal Mulai</label>
+        <input type="date" id="start-date" name="start_date" value="{% if mode == 'update' %}{{ loan.start_date|date:'Y-m-d' }}{% endif %}" required>
+
+        <label for="due-date">Tanggal Pengembalian</label>
+        <input type="date" id="due-date" name="due_date" value="{% if mode == 'update' %}{{ loan.due_date|date:'Y-m-d' }}{% endif %}" required>
+
+        <label for="notes">Catatan</label>
+        <textarea id="notes" name="notes" rows="3">{% if mode == 'update' %}{{ loan.notes }}{% endif %}</textarea>
+
+        {% if mode != "update" %}
+            {% if captcha_site_key %}
+                <div id="loan-recaptcha" class="loan-recaptcha" data-sitekey="{{ captcha_site_key }}"></div>
+            {% else %}
+                <p class="loan-recaptcha-message" role="alert">reCAPTCHA belum dikonfigurasi.</p>
+            {% endif %}
+        {% endif %}
+
+        <div class="loan-form-buttons">
+            <button type="submit"
+                    class="loan-detail-button loan-detail-button-primary">
+                {% if mode == "update" %}
+                    Simpan Perubahan
+                {% else %}
+                    Kirim Pengajuan
+                {% endif %}
+            </button>
+
+            <button type="button" id="close-loan-modal" class="loan-detail-button">Batal</button>
+        </div>
+    </form>
+
+    <p id="loan-message" role="alert" style="white-space: pre-line;"></p>
+</dialog>
+
+<script src="{% static 'js/loan_action.js' %}" defer></script>
+{% if mode != "update" and captcha_site_key %}
+<script src="{% static 'js/loan_recaptcha.js' %}" defer></script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onLoanRecaptchaLoaded&amp;render=explicit" defer></script>
+{% endif %}

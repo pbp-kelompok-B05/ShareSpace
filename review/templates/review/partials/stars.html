@@ -1,0 +1,8 @@
+{% comment %}
+Tampilan rating bintang (read-only). Pakai: {% include "review/partials/stars.html" with rating=review.rating %}
+Bintang hanya dekorasi; nilai dibacakan lewat teks sr-only.
+{% endcomment %}
+<span class="review-stars" title="{{ rating }} dari 5 bintang">
+    <span aria-hidden="true">{% for _ in "12345" %}{% if forloop.counter <= rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+    <span class="sr-only">{{ rating }} dari 5 bintang</span>
+</span>
