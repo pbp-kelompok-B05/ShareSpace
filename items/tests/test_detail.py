@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -275,7 +276,9 @@ class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
         self.assertIsNotNone(match, "Form pengajuan pinjaman tidak ada di halaman detail.")
         return match.group(1)
 
-    def test_form_on_detail_creates_loan_request(self):
+    @override_settings(RECAPTCHA_SITE_KEY="test", RECAPTCHA_SECRET_KEY="test")
+    @mock.patch("loans.views.verify_recaptcha", return_value=True)
+    def test_form_on_detail_creates_loan_request(self, mock_recaptcha):
         # is_verified=True agar test tidak bergantung pada aturan verifikasi di loans yang sedang diubah.
         item = self.make_item(is_verified=True)
         action = self.loan_form_action(self.get_detail(item, self.other))
@@ -285,6 +288,7 @@ class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
             "start_date": start.isoformat(),
             "due_date": (start + timedelta(days=3)).isoformat(),
             "notes": "Untuk kegiatan kampus.",
+            "g-recaptcha-response": "test-token",
         })
         self.assertEqual(response.status_code, 201)
         loan = LoanRequest.objects.get(item=item, borrower=self.other)
