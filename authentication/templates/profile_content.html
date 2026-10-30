@@ -3,6 +3,7 @@ Partial profil sendiri. Dirender penuh lewat profile.html, atau langsung di-swap
 Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait di-merge.
 {% endcomment %}
 {% firstof profile.full_name user.username as display_name %}
+{% url 'review:my_reports' as my_reports_url %}
 <section class="container py-10 md:py-14" id="profile-container">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -16,7 +17,7 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
                hx-target="#konten"
                hx-swap="innerHTML"
                hx-push-url="true">
-                <span aria-hidden="true">✎</span> Ubah profil
+                Ubah profil
             </a>
         </div>
     </div>
@@ -34,7 +35,17 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
                         {% endif %}
                     </div>
                     <div class="space-y-1">
-                        <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                            {% if profile.is_verified %}
+                                <span class="badge badge-verified" title="Akun Terverifikasi">✓ Terverifikasi</span>
+                            {% endif %}
+                            {% if profile.auth_provider == 'sso_ui' %}
+                                <span class="badge badge-category" title="Civitas Akademika Universitas Indonesia">SSO UI</span>
+                            {% elif profile.auth_provider == 'google' %}
+                                <span class="badge badge-category" title="Akun Terhubung Google">Google</span>
+                            {% endif %}
+                        </div>
                         <p class="card-meta m-0">@{{ user.username }} · Anggota sejak {{ user.date_joined|date:"j M Y" }}</p>
                     </div>
                 </div>
@@ -43,6 +54,12 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
 
                 <!-- Detail Informasi Pengguna -->
                 <div class="grid gap-4 sm:grid-cols-2">
+                    {% if profile.npm %}
+                    <div class="rounded-xl border border-line bg-surface-muted p-4">
+                        <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">NPM</span>
+                        <span class="font-medium text-ink">{{ profile.npm }}</span>
+                    </div>
+                    {% endif %}
                     <div class="rounded-xl border border-line bg-surface-muted p-4">
                         <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Nomor Telepon</span>
                         <span class="font-medium text-ink">{{ profile.phone_number|default:"Belum diatur" }}</span>
@@ -51,7 +68,7 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
                         <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Domisili / Alamat Kost</span>
                         <span class="font-medium text-ink">{{ profile.address|default:"Belum diatur" }}</span>
                     </div>
-                    <div class="rounded-xl border border-line bg-surface-muted p-4 sm:col-span-2">
+                    <div class="rounded-xl border border-line bg-surface-muted p-4{% if not profile.npm %} sm:col-span-2{% endif %}">
                         <span class="card-meta mb-1 block text-xs font-bold uppercase tracking-wider">Sesi Login Terakhir</span>
                         <span class="font-medium text-ink">{{ last_login }}</span>
                     </div>
@@ -66,7 +83,7 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
                            hx-target="#konten"
                            hx-swap="innerHTML"
                            hx-push-url="true">Ubah profil</a>
-                        <a class="button button-secondary" href="{% url 'review:my_reports' %}">Laporan saya</a>
+                        <a class="button button-secondary" href="{% firstof my_reports_url '#' %}">Laporan saya</a>
                     </div>
                     <a class="button button-danger-outline" href="{% url 'authentication:deactivate_account' %}">Nonaktifkan akun</a>
                 </div>
@@ -78,11 +95,10 @@ Hanya menampilkan data asli; statistik dan ulasan menyusul setelah modul terkait
             <div class="card-body gap-4 p-6">
                 <div class="flex items-center justify-between">
                     <h2 class="card-title text-lg">Reputasi &amp; Ulasan</h2>
-                    <span class="badge badge-warning">⭐ Komunitas</span>
+                    <span class="badge badge-warning">Komunitas</span>
                 </div>
-                {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan dari peminjam atau pemilik barang akan muncul di sini setelah transaksi selesai." icon="⭐" heading_level=3 %}
+                {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan dari peminjam atau pemilik barang akan muncul di sini setelah transaksi selesai." heading_level=3 %}
             </div>
         </aside>
     </div>
 </section>
-

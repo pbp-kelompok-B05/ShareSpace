@@ -37,15 +37,31 @@ Partial form ubah profil. Dirender penuh lewat edit_profile.html, atau langsung 
                             {% endif %}
                         </div>
                         <div class="min-w-0">
-                            <p class="m-0 truncate font-heading font-bold text-ink">{{ display_name }}</p>
+                            <div class="flex items-center gap-2">
+                                <p class="m-0 truncate font-heading font-bold text-ink">{{ display_name }}</p>
+                                {% if profile.is_verified %}
+                                    <span class="badge badge-verified text-xs" title="Akun Terverifikasi">✓</span>
+                                {% endif %}
+                            </div>
                             <p class="card-meta m-0 truncate text-xs">@{{ user.username }}</p>
                         </div>
                     </div>
                     <div class="rounded-xl border border-line bg-surface-muted p-3 text-xs leading-relaxed text-muted">
-                        💡 <strong>Tips:</strong> Pastikan nomor telepon aktif (terhubung dengan WhatsApp) agar peminjam atau pemilik barang mudah berkoordinasi saat COD.
+                        <strong>Tips:</strong> Pastikan nomor telepon aktif (terhubung dengan WhatsApp) agar peminjam atau pemilik barang mudah berkoordinasi saat COD.
                     </div>
                 </div>
             </div>
+
+            {% if profile.is_external_auth %}
+            <div class="card">
+                <div class="card-body gap-3 p-6 text-sm text-muted">
+                    <h3 class="card-title text-sm">Penyedia Akun</h3>
+                    <p class="m-0 text-xs leading-relaxed">
+                        Akun ini terhubung dengan <strong>{% if profile.auth_provider == 'sso_ui' %}SSO Universitas Indonesia{% elif profile.auth_provider == 'google' %}Google Identity{% endif %}</strong>.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="card">
                 <div class="card-body gap-3 p-6 text-sm text-muted">
@@ -85,6 +101,9 @@ Partial form ubah profil. Dirender penuh lewat edit_profile.html, atau langsung 
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="sm:col-span-2">
                                 {% include "partials/form_field.html" with field=form.full_name %}
+                            </div>
+                            <div class="sm:col-span-2">
+                                {% include "partials/form_field.html" with field=form.npm %}
                             </div>
                             <div class="sm:col-span-2">
                                 {% include "partials/form_field.html" with field=form.profile_picture_url %}

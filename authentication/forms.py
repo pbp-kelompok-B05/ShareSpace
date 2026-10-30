@@ -10,6 +10,7 @@ class UserProfileForm(ModelForm):
         model = UserProfile
         fields = [
             "full_name",
+            "npm",
             "phone_number",
             "address",
             "profile_picture_url",
@@ -17,9 +18,18 @@ class UserProfileForm(ModelForm):
 
         labels = {
             "full_name": "Nama Lengkap",
+            "npm": "Nomor Pokok Mahasiswa (NPM)",
             "phone_number": "Nomor Telepon",
             "address": "Domisili / Alamat Kost",
             "profile_picture_url": "URL Foto Profil (Opsional)",
+        }
+
+        help_texts = {
+            "full_name": "Nama lengkap yang akan tampil di ulasan dan profil.",
+            "npm": "Nomor Pokok Mahasiswa (opsional, diverifikasi otomatis jika login via SSO UI).",
+            "phone_number": "Nomor WhatsApp aktif untuk koordinasi serah terima barang COD.",
+            "address": "Alamat domisili atau kost di sekitar kampus.",
+            "profile_picture_url": "Tautan gambar foto profil yang valid (diawali http:// atau https://).",
         }
 
         widgets = {
@@ -27,6 +37,12 @@ class UserProfileForm(ModelForm):
                 attrs={
                     "placeholder": "Masukkan nama lengkap Anda",
                     "maxlength": 255,
+                }
+            ),
+            "npm": TextInput(
+                attrs={
+                    "placeholder": "Contoh: 2506123456",
+                    "maxlength": 20,
                 }
             ),
             "phone_number": TextInput(
@@ -50,9 +66,25 @@ class UserProfileForm(ModelForm):
             ),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.auth_provider == UserProfile.AuthProvider.SSO_UI:
+            self.fields["npm"].disabled = True
+            self.fields["npm"].help_text = "NPM diverifikasi resmi via SSO UI dan tidak dapat diubah."
+
     def clean_full_name(self):
         full_name = self.cleaned_data.get("full_name", "")
         return strip_tags(full_name).strip()
+
+    def clean_npm(self):
+        if self.instance and self.instance.pk and self.instance.auth_provider == UserProfile.AuthProvider.SSO_UI:
+            return self.instance.npm
+        npm = self.cleaned_data.get("npm", "")
+        if npm:
+            npm = strip_tags(npm).strip()
+            if not npm.isdigit():
+                raise ValidationError("NPM hanya boleh memuat angka.")
+        return npm
 
     def clean_phone_number(self):
         phone_number = self.cleaned_data.get("phone_number", "")

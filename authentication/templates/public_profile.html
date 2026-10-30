@@ -23,7 +23,15 @@
                                 {% endif %}
                             </div>
                             <div class="space-y-1">
-                                <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h2 class="m-0 text-2xl font-bold text-ink">{{ display_name }}</h2>
+                                    {% if profile.is_verified %}
+                                        <span class="badge badge-verified" title="Akun Terverifikasi">✓ Terverifikasi</span>
+                                    {% endif %}
+                                    {% if profile.auth_provider == 'sso_ui' %}
+                                        <span class="badge badge-category" title="Civitas Akademika UI">Mahasiswa UI</span>
+                                    {% endif %}
+                                </div>
                                 <p class="card-meta m-0">@{{ target_user.username }} · Anggota sejak {{ target_user.date_joined|date:"j M Y" }}</p>
                             </div>
                         </div>
@@ -43,9 +51,9 @@
                 <div class="card-body gap-4 p-6">
                     <div class="flex items-center justify-between">
                         <h2 class="card-title text-lg">Reputasi &amp; Ulasan Pengguna</h2>
-                        <span class="badge badge-warning">⭐ Komunitas</span>
+                        <span class="badge badge-warning">Komunitas</span>
                     </div>
-                    {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Pengguna ini belum memiliki ulasan dari transaksi peminjaman." icon="⭐" heading_level=3 %}
+                    {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Pengguna ini belum memiliki ulasan dari transaksi peminjaman." heading_level=3 %}
                 </div>
             </div>
         </div>
