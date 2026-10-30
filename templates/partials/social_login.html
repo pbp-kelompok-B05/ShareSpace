@@ -19,67 +19,28 @@ Pakai: {% include "partials/social_login.html" with action="Masuk" %}
              data-callback="handleGoogleLogin"
              data-auto_prompt="false">
         </div>
-        <button type="button" class="button button-secondary w-full gap-3" onclick="triggerGoogleSignIn()" title="{{ action }} dengan Google">
+        <button id="btn-google-signin"
+                type="button"
+                class="button button-secondary w-full gap-3"
+                data-endpoint="{% url 'authentication:google_login' %}"
+                data-default-redirect="{% url 'landing_page' %}"
+                title="{{ action }} dengan Google">
             <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
             {{ action }} dengan Google
         </button>
         <div id="gsi_hidden_wrapper" class="hidden">
             <div class="g_id_signin" data-type="standard"></div>
         </div>
-
-        <script>
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
-
-            window.triggerGoogleSignIn = function() {
-                if (window.google && google.accounts && google.accounts.id) {
-                    google.accounts.id.prompt();
-                } else {
-                    alert("Sedang memuat Google Sign-In, silakan coba beberapa detik lagi.");
-                }
-            };
-
-            window.handleGoogleLogin = function(response) {
-                if (!response || !response.credential) return;
-
-                fetch("{% url 'authentication:google_login' %}", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-CSRFToken": getCookie("csrftoken"),
-                    },
-                    body: JSON.stringify({ credential: response.credential }),
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        window.location.href = data.redirect_url || "{% url 'landing_page' %}";
-                    } else {
-                        alert(data.message || "Gagal masuk dengan Google.");
-                    }
-                })
-                .catch(e => {
-                    alert("Terjadi kendala jaringan saat menghubungi server.");
-                });
-            };
-        </script>
+        <script defer src="{% static 'authentication/js/google-login.js' %}"></script>
     {% else %}
-        <button type="button" class="button button-secondary w-full gap-3" onclick="alert('Google Client ID belum dikonfigurasi pada file .env.');" title="Google OAuth belum dikonfigurasi">
+        <button id="btn-google-unconfigured"
+                type="button"
+                class="button button-secondary w-full gap-3"
+                title="Google OAuth belum dikonfigurasi">
             <img src="{% static 'images/Google.png' %}" alt="" width="20" height="20" class="h-5 w-5 object-contain">
             {{ action }} dengan Google
         </button>
+        <script defer src="{% static 'authentication/js/google-login.js' %}"></script>
     {% endif %}
 </div>
 

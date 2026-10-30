@@ -230,6 +230,11 @@ def google_login(request):
     Endpoint autentikasi Google Identity Services (GSI).
     Menerima ID token credential via POST form atau JSON payload dengan proteksi CSRF standar.
     """
+    if request.user.is_authenticated:
+        if request.content_type == "application/json":
+            return JsonResponse({"status": "success", "redirect_url": reverse("landing_page")})
+        return redirect("landing_page")
+
     is_json = request.content_type == "application/json"
     credential = request.POST.get("credential")
     if not credential and is_json:
@@ -273,6 +278,9 @@ def sso_ui_login(request):
     """
     Mengarahkan pengguna ke halaman login CAS SSO UI.
     """
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
     service_url = request.build_absolute_uri(reverse("authentication:sso_ui_callback"))
     return redirect(SSOUIAuthBackend.get_login_url(service_url))
 
@@ -282,6 +290,9 @@ def sso_ui_callback(request):
     """
     Callback handler dari CAS SSO UI setelah pengguna berhasil login.
     """
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
     ticket = request.GET.get("ticket")
     if not ticket:
         messages.error(request, "Tiket otorisasi SSO UI tidak ditemukan.")
