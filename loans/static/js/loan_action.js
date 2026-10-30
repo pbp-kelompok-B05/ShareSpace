@@ -35,6 +35,10 @@ async function submitLoanForm(form, message, action) {
         const data = await response.json();
 
         if (!response.ok) {
+            if (action === "create" && window.resetLoanRecaptcha) {
+                window.resetLoanRecaptcha();
+            }
+
             if (data.errors) {
                 message.textContent = Object.values(data.errors).flat().map(error => error.message).join("\n");
             } else {
@@ -50,6 +54,10 @@ async function submitLoanForm(form, message, action) {
         }
 
     } catch (error) {
+        if (action === "create" && window.resetLoanRecaptcha) {
+            window.resetLoanRecaptcha();
+        }
+        
         message.textContent = "Terjadi kesalahan.";
         console.error(error);
     }

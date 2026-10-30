@@ -3,7 +3,7 @@
 
 {% comment %}
 Kerangka bersama login.html dan register.html: panel hijau di kiri, form di kanan.
-Halaman turunan mengisi block panel_heading, panel_text, panel_points, dan form_area.
+Halaman turunan mengisi block panel_heading, panel_text, dan form_area.
 {% endcomment %}
 
 {% block extra_head %}
@@ -13,23 +13,29 @@ Halaman turunan mengisi block panel_heading, panel_text, panel_points, dan form_
 {% block messages %}{% endblock %}
 
 {% block content %}
-<section class="grid min-h-[calc(100vh-200px)] lg:grid-cols-2">
+<section class="grid flex-1 lg:grid-cols-2">
     <!-- Panel Dekorasi -->
-    <div class="auth-panel flex flex-col justify-center gap-6 px-8 py-12 text-white md:px-14 lg:py-16">
+    <div class="auth-panel flex flex-col justify-between gap-8 px-8 py-12 text-white md:px-14 lg:py-16">
         <span class="auth-dots" aria-hidden="true"></span>
         <span class="auth-ring" aria-hidden="true"></span>
 
-        <div class="flex items-center gap-3 font-heading text-xl font-extrabold">
+        <a href="{% url 'landing_page' %}" class="flex items-center gap-3 font-heading text-xl font-extrabold text-white transition-opacity hover:opacity-90">
             <span class="brand-logo" style="background: #d9eea9; color: #184c38;" aria-hidden="true">SS</span>
             <span>ShareSpace</span>
+        </a>
+
+        <div class="my-auto max-w-md py-4">
+            <h2 class="m-0 mb-4 text-3xl font-extrabold leading-tight tracking-tight md:text-4xl lg:text-[2.6rem]">
+                {% block panel_heading %}{% endblock %}
+            </h2>
+            <p class="m-0 text-base leading-relaxed text-white/80 md:text-lg">
+                {% block panel_text %}{% endblock %}
+            </p>
         </div>
 
-        <h2 class="m-0 max-w-md text-3xl font-extrabold leading-tight tracking-tight md:text-4xl">{% block panel_heading %}{% endblock %}</h2>
-        <p class="m-0 max-w-md border-b border-white/15 pb-6 text-sm leading-relaxed text-white/70">{% block panel_text %}{% endblock %}</p>
-
-        <ul class="m-0 grid list-none gap-4 p-0 text-sm text-white/85">
-            {% block panel_points %}{% endblock %}
-        </ul>
+        <div class="text-xs text-white/50">
+            <span>Platform peminjaman dan berbagi terpercaya sesama civitas dan warga kampus.</span>
+        </div>
     </div>
 
     <!-- Area Form -->
@@ -44,4 +50,3 @@ Halaman turunan mengisi block panel_heading, panel_text, panel_points, dan form_
 {% block extra_js %}
 <script defer src="{% static 'js/password-peek.js' %}"></script>
 {% endblock %}
-

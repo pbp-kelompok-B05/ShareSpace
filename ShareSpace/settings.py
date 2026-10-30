@@ -161,6 +161,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Google reCAPTCHA
+RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
 # Google Identity Services / OAuth 2.0
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 

@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% load static %}
 {% load cod_schedule_tags %}
+{% load review_tags %}
 {% block title %}Detail Transaksi — ShareSpace{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/loan_detail.css' %}">
+<link rel="stylesheet" href="{% static 'css/loan_confirm.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -108,12 +110,21 @@
             </a>
         {% endif %}
 
+        {% review_action loan %}
+        {% include "review/partials/report_link.html" with loan=loan %}
+
     </div>
 
     <a class="loan-back-link" href="{% if is_lender %}{% url 'loans:lender_list' %}{% else %}{% url 'loans:list' %}{% endif %}">Kembali ke Transaksi</a>
 </section>
 
+{% include "components/loan_confirm_dialog.html" %}
 {% if not form and can_manage or not form and can_handover or not form and can_request_return or not form and can_complete %}
     <script src="{% static 'js/loan_action.js' %}" defer></script>
 {% endif %}
 {% endblock content %}
+
+{% block extra_js %}
+    <script defer src="{% static 'js/loan_confirm.js' %}"></script>
+    <script defer src="{% static 'js/loan_ui.js' %}"></script>
+{% endblock extra_js %}

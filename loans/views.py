@@ -1,4 +1,4 @@
-
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -8,10 +8,10 @@ from django.urls import reverse
 from django.utils import timezone
 from .models import LoanRequest
 from .forms import LoanRequestForm
+from .recaptcha import verify_recaptcha
 from items.models import Item
 
 LOGIN_URL = "authentication:login"
-
 
 # Borrower loan list
 @login_required(login_url=LOGIN_URL)
@@ -25,7 +25,6 @@ def loan_list(request):
         "lender_count": lender_count,
     })
 
-
 # Lender loan list
 @login_required(login_url=LOGIN_URL)
 def loan_lender_list(request):
@@ -38,8 +37,7 @@ def loan_lender_list(request):
         "lender_count": lender_count,
     })
 
-
-# Borrower loan list AJAX
+# Borrower loan list 
 @login_required(login_url=LOGIN_URL)
 def loan_list_data(request):
     status = request.GET.get("status", "")
@@ -60,7 +58,9 @@ def loan_list_data(request):
         profile = getattr(owner, "userprofile", None)
         owner_name = profile.full_name.strip() if profile and profile.full_name.strip() else owner.username
         phone = profile.phone_number.strip() if profile else ""
-        contact_url = "tel:" + phone if phone else ("mailto:" + owner.email if owner.email else None)
+        contact_url = None
+        if loan.status in [LoanRequest.Status.APPROVED, LoanRequest.Status.BORROWED]:
+            contact_url = "tel:" + phone if phone else ("mailto:" + owner.email if owner.email else None)
 
         data.append({
             "id": str(loan.pk),
@@ -83,8 +83,7 @@ def loan_list_data(request):
 
     return JsonResponse({"loans": data})
 
-
-# Lender loan list AJAX
+# Lender loan list 
 @login_required(login_url=LOGIN_URL)
 def loan_lender_list_data(request):
     status = request.GET.get("status", "")
@@ -105,7 +104,9 @@ def loan_lender_list_data(request):
         profile = getattr(borrower, "userprofile", None)
         borrower_name = profile.full_name.strip() if profile and profile.full_name.strip() else borrower.username
         phone = profile.phone_number.strip() if profile else ""
-        contact_url = "tel:" + phone if phone else ("mailto:" + borrower.email if borrower.email else None)
+        contact_url = None
+        if loan.status in [LoanRequest.Status.APPROVED, LoanRequest.Status.BORROWED]:
+            contact_url = "tel:" + phone if phone else ("mailto:" + borrower.email if borrower.email else None)
 
         data.append({
             "id": str(loan.pk),
@@ -138,13 +139,20 @@ def loan_create(request, item_id):
     if not form.is_valid():
         return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
 
+    if not settings.RECAPTCHA_SITE_KEY or not settings.RECAPTCHA_SECRET_KEY:
+        return JsonResponse({"message": "reCAPTCHA belum dikonfigurasi."}, status=503)
+
+    token = request.POST.get("g-recaptcha-response", "").strip()
+    if not token or not verify_recaptcha(token):
+        return JsonResponse({"message": "Verifikasi reCAPTCHA gagal. Silakan coba lagi."}, status=400)
+
     with transaction.atomic():
         item = get_object_or_404(Item.objects.select_for_update(), pk=item_id)
 
         if item.owner_id == request.user.pk:
             return JsonResponse({"message": "Tidak bisa meminjam barang sendiri."}, status=403)
 
-        if not item.is_verified or not item.is_available:
+        if not item.is_available:
             return JsonResponse({"message": "Barang tidak tersedia untuk dipinjam."}, status=409)
 
         if LoanRequest.objects.filter(borrower=request.user, item=item, status=LoanRequest.Status.PENDING).exists():
@@ -160,7 +168,6 @@ def loan_create(request, item_id):
         "message": "Permintaan peminjaman berhasil dibuat.",
         "detail_url": reverse("loans:detail", args=[loan.pk]),
     }, status=201)
-
 
 # Loan detail
 @login_required(login_url=LOGIN_URL)
@@ -190,8 +197,7 @@ def loan_detail(request, pk):
             and loan.return_requested_at is not None,
     })
 
-
-# Update loan AJAX
+# Update loan 
 @login_required(login_url=LOGIN_URL)
 def loan_update(request, pk):
     if request.method != "POST":
@@ -214,8 +220,7 @@ def loan_update(request, pk):
 
     return JsonResponse({"message": "Pengajuan berhasil diperbarui."}, status=200)
 
-
-# Cancel loan AJAX
+# Cancel loan 
 @login_required(login_url=LOGIN_URL)
 def loan_cancel(request, pk):
     if request.method != "POST":
@@ -235,8 +240,7 @@ def loan_cancel(request, pk):
 
     return JsonResponse({"message": "Pengajuan berhasil dibatalkan."}, status=200)
 
-
-# Approve loan AJAX
+# Approve loan 
 @login_required(login_url=LOGIN_URL)
 def loan_approve(request, pk):
     if request.method != "POST":
@@ -255,7 +259,7 @@ def loan_approve(request, pk):
             if loan.status != LoanRequest.Status.PENDING:
                 return JsonResponse({"message": "Status transaksi sudah berubah."}, status=409)
 
-            if item.is_deleted or not item.is_verified or not item.is_available:
+            if item.is_deleted or not item.is_available:
                 return JsonResponse({"message": "Barang tidak tersedia."}, status=409)
 
             loan.status = LoanRequest.Status.APPROVED
@@ -263,13 +267,18 @@ def loan_approve(request, pk):
             item.is_available = False
             item.save()
 
+            LoanRequest.objects.filter(
+                item=item, status=LoanRequest.Status.PENDING
+            ).exclude(pk=loan.pk).update(
+                status=LoanRequest.Status.REJECTED, updated_at=timezone.now()
+            )
+
     except IntegrityError:
         return JsonResponse({"message": "Barang sudah memiliki peminjaman aktif."}, status=409)
 
     return JsonResponse({"message": "Pengajuan berhasil disetujui."}, status=200)
 
-
-# Reject loan AJAX
+# Reject loan 
 @login_required(login_url=LOGIN_URL)
 def loan_reject(request, pk):
     if request.method != "POST":
@@ -289,8 +298,7 @@ def loan_reject(request, pk):
 
     return JsonResponse({"message": "Pengajuan berhasil ditolak."}, status=200)
 
-
-# Mark loan borrowed AJAX
+# Mark loan borrowed 
 @login_required(login_url=LOGIN_URL)
 def loan_mark_borrowed(request, pk):
     if request.method != "POST":
@@ -310,8 +318,7 @@ def loan_mark_borrowed(request, pk):
 
     return JsonResponse({"message": "Barang telah diserahkan kepada peminjam."}, status=200)
 
-
-# Request return AJAX
+# Request return 
 @login_required(login_url=LOGIN_URL)
 def loan_request_return(request, pk):
     if request.method != "POST":
@@ -331,8 +338,7 @@ def loan_request_return(request, pk):
 
     return JsonResponse({"message": "Pengembalian diajukan. Menunggu konfirmasi pemilik."}, status=200)
 
-
-# Complete loan AJAX
+# Complete loan 
 @login_required(login_url=LOGIN_URL)
 def loan_complete(request, pk):
     if request.method != "POST":
