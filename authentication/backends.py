@@ -16,8 +16,8 @@ class BaseExternalAuthBackend(BaseBackend):
 
     def get_user(self, user_id):
         try:
-            return User.objects.get(pk=user_id)
-        except User.DoesNotExist as e:
+            return User.objects.filter(pk=user_id, is_active=True).first()
+        except (User.DoesNotExist, ValueError) as e:
             return None
 
     def get_or_create_user(
@@ -26,18 +26,25 @@ class BaseExternalAuthBackend(BaseBackend):
         email,
         full_name,
         auth_provider,
-        is_verified=True,
+        is_verified=False,
         npm="",
         profile_picture_url="",
     ):
         """
         Helper method bersama untuk mendapatkan atau membuat akun User dan UserProfile.
+        Menolak autentikasi jika akun telah dinonaktifkan (is_active=False).
         """
         user = None
         if email:
             user = User.objects.filter(email__iexact=email).first()
+        elif username:
+            user = User.objects.filter(username__iexact=username).first()
 
-        if not user:
+        if user:
+            # Tolak login jika akun pengguna telah dinonaktifkan
+            if not user.is_active:
+                return None
+        else:
             base_username = username
             counter = 1
             while User.objects.filter(username__iexact=username).exists():
@@ -61,8 +68,12 @@ class BaseExternalAuthBackend(BaseBackend):
 
         if profile.auth_provider == UserProfile.AuthProvider.LOCAL:
             profile.auth_provider = auth_provider
+
+        # Tandai terverifikasi jika autentikasi terverifikasi (misal SSO UI atau email civitas UI)
         if is_verified:
             profile.is_verified = True
+
+
         profile.save()
 
         return user
@@ -78,6 +89,11 @@ class GoogleAuthBackend(BaseExternalAuthBackend):
 
     def verify_token(self, id_token):
         """Memverifikasi ID Token Google ke Google OAuth2 tokeninfo API."""
+        expected_client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
+        # Fail-closed: tolak verifikasi jika GOOGLE_CLIENT_ID belum dikonfigurasi
+        if not expected_client_id:
+            return None
+
         try:
             response = requests.get(
                 self.TOKENINFO_URL,
@@ -86,12 +102,15 @@ class GoogleAuthBackend(BaseExternalAuthBackend):
             )
             if response.status_code == 200:
                 payload = response.json()
-                expected_client_id = getattr(settings, "GOOGLE_CLIENT_ID", "")
-                if expected_client_id and payload.get("aud") and payload.get("aud") != expected_client_id:
+                # Tolak jika audience token tidak cocok dengan Google Client ID aplikasi ini
+                if payload.get("aud") != expected_client_id:
+                    return None
+                # Tolak jika issuer token bukan domain resmi akun Google
+                if payload.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
                     return None
                 return payload
             return None
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             return None
 
     def authenticate(self, request, google_credential=None, **kwargs):
@@ -107,16 +126,25 @@ class GoogleAuthBackend(BaseExternalAuthBackend):
         if not email or payload.get("email_verified") not in (True, "true"):
             return None
 
+        # Tolak jika pengguna dengan email ini sudah ada namun dalam status nonaktif
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user and not existing_user.is_active:
+            return None
+
         full_name = payload.get("name", "")
         picture = payload.get("picture", "")
         username = email.split("@")[0].lower()
+
+        # Deteksi domain email resmi civitas UI (@ui.ac.id atau @office.ui.ac.id)
+        email_clean = email.lower()
+        is_ui_email = email_clean.endswith("@ui.ac.id") or email_clean.endswith("@office.ui.ac.id")
 
         return self.get_or_create_user(
             username=username,
             email=email,
             full_name=full_name,
             auth_provider=UserProfile.AuthProvider.GOOGLE,
-            is_verified=True,
+            is_verified=is_ui_email,
             profile_picture_url=picture,
         )
 
@@ -157,7 +185,7 @@ class SSOUIAuthBackend(BaseExternalAuthBackend):
                 "nama": nama,
                 "npm": npm,
             }
-        except Exception as e:
+        except (re.error, ValueError, AttributeError) as e:
             return None
 
     def validate_ticket(self, ticket, service_url):
@@ -171,7 +199,7 @@ class SSOUIAuthBackend(BaseExternalAuthBackend):
             if response.status_code != 200:
                 return None
             return self.parse_cas_xml(response.text)
-        except Exception as e:
+        except (requests.RequestException, ValueError) as e:
             return None
 
     def authenticate(self, request, sso_ticket=None, service_url=None, **kwargs):
@@ -184,6 +212,12 @@ class SSOUIAuthBackend(BaseExternalAuthBackend):
             return None
 
         username = data["username"].lower()
+
+        # Tolak jika pengguna dengan username ini sudah ada namun dalam status nonaktif
+        existing_user = User.objects.filter(username__iexact=username).first()
+        if existing_user and not existing_user.is_active:
+            return None
+
         full_name = data.get("nama") or username
         npm = data.get("npm", "")
         email = f"{username}@ui.ac.id"

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -412,7 +413,7 @@ class AuthenticationTest(TestCase):
 
         user = User.objects.get(email="himmel@hero.com")
         self.assertEqual(user.username, "himmel")
-        self.assertTrue(user.userprofile.is_verified)
+        self.assertFalse(user.userprofile.is_verified)
         self.assertEqual(user.userprofile.auth_provider, UserProfile.AuthProvider.GOOGLE)
         self.assertEqual(user.userprofile.full_name, "Himmel The Hero")
         self.assertEqual(user.userprofile.profile_picture_url, "https://img.com/himmel.jpg")
@@ -485,6 +486,29 @@ class AuthenticationTest(TestCase):
         self.assertRedirects(response, reverse("authentication:login"))
         self.assertFalse(User.objects.filter(username="azka.nur").exists())
 
+    def test_google_login_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("authentication:google_login"), {"credential": "dummy"})
+        self.assertRedirects(response, reverse("landing_page"))
+
+        response_json = self.client.post(
+            reverse("authentication:google_login"),
+            data='{"credential": "dummy"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response_json.status_code, 200)
+        self.assertEqual(response_json.json()["status"], "success")
+
+    def test_sso_ui_login_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("authentication:sso_ui_login"))
+        self.assertRedirects(response, reverse("landing_page"))
+
+    def test_sso_ui_callback_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("authentication:sso_ui_callback") + "?ticket=ST-expired-or-consumed")
+        self.assertRedirects(response, reverse("landing_page"))
+
 
 class AuthBackendsTest(TestCase):
     def test_sso_ui_parse_cas_xml_success(self):
@@ -524,7 +548,7 @@ class AuthBackendsTest(TestCase):
         self.assertEqual(user.email, "heiter@priest.com")
         self.assertEqual(user.userprofile.full_name, "Heiter The Priest")
         self.assertEqual(user.userprofile.auth_provider, UserProfile.AuthProvider.GOOGLE)
-        self.assertTrue(user.userprofile.is_verified)
+        self.assertFalse(user.userprofile.is_verified)
 
     def test_sso_ui_get_login_url(self):
         backend = SSOUIAuthBackend()
@@ -586,3 +610,130 @@ class AuthBackendsTest(TestCase):
         backend = GoogleAuthBackend()
         backend.verify_token = lambda token: {"email": "test@gmail.com", "email_verified": False}
         self.assertIsNone(backend.authenticate(None, google_credential="unverified_token"))
+    def test_google_verify_token_empty_client_id_fails_closed(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID=""):
+            self.assertIsNone(backend.verify_token("some_token"))
+
+    def test_google_verify_token_wrong_audience_rejected(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID="expected_client_id_123"):
+            import unittest.mock as mock
+            mock_response = mock.MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "aud": "wrong_other_app_client_id",
+                "iss": "https://accounts.google.com",
+                "email": "test@gmail.com",
+                "email_verified": True,
+            }
+            with mock.patch("requests.get", return_value=mock_response):
+                self.assertIsNone(backend.verify_token("fake_valid_token"))
+
+    def test_google_verify_token_invalid_issuer_rejected(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID="expected_client_id_123"):
+            import unittest.mock as mock
+            mock_response = mock.MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "aud": "expected_client_id_123",
+                "iss": "https://evil-attacker.com",
+                "email": "test@gmail.com",
+                "email_verified": True,
+            }
+            with mock.patch("requests.get", return_value=mock_response):
+                self.assertIsNone(backend.verify_token("fake_token"))
+
+    def test_google_authenticate_deactivated_user_rejected(self):
+        deactivated_user = User.objects.create_user(
+            username="deactivated_user",
+            email="deactivated@gmail.com",
+            password="Password123.",
+            is_active=False,
+        )
+        UserProfile.objects.create(user=deactivated_user)
+
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "deactivated@gmail.com",
+            "email_verified": True,
+            "aud": getattr(settings, "GOOGLE_CLIENT_ID", ""),
+            "iss": "https://accounts.google.com",
+        }
+        self.assertIsNone(backend.authenticate(None, google_credential="valid_token"))
+
+    def test_sso_ui_authenticate_deactivated_user_rejected(self):
+        deactivated_user = User.objects.create_user(
+            username="deactivated_ui",
+            email="deactivated_ui@ui.ac.id",
+            password="Password123.",
+            is_active=False,
+        )
+        UserProfile.objects.create(user=deactivated_user)
+
+        backend = SSOUIAuthBackend()
+        backend.validate_ticket = lambda ticket, service_url: {
+            "username": "deactivated_ui",
+            "nama": "Deactivated UI",
+            "npm": "1234567890",
+        }
+        self.assertIsNone(backend.authenticate(None, sso_ticket="valid_ticket", service_url="http://testserver"))
+
+    def test_get_user_deactivated_user_returns_none(self):
+        deactivated_user = User.objects.create_user(
+            username="inactive_target",
+            email="inactive_target@test.com",
+            password="Password123.",
+            is_active=False,
+        )
+        backend = GoogleAuthBackend()
+        self.assertIsNone(backend.get_user(deactivated_user.id))
+
+    def test_google_auth_user_is_not_verified_by_default(self):
+        backend = GoogleAuthBackend()
+        user = backend.get_or_create_user(
+            username="regular_google_user",
+            email="regular_google_user@gmail.com",
+            full_name="Regular Google",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+            is_verified=False,
+        )
+        self.assertFalse(user.userprofile.is_verified)
+
+    def test_google_authenticate_with_ui_email_is_verified(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "mahasiswa@ui.ac.id",
+            "email_verified": True,
+            "name": "Mahasiswa UI",
+            "picture": "https://img.com/ui.png",
+        }
+        user = backend.authenticate(None, google_credential="mock_token")
+        self.assertIsNotNone(user)
+        self.assertTrue(user.userprofile.is_verified)
+
+    def test_google_authenticate_with_office_ui_email_is_verified(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "dosen@office.ui.ac.id",
+            "email_verified": True,
+            "name": "Dosen UI",
+            "picture": "https://img.com/office.png",
+        }
+        user = backend.authenticate(None, google_credential="mock_token")
+        self.assertIsNotNone(user)
+        self.assertTrue(user.userprofile.is_verified)
+
+    def test_google_authenticate_with_regular_gmail_is_not_verified(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "umum@gmail.com",
+            "email_verified": True,
+            "name": "Pengguna Umum",
+            "picture": "https://img.com/umum.png",
+        }
+        user = backend.authenticate(None, google_credential="mock_token")
+        self.assertIsNotNone(user)
+        self.assertFalse(user.userprofile.is_verified)
+
