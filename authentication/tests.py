@@ -1,10 +1,22 @@
+import datetime
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
-from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
+from authentication.reputation import (
+    BaseReputationCalculator,
+    BaseTimeFormatter,
+    BayesianTrustScoreCalculator,
+    IndonesianRelativeTimeFormatter,
+    UserReputationService,
+)
+from items.models import Item
+from loans.models import LoanRequest
+from review.models import Report, Review
 
 
 # Create your tests here.
@@ -379,6 +391,73 @@ class AuthenticationTest(TestCase):
         response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
         self.assertEqual(response.status_code, 404)
 
+    def test_profile_renders_trust_score_and_reviews_empty(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Trust Score")
+        self.assertContains(response, "★ – / 5.0")
+        self.assertContains(response, "Pengguna Baru")
+        self.assertContains(response, "Ulasan Komunitas (0)")
+        self.assertContains(response, "Belum ada ulasan")
+
+    def test_profile_renders_reviews_when_available(self):
+        other_user = self.create_other_user()
+        item = Item.objects.create(
+            owner=self.user,
+            name="Tenda Camping",
+            description="Tenda dome kapasitas empat orang dalam kondisi bersih.",
+            category=Item.Category.OUTDOOR,
+            condition=Item.Condition.GOOD,
+        )
+        loan = LoanRequest.objects.create(
+            borrower=other_user,
+            item=item,
+            start_date=datetime.date.today(),
+            due_date=datetime.date.today() + datetime.timedelta(days=2),
+            status=LoanRequest.Status.COMPLETED,
+        )
+        Review.objects.create(
+            loan=loan,
+            reviewer=other_user,
+            reviewee=self.user,
+            reviewer_role=Review.Role.BORROWER,
+            rating=5,
+            comment="Peminjam yang sangat bertanggung jawab, barang mulus.",
+        )
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "★ 5.0 / 5.0")
+        self.assertContains(response, "Ulasan Komunitas (1)")
+        self.assertContains(response, "Fern Mage")
+        self.assertContains(response, "Peminjam yang sangat bertanggung jawab, barang mulus.")
+        self.assertContains(response, "Barang yang Sedang Dipinjamkan (1)")
+        self.assertContains(response, "Tenda Camping")
+        self.assertContains(response, "Tersedia")
+        self.assertContains(response, "Barang Dipinjamkan")
+        self.assertContains(response, "Barang Dipinjam")
+        self.assertContains(response, "Transaksi Selesai")
+
+    def test_public_profile_renders_trust_score_and_reviews(self):
+        other_user = self.create_other_user()
+        Item.objects.create(
+            owner=other_user,
+            name="Ransel Gunung 60L",
+            description="Ransel kapasitas enam puluh liter cocok untuk hiking.",
+            category=Item.Category.OUTDOOR,
+            condition=Item.Condition.LIKE_NEW,
+        )
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Trust Score")
+        self.assertContains(response, "★ – / 5.0")
+        self.assertContains(response, "Ulasan Komunitas (0)")
+        self.assertContains(response, "Belum ada ulasan")
+        self.assertContains(response, "Barang yang Sedang Dipinjamkan (1)")
+        self.assertContains(response, "Ransel Gunung 60L")
+
     def test_login_page_renders_external_auth_buttons(self):
         response = self.client.get(reverse("authentication:login"))
         self.assertEqual(response.status_code, 200)
@@ -571,6 +650,7 @@ class AuthBackendsTest(TestCase):
         )
         self.assertEqual(backend.get_user(user.id), user)
         self.assertIsNone(backend.get_user(999999))
+
     def test_sso_ui_parse_cas_xml_missing_username(self):
         backend = SSOUIAuthBackend()
         cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
@@ -586,3 +666,180 @@ class AuthBackendsTest(TestCase):
         backend = GoogleAuthBackend()
         backend.verify_token = lambda token: {"email": "test@gmail.com", "email_verified": False}
         self.assertIsNone(backend.authenticate(None, google_credential="unverified_token"))
+
+
+class ReputationCalculatorTest(TestCase):
+    def test_base_calculator_not_implemented(self):
+        base = BaseReputationCalculator()
+        with self.assertRaises(NotImplementedError):
+            base.calculate_trust_score(0, 0, 0, 0)
+        with self.assertRaises(NotImplementedError):
+            base.determine_trust_level(100, 0, 0)
+
+    def test_bayesian_trust_score_new_user(self):
+        calc = BayesianTrustScoreCalculator()
+        score = calc.calculate_trust_score(completed_loans=0, review_count=0, rating_sum=0, resolved_reports=0)
+        self.assertIsNone(score)
+        level, desc = calc.determine_trust_level(score, completed_loans=0, review_count=0)
+        self.assertEqual(level, "Pengguna Baru")
+
+    def test_bayesian_trust_score_calculation_and_levels(self):
+        calc = BayesianTrustScoreCalculator()
+        # 1 ulasan 5 bintang, 1 transaksi
+        score = calc.calculate_trust_score(completed_loans=1, review_count=1, rating_sum=5, resolved_reports=0)
+        self.assertIsNotNone(score)
+        self.assertTrue(0 <= score <= 100)
+
+        # Level test
+        level, _ = calc.determine_trust_level(90, 10, 10)
+        self.assertEqual(level, "Sangat Terpercaya")
+        level, _ = calc.determine_trust_level(75, 5, 5)
+        self.assertEqual(level, "Terpercaya")
+        level, _ = calc.determine_trust_level(60, 2, 2)
+        self.assertEqual(level, "Cukup Terpercaya")
+        level, _ = calc.determine_trust_level(40, 1, 1)
+        self.assertEqual(level, "Perlu Perhatian")
+
+    def test_bayesian_trust_score_penalty(self):
+        calc = BayesianTrustScoreCalculator()
+        score_clean = calc.calculate_trust_score(completed_loans=5, review_count=5, rating_sum=25, resolved_reports=0)
+        score_penalized = calc.calculate_trust_score(completed_loans=5, review_count=5, rating_sum=25, resolved_reports=2)
+        self.assertLess(score_penalized, score_clean)
+
+
+class UserReputationServiceTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="test_rep_user", password="Password123.")
+        self.other_user = User.objects.create_user(username="other_rep_user", password="Password123.")
+        UserProfile.objects.create(user=self.user, full_name="Rep User")
+        UserProfile.objects.create(user=self.other_user, full_name="Other Rep User")
+
+    def test_service_context_empty(self):
+        service = UserReputationService()
+        ctx = service.get_reputation_context(self.user)
+        self.assertEqual(ctx["reviews_count"], 0)
+        self.assertIsNone(ctx["average_rating"])
+        self.assertEqual(ctx["completed_loans_count"], 0)
+        self.assertEqual(ctx["borrowed_loans_count"], 0)
+        self.assertEqual(ctx["owned_items_count"], 0)
+        self.assertIsNone(ctx["trust_score"])
+        self.assertEqual(ctx["trust_level"], "Pengguna Baru")
+        self.assertEqual(len(ctx["reviews"]), 0)
+        self.assertEqual(len(ctx["user_items"]), 0)
+
+    def test_service_context_with_loans_and_reviews(self):
+        item = Item.objects.create(
+            owner=self.user,
+            name="Kamera DSLR",
+            description="Kamera DSLR untuk fotografi pemula hingga pro.",
+            category=Item.Category.ELECTRONICS,
+            condition=Item.Condition.LIKE_NEW,
+        )
+        loan = LoanRequest.objects.create(
+            borrower=self.other_user,
+            item=item,
+            start_date=datetime.date.today(),
+            due_date=datetime.date.today() + datetime.timedelta(days=3),
+            status=LoanRequest.Status.COMPLETED,
+        )
+        Review.objects.create(
+            loan=loan,
+            reviewer=self.other_user,
+            reviewee=self.user,
+            reviewer_role=Review.Role.BORROWER,
+            rating=5,
+            comment="Barang sangat bagus dan pemilik ramah!",
+        )
+        Report.objects.create(
+            reporter=self.other_user,
+            target_user=self.user,
+            reason=Report.Reason.OTHER,
+            description="Laporan pengetesan deskripsi minimal dua puluh karakter.",
+            status=Report.Status.RESOLVED,
+        )
+
+        service = UserReputationService()
+        ctx = service.get_reputation_context(self.user)
+        self.assertEqual(ctx["reviews_count"], 1)
+        self.assertEqual(ctx["average_rating"], 5.0)
+        self.assertEqual(ctx["completed_loans_count"], 1)
+        self.assertEqual(ctx["owned_items_count"], 1)
+        self.assertEqual(len(ctx["user_items"]), 1)
+        self.assertEqual(ctx["borrowed_loans_count"], 0)
+        self.assertIsNotNone(ctx["trust_score"])
+        self.assertEqual(len(ctx["reviews"]), 1)
+        self.assertEqual(ctx["reviews"][0].reviewer_initial, "O")
+        self.assertEqual(ctx["reviews"][0].reviewer_display_name, "Other Rep User")
+        self.assertTrue(len(ctx["reviews"][0].relative_time) > 0)
+
+
+class TimeFormatterTest(TestCase):
+    def test_base_formatter_not_implemented(self):
+        base = BaseTimeFormatter()
+        with self.assertRaises(NotImplementedError):
+            base.format_relative_time(datetime.datetime.now(datetime.timezone.utc))
+
+    def test_indonesian_relative_time_formatter(self):
+        from django.utils import timezone
+
+        formatter = IndonesianRelativeTimeFormatter()
+        now = timezone.now()
+
+        self.assertEqual(formatter.format_relative_time(None), "")
+        self.assertEqual(formatter.format_relative_time(now + datetime.timedelta(minutes=5)), "baru saja")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(seconds=20)), "baru saja")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(minutes=5)), "5 menit lalu")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(hours=3)), "3 jam lalu")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=1, hours=2)), "kemarin")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=4)), "4 hari lalu")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=10)), "1 pekan lalu")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=20)), "2 pekan lalu")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=45)), "1 bulan lalu")
+        self.assertEqual(formatter.format_relative_time(now - datetime.timedelta(days=400)), "1 tahun lalu")
+
+
+class ProfileReputationApiTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="api_user", password="Password123.")
+        self.other_user = User.objects.create_user(username="other_api_user", password="Password123.")
+        UserProfile.objects.create(user=self.user, full_name="API User")
+        UserProfile.objects.create(user=self.other_user, full_name="Other API User")
+
+    def test_api_redirect_anonymous(self):
+        response = self.client.get(reverse("authentication:profile_reputation_api"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_api_authenticated_own(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("authentication:profile_reputation_api"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["username"], "api_user")
+        self.assertIn("trust_score", data)
+        self.assertIn("reviews", data)
+        self.assertIn("user_items", data)
+
+    def test_api_public_user(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("authentication:public_profile_reputation_api", args=["other_api_user"])
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["username"], "other_api_user")
+
+    def test_api_unknown_user_404(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("authentication:public_profile_reputation_api", args=["unknown_ghost"])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_api_post_method_not_allowed(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("authentication:profile_reputation_api"))
+        self.assertEqual(response.status_code, 405)
+
+
