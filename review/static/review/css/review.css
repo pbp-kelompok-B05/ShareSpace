@@ -29,3 +29,24 @@
 .review-star-input label:hover,
 .review-star-input label:hover ~ label{color:var(--amber)}
 .review-star-input input:focus-visible + label{outline:3px solid var(--focus);outline-offset:2px}
+
+/* Ringkasan reputasi (partials/reputation_summary.html) */
+.review-reputation{display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+.review-score{--level:var(--muted);display:grid;place-items:center;width:84px;height:84px;border:4px solid var(--level);border-radius:50%;text-align:center}
+.review-score-value{font-size:28px;font-weight:800;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.review-score-caption{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.review-level-badge{justify-self:start;border:1px solid var(--line)}
+.review-level-excellent .review-score,.review-level-trusted .review-score{--level:var(--green)}
+.review-level-fair .review-score{--level:var(--amber)}
+.review-level-low .review-score{--level:var(--danger)}
+.review-level-excellent .review-level-badge,.review-level-trusted .review-level-badge{border-color:var(--green);color:var(--green-dark)}
+.review-level-low .review-level-badge{border-color:var(--danger-line);background:var(--danger-bg);color:var(--danger)}
+
+/* Sebaran bintang */
+.review-distribution{display:grid;gap:4px;max-width:360px}
+.review-distribution li{display:grid;grid-template-columns:28px 1fr 28px;align-items:center;gap:8px}
+.review-bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.review-bar span{display:block;height:100%;background:var(--amber)}
+
+/* Cuplikan ulasan di kartu profil */
+.review-snippet{display:grid;gap:4px;padding-top:12px;border-top:1px solid var(--line)}

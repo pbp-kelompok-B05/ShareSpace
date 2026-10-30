@@ -1,0 +1,13 @@
+{% comment %}Satu ulasan publik. Pakai with review=review.{% endcomment %}
+<article class="card">
+    <div class="card-body">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            {% include "review/partials/stars.html" with rating=review.rating %}
+            <span class="card-meta">{{ review.created_at|date:"j M Y" }}</span>
+        </div>
+        <p class="card-meta m-0">
+            {{ review.reviewer.username }} · sebagai {% if review.reviewer_role == "borrower" %}peminjam{% else %}pemilik barang{% endif %}{% if review.loan.item %} · {{ review.loan.item.name }}{% endif %}
+        </p>
+        {% if review.comment %}<p class="m-0 text-ink">{{ review.comment|linebreaksbr }}</p>{% endif %}
+    </div>
+</article>
