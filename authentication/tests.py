@@ -974,6 +974,11 @@ class LoginHelpRequestTest(TestCase):
     def setUp(self):
         self.client_guest = self.client_class()
         self.help_url = reverse("authentication:login_help_request")
+        self.existing_user = User.objects.create_user(
+            username="frieren_lost",
+            email="frieren_lost@example.com",
+            password="Password123.",
+        )
 
     def test_login_help_page_accessible_by_guest(self):
         """Tamu unauthenticated dapat mengakses halaman bantuan kendala login."""
@@ -1018,6 +1023,7 @@ class LoginHelpRequestTest(TestCase):
 
     def test_login_help_form_sanitization(self):
         """Form bantuan membersihkan tag HTML berbahaya."""
+        User.objects.create_user(username="user_hack", password="Password123.")
         form = LoginHelpRequestForm(
             data={
                 "email_or_username": "<b>user_hack</b>",
@@ -1053,6 +1059,18 @@ class LoginHelpRequestTest(TestCase):
 
         req.refresh_from_db()
         self.assertEqual(req.status, LoginHelpRequest.Status.RESOLVED)
+
+    def test_login_help_nonexistent_user_rejected(self):
+        """Form bantuan menolak username/email yang tidak terdaftar di ShareSpace."""
+        data = {
+            "email_or_username": "akun_hantu_yang_tidak_ada",
+            "contact_email": "kontak@example.com",
+            "issue_type": "forgot_password",
+            "message": "Saya lupa kata sandi akun saya yang tidak ada.",
+        }
+        response = self.client_guest.post(self.help_url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "tidak ditemukan di ShareSpace")
 
     def test_login_page_contains_help_link(self):
         """Halaman login menyediakan tautan bantuan untuk kendala lupa password."""
