@@ -1,10 +1,18 @@
 {% comment %}
 Tombol "Laporkan" untuk dipakai modul lain (detail barang, profil, transaksi).
   Barang:   {% include "review/partials/report_link.html" with item=item %}
-  Pengguna: {% include "review/partials/report_link.html" with target_user=profile_user %}
-Tidak tampil untuk pemilik barang sendiri atau profil sendiri.
+  Pengguna:  {% include "review/partials/report_link.html" with target_user=profile_user %}
+  Transaksi: {% include "review/partials/report_link.html" with loan=loan %}
+Tidak tampil untuk pemilik barang sendiri, profil sendiri, orang di luar transaksi,
+atau transaksi yang belum bisa dilaporkan (samakan dengan Report.REPORTABLE_LOAN_STATUSES).
 {% endcomment %}
-{% if item %}
+{% if loan %}
+    {% if user.pk == loan.borrower_id or user.pk == loan.item.owner_id %}
+        {% if loan.status == "approved" or loan.status == "borrowed" or loan.status == "completed" %}
+            <a class="button button-danger-outline button-sm" href="{% url 'review:report_loan_create' loan.pk %}">Laporkan masalah</a>
+        {% endif %}
+    {% endif %}
+{% elif item %}
     {% if item.owner_id != user.pk %}
         <a class="button button-danger-outline button-sm" href="{% url 'review:report_item_create' item.pk %}">Laporkan barang</a>
     {% endif %}

@@ -9,12 +9,13 @@ class ReportAdmin(admin.ModelAdmin):
     list_display = ["__str__", "reporter", "target_display", "reason", "status", "created_at"]
     list_filter = ["status", "reason"]
     search_fields = [
-        "reporter__username", "target_user__username", "target_item__name", "description",
+        "reporter__username", "target_user__username", "target_item__name",
+        "target_loan__item__name", "description",
     ]
-    list_select_related = ["reporter", "target_user", "target_item"]
+    list_select_related = ["reporter", "target_user", "target_item", "target_loan__item"]
     # Isi laporan milik pelapor; status hanya lewat action agar alur moderasi tidak dilompati.
     readonly_fields = [
-        "reporter", "target_item", "target_user", "reason", "description",
+        "reporter", "target_item", "target_user", "target_loan", "reason", "description",
         "status", "created_at", "updated_at",
     ]
     fields = readonly_fields + ["admin_note"]
@@ -22,6 +23,8 @@ class ReportAdmin(admin.ModelAdmin):
 
     @admin.display(description="Target")
     def target_display(self, obj):
+        if obj.target_loan_id:
+            return f"Transaksi {obj.target_loan.item.name}"
         return obj.target
 
     def has_add_permission(self, request):
