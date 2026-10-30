@@ -27,11 +27,12 @@ window.resetLoanRecaptcha = resetLoanRecaptcha;
 
 if (loanRecaptchaDialog) {
     loanRecaptchaDialog.addEventListener("close", resetLoanRecaptcha);
-}
 
-const loanRecaptchaOpenButton = document.getElementById("open-loan-modal");
-if (loanRecaptchaOpenButton) {
-    loanRecaptchaOpenButton.addEventListener("click", renderLoanRecaptcha);
+    // Render saat dialog dibuka, terlepas dari tombol pemicunya.
+    const loanRecaptchaObserver = new MutationObserver(() => {
+        if (loanRecaptchaDialog.open) renderLoanRecaptcha();
+    });
+    loanRecaptchaObserver.observe(loanRecaptchaDialog, {attributes: true, attributeFilter: ["open"]});
 }
 
 // Cegah submit jika reCAPTCHA belum selesai

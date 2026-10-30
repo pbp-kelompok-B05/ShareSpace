@@ -1,9 +1,10 @@
 import uuid
+from unittest import mock
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from authentication.models import UserProfile
@@ -14,7 +15,13 @@ from loans.models import LoanRequest
 User = get_user_model()
 
 # Data awal untuk seluruh pengujian
+@override_settings(RECAPTCHA_SITE_KEY="test", RECAPTCHA_SECRET_KEY="test")
 class LoanTestBase(TestCase):
+    def setUp(self):
+        patcher = mock.patch("loans.views.verify_recaptcha", return_value=True)
+        self.recaptcha_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
     @classmethod
     def setUpTestData(cls):
         cls.owner = User.objects.create_user(username="leon_s_kennedy", password="TestPass123!", email="leon@example.com")
@@ -30,7 +37,7 @@ class LoanTestBase(TestCase):
         cls.due = cls.start + timedelta(days=5)
 
     def loan_data(self, **changes):
-        data = {"start_date": self.start.isoformat(), "due_date": self.due.isoformat(), "notes": "Meminjam SG-09 R untuk misi."}
+        data = {"start_date": self.start.isoformat(), "due_date": self.due.isoformat(), "notes": "Meminjam SG-09 R untuk misi.", "g-recaptcha-response": "test-token"}
         data.update(changes)
         return data
 
@@ -323,6 +330,31 @@ class LoanCreateTests(LoanTestBase):
         response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data())
         self.assertEqual(response.status_code, 201)
         self.assertEqual(LoanRequest.objects.count(), 2)
+
+    # Key reCAPTCHA wajib tersedia pada server.
+    def test_missing_recaptcha_keys_returns_503(self):
+        self.login_as(self.borrower)
+        with self.settings(RECAPTCHA_SITE_KEY="", RECAPTCHA_SECRET_KEY=""):
+            response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data())
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(LoanRequest.objects.exists())
+
+    # Token reCAPTCHA kosong harus ditolak tanpa membuat transaksi.
+    def test_missing_recaptcha_token_returns_400(self):
+        self.login_as(self.borrower)
+        response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data(**{"g-recaptcha-response": ""}))
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+        self.recaptcha_mock.assert_not_called()
+
+    # Verifikasi gagal harus ditolak tanpa membuat transaksi.
+    def test_invalid_recaptcha_token_returns_400(self):
+        self.login_as(self.borrower)
+        self.recaptcha_mock.return_value = False
+        response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data())
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+        self.recaptcha_mock.assert_called_once_with("test-token")
 
 # Pengujian pengubahan dan pembatalan
 class LoanEditCancelTests(LoanTestBase):

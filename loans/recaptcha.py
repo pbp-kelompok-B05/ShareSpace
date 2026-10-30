@@ -16,4 +16,3 @@ def verify_recaptcha(token):
         return response.json().get("success") is True
     except (requests.RequestException, ValueError):
         return False
-    
