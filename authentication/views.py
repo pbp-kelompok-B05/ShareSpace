@@ -19,8 +19,8 @@ from review.models import Review
 from review.reputation import get_reputation
 
 from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
-from authentication.forms import UserProfileForm
-from authentication.models import UserProfile
+from authentication.forms import LoginHelpRequestForm, UserProfileForm
+from authentication.models import LoginHelpRequest, UserProfile
 
 
 class BaseProfileReputationProvider:
@@ -377,4 +377,30 @@ def profile_reputation_api(request, username=None):
             "user_items": items_data,
         }
     )
+
+@require_http_methods(["GET", "POST"])
+def login_help_request(request):
+    """
+    View publik untuk mengajukan permohonan bantuan kendala login atau lupa password.
+    Hanya dapat diakses oleh tamu yang belum login (unauthenticated).
+    """
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
+    if request.method == "POST":
+        form = LoginHelpRequestForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                "Permohonan bantuan Anda telah berhasil dikirim! Tim admin akan segera meninjau kendala Anda.",
+            )
+            return redirect("authentication:login")
+    else:
+        form = LoginHelpRequestForm()
+
+    context = {
+        "form": form,
+    }
+    return render(request, "login_help_form.html", context)
 
