@@ -155,7 +155,6 @@
     border-radius: 14px;
     background: #ffffff;
     color: var(--ink, #1c3029);
-    box-shadow: 0 22px 70px #c3d0c2;
 }
 
 .loan-dialog::backdrop {
