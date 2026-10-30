@@ -168,3 +168,28 @@ Modul ini membangun rasa aman dan kepercayaan antaranggota ShareSpace melalui ul
 ## 🔗 Tautan Penting
 *   **Tautan Deployment (PWS):** `https://pws.cs.ui.ac.id/maximus.quinn/sharespace`
 *   **Tautan Desain (Figma):** `https://www.figma.com/files/folder/655547835`
+
+---
+
+## 🤖 AI Disclosure
+
+### Matthew Raeann Alexandra (Modul 2: Katalog & Manajemen Barang, Base Template & Design System)
+
+Saya memakai **Claude Code** (aplikasi Claude Desktop, model Claude Opus 5.5) sebagai asisten utama, ditambah Figma MCP untuk membaca desain dan browser bawaan Claude untuk memverifikasi halaman di server lokal. Hampir seluruh kode di app `items` dan base template ditulis oleh Claude: model `Item` dengan soft delete, form dan validator, views HTML/JSON, decorator kepemilikan dan rate limit, interaksi HTMX dan JS (dialog edit/hapus, bulk action dengan optimistic UI), test unit dan functional test Selenium, serta `templates/base.html`, partials, dark mode, toast, dan `docs/DESIGN_SYSTEM.md`. Data seed (7 user `demo_*` dan 53 barang) juga data sintetis buatan Claude. Claude juga saya pakai untuk mereview PR anggota lain (#5, #13, #14) dan mengecek integrasi antarmodul.
+
+Strategi prompt saya: spesifikasi modul, target rubrik nilai 4, batas file yang boleh diubah, dan aturan kerja ditulis dalam satu file instruksi proyek. Untuk setiap fitur, Claude wajib menulis rencana (file, field, URL, test) dan menunggu persetujuan saya, mengerjakan satu fitur per langkah dengan TDD (commit test yang gagal terpisah dari implementasinya), menjalankan seluruh test dan coverage, lalu mengecek hasilnya di browser. Claude tidak pernah melakukan commit; semua kode saya review, lalu saya commit dan push sendiri.
+
+#### Keterbatasan AI yang saya temukan
+- **Salah asumsi kontrak antarmodul.** Tombol "Ajukan Peminjaman" dibuat sebagai link GET ke `loans:create`, padahal endpoint itu hanya menerima POST, sehingga user mendapat JSON 405. Test tetap lulus karena memakai URL tiruan dan hanya memeriksa `href`. Bug ini baru ketahuan saat pengecekan integrasi di hari deadline.
+- **Test yang lulus karena alasan yang salah.** Contohnya test yang membandingkan nilai dengan dirinya sendiri, dan penantian teks "1 barang ditemukan" yang juga cocok dengan "51 barang ditemukan". Keduanya tertangkap sebelum di-commit, tetapi menunjukkan bahwa test buatan AI tetap harus dibaca.
+- **Info versi yang keliru.** Tailwind sempat di-pin ke 3.4.19, padahal Play CDN hanya sampai 3.4.17, dan CDN tetap mengembalikan HTTP 200 berisi error. Ini ketahuan dari console browser, bukan dari test.
+- **Kasus tepi yang terlewat.** Toast tertutup oleh dialog modal, dan header `Vary` belum memuat `HX-History-Restore-Request` (diketahui dari komentar review PR #12).
+- **Batas verifikasi.** Semua pengujian dilakukan di SQLite, tidak di PostgreSQL PWS. Screenshot sering gagal, sehingga tampilan sebagian besar dicek lewat DOM. Rate limit memakai LocMemCache yang berlaku per proses, dan perilakunya di PWS belum dipastikan.
+
+#### Koreksi dan perbaikan manual
+- Saya menetapkan semua keputusan desain (soft delete, `is_available` hanya diubah modul transaksi, seed lewat data migration, nama URL lintas modul) dan menolak commit oleh AI serta trailer `Co-Authored-By`.
+- Saya menangkap ketika Claude diam-diam mengganti rekomendasi filter ketersediaan (dari tiga pilihan menjadi checkbox) tanpa menandainya sebagai perubahan.
+- Saya meluruskan analisis Claude soal syarat `is_verified`: kelompok sudah sepakat syarat itu dihapus di modul loans, bukan di modul saya. Saya juga meminta Claude memeriksa ulang masalah tombol pinjam sampai akar masalahnya ketemu. Hasilnya, tombol diperbaiki menjadi modal form loans dan ditambah test integrasi dengan URL asli.
+
+#### Chat Claude Code
+- Tidak dapat share link. Transcript chat ada di folder [`Transcript AI Modul2 (Matthew Raeann)`](<Transcript AI Modul2 (Matthew Raeann)/>).
