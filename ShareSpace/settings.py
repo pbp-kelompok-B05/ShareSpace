@@ -32,6 +32,12 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "maximus-quinn-sharespace.pws.cs.ui.ac.id"]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://maximus-quinn-sharespace.pws.cs.ui.ac.id",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
 PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
 
 # Application definition
@@ -154,3 +160,17 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Google reCAPTCHA
+RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
+RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
+# Google Identity Services / OAuth 2.0
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+
+# Authentication Backends
+# https://docs.djangoproject.com/en/5.2/topics/auth/customizing/#specifying-authentication-backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'authentication.backends.GoogleAuthBackend',
+    'authentication.backends.SSOUIAuthBackend',
+]

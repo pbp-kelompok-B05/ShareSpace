@@ -2,14 +2,15 @@
 
 {% block title %}Daftar Akun — ShareSpace{% endblock %}
 
-{% block panel_heading %}Mulai Berbagi, Hemat Bersama.{% endblock %}
-{% block panel_text %}Buat akun ShareSpace dan mulai pinjam atau pinjamkan barang dengan tetangga dan teman kampus di sekitarmu.{% endblock %}
-{% block panel_points %}
-    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Gratis dan mudah digunakan</li>
-    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Pinjam barang tanpa perlu membeli</li>
-    <li class="flex items-center gap-3"><span class="auth-check" aria-hidden="true">✓</span>Komunitas Depok &amp; Kampus yang saling percaya</li>
+{% block extra_head %}
+{{ block.super }}
+{% if google_client_id %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
 {% endblock %}
 
+{% block panel_heading %}Mulai Berbagi, Hemat Bersama.{% endblock %}
+{% block panel_text %}Buat akun ShareSpace dan mulai pinjam atau pinjamkan barang dengan tetangga dan teman kampus di sekitarmu.{% endblock %}
 {% block form_area %}
 <h1 class="m-0 mb-2 text-3xl tracking-tight">Buat Akun Baru</h1>
 <p class="mb-6 text-sm text-muted">Bergabung bersama komunitas ShareSpace sekarang.</p>

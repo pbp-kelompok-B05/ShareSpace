@@ -1,0 +1,79 @@
+/* Halaman management jadwal COD — hanya class cod-schedule-*.
+   Token warna dan mode gelap mengikuti static/css/style.css dari ShareSpace. */
+.cod-schedule-page {
+  min-height: calc(100vh - 180px);
+  padding: 32px 0 80px;
+  background: var(--cream); color: var(--ink);
+}
+.cod-schedule-container { width: min(1180px, calc(100% - 64px)); margin-inline: auto; }
+.cod-schedule-page h1, .cod-schedule-page h2 { font-family: var(--font-heading); color: var(--ink); }
+.cod-schedule-page a { text-decoration: none; }
+.cod-schedule-breadcrumb { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin-bottom: 24px; }
+.cod-schedule-breadcrumb a { color: var(--green); font-weight: 700; }
+.cod-schedule-heading { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 24px; margin-bottom: 25px; }
+.cod-schedule-kicker, .cod-schedule-overline { color: var(--green); font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+.cod-schedule-page .cod-schedule-heading h1 { max-width: none; margin: 10px 0; font-size: clamp(30px, 4vw, 45px); line-height: 1.2; letter-spacing: -.055em; }
+.cod-schedule-heading h1 em { font-style: normal; color: var(--green); }
+.cod-schedule-heading p { max-width: 630px; margin: 0; color: var(--muted); font-size: 14px; }
+.cod-schedule-page .button { min-height: 43px; padding: 10px 15px; font-size: 13px; gap: 8px; }
+.cod-schedule-page .button-primary { color: var(--on-primary); }
+.cod-schedule-page .button-secondary { color: var(--ink); }
+.cod-schedule-card { min-width: 0; padding: 23px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 8px 28px #132b1b0a; }
+.dark .cod-schedule-card { box-shadow: 0 8px 28px #0003; }
+.cod-schedule-card-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 19px; }
+.cod-schedule-page .cod-schedule-card h2 { margin: 5px 0 0; font-size: 20px; line-height: 1.3; letter-spacing: -.035em; }
+.cod-schedule-loan { margin-bottom: 18px; }
+.cod-schedule-facts { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; margin: 0; }
+.cod-schedule-facts > div { min-width: 0; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-muted); }
+.cod-schedule-facts dt { color: var(--muted); font-size: 11px; font-weight: 600; }
+.cod-schedule-facts dd { overflow-wrap: anywhere; margin: 4px 0 0; color: var(--ink); font-size: 13px; font-weight: 750; }
+.cod-schedule-existing { margin-bottom: 18px; }
+.cod-schedule-counter { color: var(--muted); font-size: 12px; }
+.cod-schedule-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+.cod-schedule-item { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-muted); }
+.cod-schedule-item-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cod-schedule-item-name { color: var(--ink); font-weight: 800; font-size: 14px; }
+.cod-schedule-item-type { display: inline-flex; padding: 3px 9px; border-radius: 999px; background: var(--surface-soft); color: var(--green); font-size: 11px; font-weight: 700; }
+.cod-schedule-item p { margin: 0; color: var(--muted); font-size: 13px; }
+.cod-schedule-item-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 3px; }
+.cod-schedule-item-actions button { min-height: 34px; padding: 6px 12px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--surface); color: var(--ink); font: 700 12px var(--font-body); cursor: pointer; }
+.cod-schedule-item-actions button:hover { background: var(--surface-soft); }
+.cod-schedule-item-actions .cod-schedule-delete { border-color: var(--danger-line); color: var(--danger); }
+.cod-schedule-muted { grid-column: 1/-1; margin: 0; color: var(--muted); font-size: 13px; }
+.cod-schedule-workspace { display: grid; grid-template-columns: minmax(300px, .85fr) minmax(0, 1.15fr); align-items: start; gap: 18px; }
+.cod-schedule-field { display: grid; gap: 7px; margin-bottom: 17px; }
+.cod-schedule-field label { color: var(--ink); font-size: 13px; font-weight: 750; }
+.cod-schedule-field label span { color: var(--danger); }
+.cod-schedule-field select, .cod-schedule-field input, .cod-schedule-field textarea {
+  width: 100%; min-height: 44px; padding: 10px 13px; border: 1px solid var(--input-border);
+  border-radius: 9px; background: var(--cream); color: var(--ink); font: 400 13px/1.5 var(--font-body);
+}
+.cod-schedule-field textarea { resize: vertical; }
+.cod-schedule-hint { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.cod-schedule-form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; }
+.cod-schedule-message { min-height: 0; margin: 12px 0 0; font-size: 12px; }
+.cod-schedule-message:empty { display: none; }
+.cod-schedule-message.is-error { color: var(--danger); }
+.cod-schedule-message.is-success { color: var(--green); }
+.cod-schedule-inline-link { display: inline-block; margin-top: 18px; color: var(--green); font-size: 13px; font-weight: 750; }
+.cod-schedule-inline-link:hover { text-decoration: underline; }
+.cod-schedule-notice { padding: 14px; border: 1px solid var(--warning-line); border-radius: 10px; background: var(--warning-bg); color: var(--warning); font-size: 13px; }
+.cod-schedule-map-panel { padding: 15px; }
+.cod-schedule-map-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 5px 7px 0; }
+.cod-schedule-map-live { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+.cod-schedule-map-live span { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.cod-schedule-map-description { padding-inline: 7px; margin: 10px 0 13px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+#schedule-map { width: 100%; height: 420px; border-radius: 11px; background: var(--surface-muted); z-index: 0; }
+.dark #schedule-map .maplibregl-canvas { filter: brightness(.80) saturate(.84); }
+.cod-schedule-selection { display: grid; gap: 3px; padding: 15px 8px 6px; }
+.cod-schedule-selection strong { color: var(--ink); font-size: 14px; }
+.cod-schedule-selection span { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.cod-schedule-page .leaflet-popup-content-wrapper, .cod-schedule-page .leaflet-popup-tip { background: var(--surface); color: var(--ink); }
+.cod-schedule-page .leaflet-popup-content { font-family: var(--font-body); }
+@media(max-width: 1050px) { .cod-schedule-facts { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media(max-width: 800px) { .cod-schedule-workspace { grid-template-columns: 1fr; } .cod-schedule-list { grid-template-columns: 1fr; } }
+@media(max-width: 600px) { .cod-schedule-container { width: calc(100% - 32px); } .cod-schedule-card { padding: 17px; } .cod-schedule-facts { grid-template-columns: repeat(2,minmax(0,1fr)); } #schedule-map { height: 325px; } }
+@media(max-width: 380px) { .cod-schedule-facts { grid-template-columns: 1fr; } }
+
+/* Hindari tombol Batal Edit muncul saat belum mengedit. */
+.cod-schedule-page [hidden] { display: none !important; }

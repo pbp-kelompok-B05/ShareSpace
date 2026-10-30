@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ulasan untuk {{ target_user.username }} — ShareSpace{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'review/css/review.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="container py-10 md:py-14">
+    <div class="mx-auto max-w-3xl">
+        <a class="text-link" href="{% url 'authentication:public_profile' target_user.username %}"><span aria-hidden="true">←</span> Profil {{ target_user.username }}</a>
+        <span class="section-label mt-4 block">REPUTASI</span>
+        <h1 class="m-0 mb-6 text-3xl md:text-4xl">Ulasan untuk {{ target_user.username }}</h1>
+
+        <div class="card mb-6">
+            <div class="card-body gap-4">
+                {% include "review/partials/reputation_summary.html" %}
+            </div>
+        </div>
+
+        {% if page_obj %}
+            <ul class="m-0 grid list-none gap-4 p-0" aria-live="polite">
+                {% include "review/partials/user_review_items.html" %}
+            </ul>
+        {% else %}
+            {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Ulasan muncul setelah transaksi peminjaman selesai." icon="⭐" %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

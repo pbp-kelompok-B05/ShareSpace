@@ -1,4 +1,5 @@
-{% load static %}
+{% load static loan_recaptcha %}
+{% recaptcha_site_key as captcha_site_key %}
 
 <button type="button" id="open-loan-modal" class="loan-detail-button loan-detail-button-primary">
     {% if mode == "update" %}
@@ -34,6 +35,14 @@
         <label for="notes">Catatan</label>
         <textarea id="notes" name="notes" rows="3">{% if mode == 'update' %}{{ loan.notes }}{% endif %}</textarea>
 
+        {% if mode != "update" %}
+            {% if captcha_site_key %}
+                <div id="loan-recaptcha" class="loan-recaptcha" data-sitekey="{{ captcha_site_key }}"></div>
+            {% else %}
+                <p class="loan-recaptcha-message" role="alert">reCAPTCHA belum dikonfigurasi.</p>
+            {% endif %}
+        {% endif %}
+
         <div class="loan-form-buttons">
             <button type="submit"
                     class="loan-detail-button loan-detail-button-primary">
@@ -52,3 +61,7 @@
 </dialog>
 
 <script src="{% static 'js/loan_action.js' %}" defer></script>
+{% if mode != "update" and captcha_site_key %}
+<script src="{% static 'js/loan_recaptcha.js' %}" defer></script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onLoanRecaptchaLoaded&amp;render=explicit" async defer></script>
+{% endif %}

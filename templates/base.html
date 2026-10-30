@@ -20,7 +20,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 {# Header CSRF global: semua request HTMX (POST/PUT/DELETE) otomatis membawa token. #}
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body class="flex min-h-screen flex-col" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
     <a class="skip-link" href="#konten">Lewati ke konten</a>
     {% include "partials/header.html" %}
     {# Region selalu ada agar toast dari JS/HTMX tetap bisa tampil walau block messages di-override. #}
@@ -30,7 +30,7 @@
             {% include "partials/messages.html" %}
         {% endblock %}
     </div>
-    <main id="konten">{% block content %}{% endblock %}</main>
+    <main id="konten" class="flex flex-1 flex-col">{% block content %}{% endblock %}</main>
     {% include "partials/footer.html" %}
     <script defer src="{% static 'js/theme.js' %}"></script>
     <script defer src="{% static 'js/nav.js' %}"></script>

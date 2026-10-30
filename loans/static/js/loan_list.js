@@ -227,7 +227,7 @@ async function loadLoans() {
             }
 
             // Contact owner
-            if (isBorrower && loan.status === "pending" && loan.contact_url) {
+            if (isBorrower && loan.contact_url) {
                 const contactLink = document.createElement("a");
 
                 contactLink.href = loan.contact_url;

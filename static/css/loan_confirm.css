@@ -1,0 +1,132 @@
+/* Loan confirmation dialog */
+.loan-confirm-dialog {
+    width: min(430px, calc(100% - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 26px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--ink);
+    color-scheme: inherit;
+    box-shadow: none;
+}
+
+.loan-confirm-dialog::backdrop {
+    background: rgb(0 0 0 / 55%);
+}
+
+/* Confirmation icon */
+.loan-confirm-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: var(--surface-soft);
+    color: var(--green);
+    font-size: 25px;
+    font-weight: 800;
+}
+
+/* Confirmation text */
+.loan-confirm-dialog h2 {
+    margin: 0 0 8px;
+    color: var(--ink);
+    font-size: 20px;
+    line-height: 1.4;
+}
+
+.loan-confirm-dialog p {
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Confirmation actions */
+.loan-confirm-buttons {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.loan-confirm-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 105px;
+    min-height: 42px;
+    padding: 10px 15px;
+    border: 1px solid var(--input-border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.loan-confirm-secondary {
+    border-color: var(--input-border);
+    background: var(--surface);
+    color: var(--ink);
+}
+
+.loan-confirm-secondary:hover {
+    background: var(--surface-muted);
+}
+
+.loan-confirm-primary {
+    border-color: var(--green);
+    background: var(--green);
+    color: var(--on-primary);
+}
+
+.loan-confirm-primary:hover {
+    border-color: var(--green-dark);
+    background: var(--green-dark);
+    color: var(--on-primary);
+}
+
+.loan-confirm-danger {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--surface);
+}
+
+.loan-confirm-danger:hover {
+    opacity: 0.9;
+}
+
+/* Keyboard accessibility */
+.loan-confirm-button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+}
+
+.loan-confirm-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Responsive layout */
+@media (max-width: 500px) {
+    .loan-confirm-dialog {
+        padding: 20px;
+    }
+
+    .loan-confirm-buttons > button {
+        flex: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loan-confirm-button {
+        transition: none;
+    }
+}
