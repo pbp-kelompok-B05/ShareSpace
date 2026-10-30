@@ -1,9 +1,10 @@
 import uuid
+from unittest import mock
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from authentication.models import UserProfile
@@ -14,7 +15,13 @@ from loans.models import LoanRequest
 User = get_user_model()
 
 # Data awal untuk seluruh pengujian
+@override_settings(RECAPTCHA_SITE_KEY="test", RECAPTCHA_SECRET_KEY="test")
 class LoanTestBase(TestCase):
+    def setUp(self):
+        patcher = mock.patch("loans.views.verify_recaptcha", return_value=True)
+        self.recaptcha_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
     @classmethod
     def setUpTestData(cls):
         cls.owner = User.objects.create_user(username="leon_s_kennedy", password="TestPass123!", email="leon@example.com")
@@ -30,7 +37,7 @@ class LoanTestBase(TestCase):
         cls.due = cls.start + timedelta(days=5)
 
     def loan_data(self, **changes):
-        data = {"start_date": self.start.isoformat(), "due_date": self.due.isoformat(), "notes": "Meminjam SG-09 R untuk misi."}
+        data = {"start_date": self.start.isoformat(), "due_date": self.due.isoformat(), "notes": "Meminjam SG-09 R untuk misi.", "g-recaptcha-response": "test-token"}
         data.update(changes)
         return data
 
@@ -44,7 +51,6 @@ class LoanTestBase(TestCase):
 
     def url(self, name, loan=None):
         return reverse(f"loans:{name}", args=[loan.pk] if loan else None)
-
 
 # Pengujian model peminjaman
 class LoanModelTests(LoanTestBase):
@@ -89,7 +95,6 @@ class LoanModelTests(LoanTestBase):
         with self.assertRaises(ProtectedError):
             self.item.delete()
 
-
 # Pengujian form peminjaman
 class LoanFormTests(LoanTestBase):
     # Memastikan form menerima tanggal peminjaman yang valid.
@@ -125,7 +130,6 @@ class LoanFormTests(LoanTestBase):
         loan = self.make_loan(start_date=yesterday, due_date=self.due)
         form = LoanRequestForm(data=self.loan_data(start_date=yesterday.isoformat(), notes="Catatan diperbarui"), instance=loan)
         self.assertTrue(form.is_valid())
-
 
 # Pengujian halaman transaksi
 class LoanPageTests(LoanTestBase):
@@ -169,7 +173,6 @@ class LoanPageTests(LoanTestBase):
         self.login_as(self.borrower)
         response = self.client.get(self.url("detail", loan))
         self.assertTrue(response.context["can_request_return"])
-
 
 # Pengujian daftar transaksi melalui AJAX
 class LoanListDataTests(LoanTestBase):
@@ -224,7 +227,7 @@ class LoanListDataTests(LoanTestBase):
 
     # Memastikan nama dan nomor telepon pemilik atau peminjam muncul pada respons AJAX.
     def test_profile_name_and_phone_are_in_response(self):
-        self.make_loan()
+        self.make_loan(status=LoanRequest.Status.APPROVED)
         UserProfile.objects.create(user=self.owner, full_name="Leon S. Kennedy", phone_number="0812345678")
         UserProfile.objects.create(user=self.borrower, full_name="Ada Wong", phone_number="0898765432")
         self.login_as(self.borrower)
@@ -238,12 +241,28 @@ class LoanListDataTests(LoanTestBase):
 
     # Memastikan email digunakan sebagai kontak jika profil belum tersedia.
     def test_contact_falls_back_to_email_when_no_profile(self):
-        self.make_loan()
+        self.make_loan(status=LoanRequest.Status.APPROVED)
         self.login_as(self.borrower)
         data = self.client.get(self.url("data")).json()["loans"][0]
         self.assertEqual(data["person_name"], self.owner.username)
         self.assertEqual(data["contact_url"], "mailto:leon@example.com")
 
+    # Memastikan kontak hanya dikirim selama status approved atau borrowed.
+    def test_contact_only_visible_during_active_loan(self):
+        loan = self.make_loan()
+        UserProfile.objects.create(user=self.owner, full_name="Leon S. Kennedy", phone_number="0812345678")
+        UserProfile.objects.create(user=self.borrower, full_name="Ada Wong", phone_number="0898765432")
+        for status in LoanRequest.Status.values:
+            loan.status = status
+            loan.save()
+            for user, endpoint in ((self.borrower, "data"), (self.owner, "lender_data")):
+                with self.subTest(status=status, endpoint=endpoint):
+                    self.login_as(user)
+                    data = self.client.get(self.url(endpoint)).json()["loans"][0]
+                    if status in (LoanRequest.Status.APPROVED, LoanRequest.Status.BORROWED):
+                        self.assertIsNotNone(data["contact_url"])
+                    else:
+                        self.assertIsNone(data["contact_url"])
 
 # Pengujian pengajuan peminjaman
 class LoanCreateTests(LoanTestBase):
@@ -266,17 +285,19 @@ class LoanCreateTests(LoanTestBase):
         self.assertEqual(response.status_code, 403)
         self.assertFalse(LoanRequest.objects.exists())
 
-    # Memastikan barang yang belum diverifikasi atau tidak tersedia tidak dapat dipinjam.
-    def test_unverified_or_unavailable_item_rejected(self):
+    # Memastikan barang tanpa badge verifikasi boleh dipinjam, tetapi barang tidak tersedia tetap ditolak.
+    def test_unverified_item_allowed_but_unavailable_rejected(self):
         self.login_as(self.borrower)
         url = reverse("loans:create", args=[self.item.pk])
-        for update in ({"is_verified": False}, {"is_verified": True, "is_available": False}):
-            with self.subTest(update=update):
-                Item.objects.filter(pk=self.item.pk).update(is_verified=True, is_available=True)
-                Item.objects.filter(pk=self.item.pk).update(**update)
-                response = self.client.post(url, self.loan_data())
-                self.assertEqual(response.status_code, 409)
-        self.assertFalse(LoanRequest.objects.exists())
+        Item.objects.filter(pk=self.item.pk).update(is_verified=False)
+        response = self.client.post(url, self.loan_data())
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(LoanRequest.objects.count(), 1)
+        Item.objects.filter(pk=self.item.pk).update(is_available=False)
+        self.login_as(self.second_borrower)
+        response = self.client.post(url, self.loan_data())
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(LoanRequest.objects.count(), 1)
 
     # Memastikan Ada tidak dapat mengajukan peminjaman pending yang sama dua kali.
     def test_duplicate_pending_request_rejected(self):
@@ -310,6 +331,30 @@ class LoanCreateTests(LoanTestBase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(LoanRequest.objects.count(), 2)
 
+    # Key reCAPTCHA wajib tersedia pada server.
+    def test_missing_recaptcha_keys_returns_503(self):
+        self.login_as(self.borrower)
+        with self.settings(RECAPTCHA_SITE_KEY="", RECAPTCHA_SECRET_KEY=""):
+            response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data())
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(LoanRequest.objects.exists())
+
+    # Token reCAPTCHA kosong harus ditolak tanpa membuat transaksi.
+    def test_missing_recaptcha_token_returns_400(self):
+        self.login_as(self.borrower)
+        response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data(**{"g-recaptcha-response": ""}))
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+        self.recaptcha_mock.assert_not_called()
+
+    # Verifikasi gagal harus ditolak tanpa membuat transaksi.
+    def test_invalid_recaptcha_token_returns_400(self):
+        self.login_as(self.borrower)
+        self.recaptcha_mock.return_value = False
+        response = self.client.post(reverse("loans:create", args=[self.item.pk]), self.loan_data())
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+        self.recaptcha_mock.assert_called_once_with("test-token")
 
 # Pengujian pengubahan dan pembatalan
 class LoanEditCancelTests(LoanTestBase):
@@ -352,7 +397,6 @@ class LoanEditCancelTests(LoanTestBase):
         self.assertEqual(self.client.post(self.url("update", loan), self.loan_data()).status_code, 409)
         self.assertEqual(self.client.post(self.url("cancel", loan)).status_code, 409)
 
-
 # Pengujian alur dan perubahan status transaksi
 class LoanStatusFlowTests(LoanTestBase):
     # Memastikan hanya Leon yang dapat menyetujui, menolak, atau menyerahkan barang.
@@ -363,9 +407,10 @@ class LoanStatusFlowTests(LoanTestBase):
             with self.subTest(action=name):
                 self.assertEqual(self.client.post(self.url(name, loan)).status_code, 403)
 
-    # Memastikan persetujuan mengubah status transaksi dan membuat barang tidak tersedia.
+    # Memastikan barang belum diverifikasi boleh disetujui dan menjadi tidak tersedia.
     def test_approve_sets_item_unavailable(self):
         loan = self.make_loan()
+        Item.objects.filter(pk=self.item.pk).update(is_verified=False)
         self.login_as(self.owner)
         response = self.client.post(self.url("approve", loan))
         self.assertEqual(response.status_code, 200)
@@ -384,15 +429,17 @@ class LoanStatusFlowTests(LoanTestBase):
         loan.refresh_from_db()
         self.assertEqual(loan.status, LoanRequest.Status.PENDING)
 
-    # Memastikan Leon tidak dapat menyetujui dua pengajuan aktif untuk SG-09 R.
+    # Memastikan pengajuan lain otomatis ditolak setelah satu pengajuan disetujui.
     def test_second_pending_loan_cannot_be_approved_after_first(self):
         first = self.make_loan()
         second = self.make_loan(borrower=self.second_borrower)
         self.login_as(self.owner)
         self.assertEqual(self.client.post(self.url("approve", first)).status_code, 200)
         self.assertEqual(self.client.post(self.url("approve", second)).status_code, 409)
+        first.refresh_from_db()
         second.refresh_from_db()
-        self.assertEqual(second.status, LoanRequest.Status.PENDING)
+        self.assertEqual(first.status, LoanRequest.Status.APPROVED)
+        self.assertEqual(second.status, LoanRequest.Status.REJECTED)
 
     # Memastikan Leon dapat menolak pengajuan dan barang tetap tersedia.
     def test_owner_can_reject_pending_loan(self):
@@ -487,7 +534,6 @@ class LoanStatusFlowTests(LoanTestBase):
         self.item.refresh_from_db()
         self.assertTrue(self.item.is_deleted)
         self.assertFalse(self.item.is_available)
-
 
 # Pengujian login dan metode HTTP
 class LoanAccessAndMethodTests(LoanTestBase):

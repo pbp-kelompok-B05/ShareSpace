@@ -4,6 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/loan_list.css' %}">
+<link rel="stylesheet" href="{% static 'css/loan_confirm.css' %}">
 {% endblock extra_head %}
 
 {% block content %}
@@ -81,5 +82,11 @@
     </form>
 </section>
 
+{% include "components/loan_confirm_dialog.html" %}
 <script src="{% static 'js/loan_list.js' %}" defer></script>
 {% endblock content %}
+
+{% block extra_js %}
+    <script defer src="{% static 'js/loan_confirm.js' %}"></script>
+    <script defer src="{% static 'js/loan_ui.js' %}"></script>
+{% endblock extra_js %}
