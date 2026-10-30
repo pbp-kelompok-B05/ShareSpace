@@ -176,7 +176,7 @@
                 <div class="rounded-2xl border border-line bg-surface-muted p-5 text-center">
                     {% if trust_score is not None %}
                         <div class="inline-flex items-baseline gap-1">
-                            <span id="trust-score-sidebar-value" class="font-heading text-4xl font-extrabold text-primary">{{ trust_score }}%</span>
+                            <span id="trust-score-sidebar-value" class="font-heading text-4xl font-extrabold text-primary">{{ trust_score }}/100</span>
                         </div>
                         <div class="mt-2">
                             <span id="trust-level-badge" class="badge badge-verified">{{ trust_level }}</span>
@@ -216,7 +216,7 @@
                     <span class="card-meta block text-xs font-bold uppercase tracking-wider">Trust Score</span>
                     <div class="flex flex-wrap items-center gap-2">
                         <span id="banner-trust-score" class="font-heading text-2xl font-extrabold text-primary md:text-3xl">
-                            {% if trust_score is not None %}{{ trust_score }}%{% else %}–{% endif %}
+                            {% if trust_score is not None %}{{ trust_score }}/100{% else %}–{% endif %}
                         </span>
                         {% if trust_score is not None %}
                             <span id="banner-trust-level" class="badge badge-verified text-xs">{{ trust_level }}</span>
@@ -269,7 +269,12 @@
                             </div>
                             <div class="min-w-0 flex-1 space-y-1">
                                 <h3 class="m-0 truncate font-heading text-base font-bold text-ink">
-                                    <a class="card-link" href="{% url 'items:detail' item.pk %}">{{ item.name }}</a>
+                                    {% url 'items:detail' item.pk as item_detail_url %}
+                                    {% if item_detail_url %}
+                                        <a class="card-link" href="{{ item_detail_url }}">{{ item.name }}</a>
+                                    {% else %}
+                                        <span>{{ item.name }}</span>
+                                    {% endif %}
                                 </h3>
                                 <div>
                                     {% if item.is_available %}
@@ -292,11 +297,19 @@
     <section class="card mt-6">
         <div class="card-body gap-4 p-6 md:p-8">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
-                <div class="flex items-center gap-2">
-                    <h2 id="reviews-heading" class="card-title text-xl font-bold text-ink">
-                        Ulasan Komunitas ({{ reviews_count }})
-                    </h2>
-                    <span class="badge badge-category text-xs font-semibold">Komunitas</span>
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <h2 id="reviews-heading" class="card-title text-xl font-bold text-ink">
+                            Ulasan Komunitas ({{ reviews_count }})
+                        </h2>
+                        <span class="badge badge-category text-xs font-semibold">Komunitas</span>
+                    </div>
+                    {% url 'review:user_reviews' target_user.username as all_reviews_url %}
+                    {% if all_reviews_url and reviews_count > 5 %}
+                        <a class="card-meta text-xs font-bold text-primary hover:underline" href="{{ all_reviews_url }}">
+                            Lihat semua ulasan →
+                        </a>
+                    {% endif %}
                 </div>
                 <div class="flex items-center gap-1.5 font-bold text-primary">
                     <span class="text-amber" style="color: var(--amber);">★</span>
@@ -306,22 +319,22 @@
 
             <div id="reviews-list-container">
                 <!-- Loading State (Tutorial 05) -->
-                <div id="loading" class="empty-state hide">
+                <div id="loading" class="empty-state hidden">
                     <p class="empty-state-text">Memuat ulasan komunitas...</p>
                 </div>
 
                 <!-- Error State (Tutorial 05) -->
-                <div id="error" class="empty-state hide">
+                <div id="error" class="empty-state hidden">
                     <p class="empty-state-text text-danger font-medium">Gagal memuat data ulasan. Silakan segarkan halaman.</p>
                 </div>
 
                 <!-- Empty State (Tutorial 05) -->
-                <div id="empty" class="empty-state{% if reviews %} hide{% endif %}">
+                <div id="empty" class="empty-state{% if reviews %} hidden{% endif %}">
                     {% include "partials/empty_state.html" with title="Belum ada ulasan" text="Pengguna ini belum memiliki ulasan dari transaksi peminjaman." heading_level=3 %}
                 </div>
 
                 <!-- Reviews Grid Container (Tutorial 05) -->
-                <div id="grid" class="reviews-grid{% if not reviews %} hide{% endif %}">
+                <div id="grid" class="reviews-grid{% if not reviews %} hidden{% endif %}">
                     <ul id="reviews-items-list" class="m-0 grid list-none gap-4 p-0">
                         {% for review in reviews %}
                             <li>

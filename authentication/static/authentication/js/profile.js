@@ -40,10 +40,10 @@ function initProfileReputation() {
 
     // Menyembunyikan/Menampilkan section halaman
     function displayPageSection({ showLoading = false, showError = false, showEmpty = false, showGrid = false }) {
-        if (loadingState) loadingState.classList.toggle('hide', !showLoading);
-        if (errorState) errorState.classList.toggle('hide', !showError);
-        if (emptyState) emptyState.classList.toggle('hide', !showEmpty);
-        if (gridContainer) gridContainer.classList.toggle('hide', !showGrid);
+        if (loadingState) loadingState.classList.toggle('hidden', !showLoading);
+        if (errorState) errorState.classList.toggle('hidden', !showError);
+        if (emptyState) emptyState.classList.toggle('hidden', !showEmpty);
+        if (gridContainer) gridContainer.classList.toggle('hidden', !showGrid);
     }
 
     // Mengubah karakter khusus HTML menjadi entity agar ditampilkan sebagai teks (XSS Prevention)
@@ -127,7 +127,7 @@ function initProfileReputation() {
 
         const trustScoreValue = document.getElementById("trust-score-sidebar-value");
         if (trustScoreValue) {
-            trustScoreValue.textContent = data.trust_score !== null ? `${data.trust_score}%` : "–";
+            trustScoreValue.textContent = data.trust_score !== null ? `${data.trust_score}/100` : "–";
         }
 
         const trustLevelBadge = document.getElementById("trust-level-badge");
@@ -150,7 +150,7 @@ function initProfileReputation() {
         // Banner Statistik Aktivitas
         const bannerTrustScore = document.getElementById("banner-trust-score");
         if (bannerTrustScore) {
-            bannerTrustScore.textContent = data.trust_score !== null ? `${data.trust_score}%` : "–";
+            bannerTrustScore.textContent = data.trust_score !== null ? `${data.trust_score}/100` : "–";
         }
 
         const bannerTrustLevel = document.getElementById("banner-trust-level");
@@ -236,6 +236,6 @@ function initProfileReputation() {
         });
     }
 
-    // Jalankan AJAX untuk sinkronisasi data terkini
-    fetchReviews();
+    // Data awal sudah dirender oleh template Django.
+    // AJAX fetchReviews() hanya dipanggil saat tombol Sinkronkan diklik pengguna untuk menghindari query ganda.
 }

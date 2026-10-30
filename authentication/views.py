@@ -24,6 +24,40 @@ from authentication.forms import LoginHelpRequestForm, UserProfileForm
 from authentication.models import LoginHelpRequest, UserProfile
 
 
+def format_relative_time_id(dt):
+    """
+    Memformat waktu relatif dalam bahasa Indonesia yang alami dan rapi.
+    Contoh: '1 bulan yang lalu', '2 minggu yang lalu', '3 hari yang lalu', 'Baru saja'.
+    """
+    if not dt:
+        return ""
+    from django.utils import timezone
+    now = timezone.now()
+    diff = now - dt
+    seconds = int(diff.total_seconds())
+    if seconds < 60:
+        return "Baru saja"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} menit yang lalu"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} jam yang lalu"
+    days = diff.days
+    if days == 1:
+        return "Kemarin"
+    if days < 7:
+        return f"{days} hari yang lalu"
+    if days < 30:
+        weeks = days // 7
+        return f"{weeks} minggu yang lalu"
+    if days < 365:
+        months = days // 30
+        return f"{months} bulan yang lalu"
+    years = days // 365
+    return f"{years} tahun yang lalu"
+
+
 class BaseProfileReputationProvider:
     """Kelas dasar abstrak penyedia reputasi profil pengguna."""
 
@@ -47,7 +81,7 @@ class ReviewModuleReputationProvider(BaseProfileReputationProvider):
             .select_related("reviewer", "reviewer__userprofile", "loan", "loan__item")
             .order_by("-created_at")
         )
-        reviews = list(reviews_qs)
+        reviews = list(reviews_qs[:5])
 
         for r in reviews:
             full_name = (
@@ -57,9 +91,11 @@ class ReviewModuleReputationProvider(BaseProfileReputationProvider):
             )
             r.reviewer_display_name = full_name
             r.reviewer_initial = full_name[0].upper() if full_name else "U"
-            r.relative_time = f"{timesince(r.created_at)} yang lalu"
+            r.relative_time = format_relative_time_id(r.created_at)
 
-        user_items = list(Item.objects.filter(owner=user).order_by("-created_at"))
+        all_user_items_qs = Item.objects.filter(owner=user).order_by("-created_at")
+        owned_items_total = all_user_items_qs.count()
+        user_items = list(all_user_items_qs[:6])
         borrowed_loans_count = LoanRequest.objects.filter(borrower=user).count()
 
         trust_desc = {
@@ -78,7 +114,7 @@ class ReviewModuleReputationProvider(BaseProfileReputationProvider):
             "completed_loans_count": reputation.completed_count,
             "borrowed_loans_count": borrowed_loans_count,
             "user_items": user_items,
-            "owned_items_count": len(user_items),
+            "owned_items_count": owned_items_total,
             "trust_score": reputation.score,
             "trust_level": reputation.level.label,
             "trust_description": trust_desc,
