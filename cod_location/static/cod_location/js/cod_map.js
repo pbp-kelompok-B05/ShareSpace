@@ -214,9 +214,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function deleteLocation(location) {
-        if (!confirm(`Hapus lokasi "${location.name}"?`)) {
-            return;
-        }
+        const result = await Swal.fire({
+            title: "Hapus lokasi ini?",
+            text: `Yakin ingin menghapus lokasi "${location.name}"?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Ya, Hapus",
+            cancelButtonText: "Batal",
+            confirmButtonColor: "#a51d20",
+            cancelButtonColor: "#718077",
+            background: "#ffffff",
+            color: "#20372d",
+            reverseButtons: true,
+            customClass: {
+                popup: "cod-confirm-popup"
+            }
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             const response = await fetch(
