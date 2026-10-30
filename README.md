@@ -283,6 +283,37 @@ Strategi prompt saya: spesifikasi modul, target rubrik nilai 4, batas file yang 
 #### Chat Claude Code
 - Tidak dapat share link. Transcript chat ada di folder [`Transcript AI Modul2 (Matthew Raeann)`](<Transcript AI Modul2 (Matthew Raeann)/>).
 
+## Fadhil Abdurrohman (Modul 3: Loan Transactions)
+
+Dalam pengembangan proyek **ShareSpace**, khususnya modul **Loan Transactions**, saya menggunakan **ChatGPT (OpenAI)** sebagai alat bantu dalam proses implementasi, debugging, dan pengujian kode.
+
+#### Penggunaan AI
+Beberapa bagian kode ditulis dengan bantuan AI, terutama pada implementasi views, validasi transaksi, AJAX, integrasi reCAPTCHA, serta unit testing. AI juga digunakan untuk memberikan saran perbaikan kode, menjelaskan konsep, dan membantu mengidentifikasi penyebab error.
+
+#### Batasan Penggunaan AI
+Penggunaan AI dibatasi sebagai alat bantu pengembangan. Saya tetap menentukan kebutuhan fitur, alur transaksi, struktur implementasi, dan keputusan akhir. Kode yang dihasilkan AI tidak langsung digunakan tanpa pemeriksaan dan penyesuaian terlebih dahulu.
+
+#### Strategi Prompt
+Prompt diberikan secara spesifik dan bertahap dengan menyertakan konteks proyek, struktur kode yang sudah ada, kebutuhan fitur, serta pesan error yang ditemukan. Saya juga memberikan instruksi tambahan agar solusi AI sesuai dengan implementasi modul lain dan tidak mengubah fungsionalitas yang sudah berjalan.
+
+#### Keterbatasan AI
+- Beberapa kode yang dihasilkan belum sepenuhnya sesuai dengan struktur dan versi terbaru proyek.
+- AI terkadang mengasumsikan keberadaan fungsi, atribut, atau konfigurasi yang belum tersedia.
+- Solusi yang diberikan terkadang menimbulkan konflik dengan implementasi modul lain.
+- Beberapa implementasi belum berhasil melewati seluruh unit test, khususnya terkait validasi reCAPTCHA.
+- AI tidak dapat memastikan seluruh fitur berjalan dengan benar tanpa pengujian langsung pada lingkungan proyek.
+
+#### Koreksi dan Perbaikan Manual
+- Meninjau dan menyesuaikan kode AI dengan struktur proyek serta kebutuhan fitur.
+- Memperbaiki integrasi modul Loan Transactions dengan Items, Authentication, dan Reviews & Reports.
+- Menyelesaikan merge conflict pada `settings.py` agar konfigurasi Google OAuth dan reCAPTCHA tetap berjalan.
+- Memperbaiki penanganan reCAPTCHA agar pengujian tidak gagal akibat konfigurasi lingkungan pengujian.
+- Memeriksa dan memperbaiki error yang berkaitan dengan database migration setelah integrasi antar-branch.
+- Menjalankan dan mengevaluasi unit test serta memperbaiki error yang ditemukan.
+- Memeriksa kembali implementasi sebelum melakukan commit, push, dan pull request.
+
+#### Log Chat ChatGPT
+- [ChatGPT](https://chatgpt.com/share/6ae4b984-7890-83ec-a204-a2bcc41113a3)
 
 ## AI DIsclosure COD-LOCATION APP(Muhammad Taufiq Ramadhan) ##
 
