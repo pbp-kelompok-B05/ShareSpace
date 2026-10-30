@@ -1,0 +1,27 @@
+<div class="cod-schedule-summary">
+    <h3>Ringkasan Jadwal COD</h3>
+
+    <div class="cod-schedule-item">
+        <strong>📍 Pengambilan:</strong>
+
+        {% if pickup %}
+            {{ pickup.cod_location.name }}
+            —
+            {{ pickup.scheduled_time|date:"d M Y, H.i" }}
+        {% else %}
+            Belum dijadwalkan
+        {% endif %}
+    </div>
+
+    <div class="cod-schedule-item">
+        <strong>📍 Pengembalian:</strong>
+
+        {% if return_schedule %}
+            {{ return_schedule.cod_location.name }}
+            —
+            {{ return_schedule.scheduled_time|date:"d M Y, H.i" }}
+        {% else %}
+            Belum dijadwalkan
+        {% endif %}
+    </div>
+</div>

@@ -77,11 +77,23 @@
                         </select>
                     </div>
                     <div class="cod-schedule-field">
-                        <label for="cod-location">Lokasi COD <span aria-hidden="true">*</span></label>
+                        <label for="cod-location">
+                            <span id="cod-location-label">Lokasi Pengambilan</span>
+                            <span aria-hidden="true">*</span>
+                        </label>
+
                         <select id="cod-location" name="cod_location" required>
                             <option value="">Memuat pilihan lokasi...</option>
                         </select>
-                        <p class="cod-schedule-hint">Pilih lokasi COD yang telah tersimpan. Kamu juga bisa menambah lokasi melalui halaman Peta Lokasi COD.</p>
+
+                        <p class="cod-schedule-hint" id="cod-location-hint">
+                            Pilih lokasi pengambilan barang.
+                        </p>
+
+                        <a href="{% url 'cod_location:map' %}"
+                        class="cod-schedule-inline-link">
+                            + Tambah Lokasi COD Baru
+                        </a>
                     </div>
                     <div class="cod-schedule-field">
                         <label for="scheduled-time">Waktu Pertemuan <span aria-hidden="true">*</span></label>
