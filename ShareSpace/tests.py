@@ -65,6 +65,7 @@ urlpatterns = [
     path("reports/", include(([
         path("", _base_page, name="report_list"),
         path("mine/", _base_page, name="my_reports"),
+        path("reviews/mine/", _base_page, name="my_reviews"),
     ], "review"))),
     path("_test/messages/", _message_page),
     path("_test/messages-login/", _message_then_login),
@@ -352,18 +353,31 @@ class NavbarModuleLinksTest(TestCase):
         self.client.login(username="admin_mod", password=self.password)
         self.assertContains(self.client.get("/"), 'href="/reports/"')
 
-    def test_my_reports_link_after_loans_for_authenticated(self):
+    def test_my_reviews_and_reports_links_after_loans_for_authenticated(self):
+        # Urutan mengikuti alur transaksi: pinjam, beri ulasan, lalu laporan jika ada masalah.
         self.client.login(username="warga_mod", password=self.password)
         html = self.client.get("/").content.decode()
         self.assertRegex(
             html,
-            r'<a href="/loans/">Peminjaman saya</a>\s*<a href="/reports/mine/">Laporan saya</a>',
+            r'<a href="/loans/">Peminjaman saya</a>\s*'
+            r'<a href="/reports/reviews/mine/">Ulasan saya</a>\s*'
+            r'<a href="/reports/mine/">Laporan saya</a>',
         )
 
     def test_my_reports_link_hidden_for_anonymous(self):
         response = self.client.get("/")
         self.assertNotContains(response, 'href="/reports/mine/"')
         self.assertNotContains(response, "Laporan saya")
+
+    def test_my_reviews_link_hidden_for_anonymous(self):
+        response = self.client.get("/")
+        self.assertNotContains(response, 'href="/reports/reviews/mine/"')
+        self.assertNotContains(response, "Ulasan saya")
+
+    def test_my_reviews_link_marked_active_on_its_page(self):
+        self.client.login(username="warga_mod", password=self.password)
+        html = self.client.get("/reports/reviews/mine/").content.decode()
+        self.assertRegex(html, r'<a href="/reports/reviews/mine/" aria-current="page">Ulasan saya</a>')
 
     def test_my_reports_link_marked_active_on_its_page(self):
         self.client.login(username="warga_mod", password=self.password)
