@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -267,8 +268,15 @@ class ItemDetailActionsTest(DetailTestMixin, TestCase):
                 self.assertContains(response, "tidak dapat diubah atau dihapus")
 
 
+@override_settings(RECAPTCHA_SITE_KEY="test", RECAPTCHA_SECRET_KEY="test")
 class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
     """Urlconf proyek yang asli: form di detail barang benar-benar membuat LoanRequest lewat view loans."""
+
+    def setUp(self):
+        # Sama dengan LoanTestBase di loans/tests.py: verifikasi reCAPTCHA ke Google di-mock.
+        patcher = mock.patch("loans.views.verify_recaptcha", return_value=True)
+        self.recaptcha_mock = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def loan_form_action(self, response):
         match = re.search(r'<form id="loan-form"[^>]*\saction="([^"]+)"', response.content.decode())
@@ -276,17 +284,21 @@ class ItemDetailLoanIntegrationTest(DetailTestMixin, TestCase):
         return match.group(1)
 
     def test_form_on_detail_creates_loan_request(self):
-        # is_verified=True agar test tidak bergantung pada aturan verifikasi di loans yang sedang diubah.
-        item = self.make_item(is_verified=True)
-        action = self.loan_form_action(self.get_detail(item, self.other))
+        # Barang tanpa badge verifikasi tetap boleh dipinjam (aturan loans sejak PR #22).
+        item = self.make_item(is_verified=False)
+        response = self.get_detail(item, self.other)
+        self.assertContains(response, 'id="loan-recaptcha"')
+        action = self.loan_form_action(response)
         self.assertEqual(resolve(action).func, loan_create)
         start = timezone.localdate()
         response = self.client.post(action, {
             "start_date": start.isoformat(),
             "due_date": (start + timedelta(days=3)).isoformat(),
             "notes": "Untuk kegiatan kampus.",
+            "g-recaptcha-response": "test-token",
         })
         self.assertEqual(response.status_code, 201)
+        self.recaptcha_mock.assert_called_once_with("test-token")
         loan = LoanRequest.objects.get(item=item, borrower=self.other)
         self.assertEqual(loan.status, LoanRequest.Status.PENDING)
         self.assertEqual(response.json()["detail_url"], reverse("loans:detail", args=[loan.pk]))
