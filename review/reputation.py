@@ -114,9 +114,12 @@ def get_reputation(user):
     completed = LoanRequest.objects.filter(
         Q(borrower=user) | Q(item__owner=user), status=LoanRequest.Status.COMPLETED
     ).count()
-    # Query 3: laporan terbukti (Selesai) terhadap pengguna atau barang miliknya.
+    # Query 3: laporan terbukti (Selesai) terhadap pengguna, barang miliknya, atau transaksi
+    # tempat ia menjadi pihak lawan pelapor.
+    against_loan = (Q(target_loan__borrower=user) | Q(target_loan__item__owner=user)) & ~Q(reporter=user)
     resolved_reports = Report.objects.filter(
-        Q(target_user=user) | Q(target_item__owner=user), status=Report.Status.RESOLVED
+        Q(target_user=user) | Q(target_item__owner=user) | against_loan,
+        status=Report.Status.RESOLVED,
     ).count()
 
     total = stats["total"]
