@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load review_tags %}
 {% block title %}Detail Transaksi — ShareSpace{% endblock %}
 
 {% block extra_head %}
@@ -106,6 +107,9 @@
                 Kelola Jadwal COD
             </a>
         {% endif %}
+
+        {% review_action loan %}
+        {% include "review/partials/report_link.html" with loan=loan %}
 
     </div>
 
