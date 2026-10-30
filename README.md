@@ -165,6 +165,33 @@ Modul ini membangun rasa aman dan kepercayaan antaranggota ShareSpace melalui ul
 
   Menunggu → Ditinjau → Selesai / Ditolak
 
+### Implementasi
+Modul ini **tidak memakai public API**. Rencana awal analisis teks ulasan dengan Hugging Face dibatalkan; nilai tambahnya dialihkan ke Trust Score dan moderasi laporan.
+
+**Ulasan (`Review`)**
+- Satu transaksi selesai bisa punya dua ulasan: peminjam menilai pemilik, dan pemilik menilai peminjam. Satu orang hanya bisa memberi satu ulasan per transaksi (dijaga constraint database).
+- Halaman: beri ulasan dari detail transaksi, ubah/hapus ulasan sendiri, dan **Ulasan saya** (`/review/`) dengan tab *Ditulis*/*Diterima* via HTMX serta daftar transaksi yang menunggu ulasan.
+- Ulasan publik per pengguna di `/review/user/<username>/` dengan tombol "Muat lebih banyak" (HTMX, tetap jalan tanpa JavaScript).
+- Admin dapat menyembunyikan ulasan yang tidak pantas lewat Django admin; ulasan tersembunyi tidak tampil dan tidak dihitung dalam reputasi.
+
+**Trust Score (0–100)**, dihitung ulang setiap kali ditampilkan (`review/reputation.py`):
+
+```
+rating_bayes = (3 × 3,5 + rata_rata × n) / (3 + n)       # n = jumlah ulasan
+skor = 70 × (rating_bayes − 1) / 4                       # 0–70 dari rating
+     + 30 × min(transaksi_selesai, 20) / 20              # 0–30 dari aktivitas
+     − 10 × laporan_terbukti                             # dibatasi 0–100
+```
+
+Rata-rata bayesian menarik rating ke nilai netral 3,5 selama ulasan masih sedikit, sehingga satu ulasan bintang 5 hanya menghasilkan skor 52, sedangkan 20 ulasan bintang 5 menghasilkan 97. Laporan berstatus *Selesai* (terbukti) terhadap pengguna, barangnya, atau transaksi tempat ia menjadi pihak lawan pelapor mengurangi skor. Level: ≥85 *Sangat terpercaya*, ≥70 *Terpercaya*, ≥50 *Cukup terpercaya*, di bawahnya *Perlu perhatian*; pengguna tanpa transaksi dan ulasan diberi label *Pengguna baru*.
+
+**Laporan (`Report`)**
+- Target tepat satu: barang, pengguna, atau transaksi (dijaga constraint database). Laporan transaksi hanya bisa dibuat oleh pihak transaksi berstatus Disetujui, Sedang Dipinjam, atau Selesai.
+- Pelapor hanya boleh punya satu laporan aktif per target, dan hanya bisa mengubah/membatalkan laporan selama statusnya *Menunggu*.
+- Dashboard moderasi staff (`/review/moderation/reports/`): filter status dan alasan, pencarian, ringkasan jumlah per status, serta ubah status dan catatan admin langsung via HTMX dengan toast.
+
+**Integrasi dengan modul lain:** tombol ulasan dan "Laporkan masalah" di detail transaksi (`{% review_action loan %}`, `review/partials/report_link.html`), tombol laporan di detail barang dan profil publik, serta Trust Score di halaman profil (`get_reputation()`).
+
 ## 🛠️ Cara Menjalankan Secara Lokal
 
 **Prasyarat:** Python 3.12 atau lebih baru (dikembangkan dengan Python 3.13 dan Django 5.2), Git, dan Google Chrome (hanya untuk functional test Selenium).
@@ -197,7 +224,19 @@ Modul ini membangun rasa aman dan kepercayaan antaranggota ShareSpace melalui ul
    python manage.py runserver
    ```
 
-**Konfigurasi environment:** secara lokal tidak perlu file `.env`; aplikasi memakai SQLite (`db.sqlite3`). Di PWS, variabel `PRODUCTION=true` beserta `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, dan `SCHEMA` mengaktifkan PostgreSQL. Jangan commit nilai variabel tersebut.
+**Konfigurasi environment:** secara lokal tidak perlu file `.env`; aplikasi memakai SQLite (`db.sqlite3`), `DEBUG` menyala, dan memakai `SECRET_KEY` khusus pengembangan. Untuk mencoba pengajuan pinjaman secara lokal, salin test key reCAPTCHA dari `.env.example` ke `.env`. Data rekomendasi lokasi COD bisa dimuat dengan `python manage.py import_places places_overpass.json`.
+
+Environment variable di PWS (jangan commit nilainya):
+
+| Variabel | Keterangan |
+|---|---|
+| `PRODUCTION=true` | Mengaktifkan PostgreSQL, mematikan `DEBUG`, dan membuat cookie sesi/CSRF hanya terkirim lewat HTTPS. |
+| `SECRET_KEY` | **Wajib.** String acak panjang; aplikasi menolak berjalan di production tanpa variabel ini. |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `SCHEMA` | Koneksi PostgreSQL PWS. |
+| `RECAPTCHA_SITE_KEY`, `RECAPTCHA_SECRET_KEY` | Key reCAPTCHA v2 asli untuk domain PWS. Tanpa ini pengajuan pinjaman ditolak (503). Jangan pakai test key di production. |
+| `GOOGLE_CLIENT_ID` | Client ID Google Identity Services untuk login Google. |
+
+Saat `migrate` di production, data tempat untuk rekomendasi lokasi COD (`places_overpass.json`, ±15 ribu tempat) diimpor otomatis lewat data migration `cod_location/0005`, sehingga tidak perlu menjalankan `import_places` manual di PWS.
 
 Akun `demo_*` dari data awal sengaja tidak bisa dipakai login. Untuk mencoba fitur, daftar akun baru lewat halaman register.
 
@@ -362,3 +401,22 @@ Dengan demikian, AI digunakan sebagai alat bantu utama dalam penulisan kode dan 
     python manage.py migrate
     python manage.py import_places places_overpass.json
     python manage.py import_places places_tambahan.json
+
+### Maximus Quinn Hertada (Modul 5: Review, Reputasi & Laporan)
+
+> **DRAF — baca dan sesuaikan sebelum commit.**
+
+Saya memakai **Claude** (model Claude Opus 5.5) lewat aplikasi agen **Hermes**, yang bisa membaca repo, mengedit file, dan menjalankan test di laptop saya. Sebagian besar kode app `review` ditulis oleh AI: model `Report` dan `Review` beserta constraint-nya, admin, form, view CRUD ulasan dan laporan, dashboard moderasi HTMX, perhitungan Trust Score (`review/reputation.py`), template tag integrasi (`review_action`, `reputation_card`), JS kecil (penghitung karakter, dialog konfirmasi), serta seluruh test app `review` (coverage 100%). AI juga saya pakai untuk mereview PR anggota lain dengan cara menjalankan test hasil merge dan *probe* untuk membuktikan bug sebelum dilaporkan.
+
+Strategi prompt dan alur kerja: saya memulai dari rubrik BRP (target nilai 4) dan membagi modul menjadi checkpoint kecil (model → CRUD → moderasi → interaktivitas → ulasan → Trust Score → laporan transaksi). Untuk setiap checkpoint AI menulis test dulu (TDD), menjalankan seluruh test proyek dan coverage, lalu memberi usulan pesan commit. **Saya sendiri yang membuat branch, melakukan commit, push, dan membuka PR**; AI hanya mengedit file di branch yang sudah saya siapkan.
+
+#### Keterbatasan AI yang saya temukan
+- **Asumsi Django yang keliru.** AI mengira `TextField(max_length=...)` divalidasi oleh `full_clean()`, padahal tidak; perlu `MaxLengthValidator` dan migrasi dibuat ulang.
+- **Test yang salah sendiri.** Ada assertion yang lulus karena cocok dengan elemen lain (`name="status"` ikut cocok dengan chip filter), test yang mengirim argumen yang sama dua kali sehingga gagal karena `TypeError`, perkiraan jumlah query yang meleset, dan data test yang melanggar aturan modul loans (satu transaksi aktif per barang). Semua ketahuan saat test dijalankan, sebelum commit.
+- **Salah konteks tim.** AI sempat menyiapkan pesan soal modul loans untuk anggota yang salah, dan pesan review berisi blok kode bersarang yang tampil terpotong di GitHub; keduanya saya koreksi.
+- **Tidak bisa memverifikasi tampilan.** Sebagian besar fitur diverifikasi lewat test, bukan dengan melihat langsung; pengecekan tampilan di browser tetap saya lakukan sendiri.
+
+#### Koreksi dan keputusan manual
+- Saya memutuskan modul ini **tidak memakai Hugging Face**, dan nilai tambah dialihkan ke Trust Score, moderasi, dan laporan transaksi.
+- Saya menetapkan alur Git kelompok (feature → PR ke `dev`), urutan PR, dan siapa yang mengerjakan perbaikan lintas modul.
+- Saya memeriksa setiap temuan review dari AI sebelum mengirimkannya ke teman, termasuk bug keamanan (login Google tanpa cek `aud`, staff bisa menghapus superuser, user enumeration di helpdesk) dan penyebab gagalnya login SSO UI (User-Agent ditolak server SSO).
