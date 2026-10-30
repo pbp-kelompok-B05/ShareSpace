@@ -49,7 +49,7 @@ def _safe_next(request):
 
 @staff_required
 def report_list(request):
-    reports = Report.objects.select_related("reporter", "target_item", "target_user")
+    reports = Report.objects.select_related("reporter", *Report.TARGET_RELATED)
 
     current_status = request.GET.get("status", "")
     if current_status not in Report.Status.values:
@@ -68,6 +68,9 @@ def report_list(request):
             Q(reporter__username__icontains=query)
             | Q(target_user__username__icontains=query)
             | Q(target_item__name__icontains=query)
+            | Q(target_loan__item__name__icontains=query)
+            | Q(target_loan__borrower__username__icontains=query)
+            | Q(target_loan__item__owner__username__icontains=query)
             | Q(description__icontains=query)
         )
 
@@ -99,7 +102,7 @@ def report_list(request):
 @require_POST
 def report_moderate(request, pk):
     report = get_object_or_404(
-        Report.objects.select_related("reporter", "target_item", "target_user"), pk=pk
+        Report.objects.select_related("reporter", *Report.TARGET_RELATED), pk=pk
     )
     form = ModerationForm(request.POST)
     try:

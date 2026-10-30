@@ -1,17 +1,126 @@
 import datetime
 import json
 
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login, logout
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
 
+from django.utils.timesince import timesince
+from items.models import Item
+from loans.models import LoanRequest
+from review.models import Review
+from review.reputation import get_reputation
+
+from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
+
+
+def format_relative_time_id(dt):
+    """
+    Memformat waktu relatif dalam bahasa Indonesia yang alami dan rapi.
+    Contoh: '1 bulan yang lalu', '2 minggu yang lalu', '3 hari yang lalu', 'Baru saja'.
+    """
+    if not dt:
+        return ""
+    from django.utils import timezone
+    now = timezone.now()
+    diff = now - dt
+    seconds = int(diff.total_seconds())
+    if seconds < 60:
+        return "Baru saja"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes} menit yang lalu"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours} jam yang lalu"
+    days = diff.days
+    if days == 1:
+        return "Kemarin"
+    if days < 7:
+        return f"{days} hari yang lalu"
+    if days < 30:
+        weeks = days // 7
+        return f"{weeks} minggu yang lalu"
+    if days < 365:
+        months = days // 30
+        return f"{months} bulan yang lalu"
+    years = days // 365
+    return f"{years} tahun yang lalu"
+
+
+class BaseProfileReputationProvider:
+    """Kelas dasar abstrak penyedia reputasi profil pengguna."""
+
+    def get_reputation_context(self, user):
+        """Mengumpulkan context reputasi pengguna untuk profil."""
+        raise NotImplementedError("Subclass harus mengimplementasikan get_reputation_context.")
+
+
+class ReviewModuleReputationProvider(BaseProfileReputationProvider):
+    """
+    Penyedia reputasi profil yang mengintegrasikan modul resmi review.reputation milik Max.
+    Menerapkan konsep Inheritance, Polymorphism, dan SOLID.
+    """
+
+    def get_reputation_context(self, user):
+        reputation = get_reputation(user)
+
+        reviews_qs = (
+            Review.objects.visible()
+            .filter(reviewee=user)
+            .select_related("reviewer", "reviewer__userprofile", "loan", "loan__item")
+            .order_by("-created_at")
+        )
+        reviews = list(reviews_qs[:5])
+
+        for r in reviews:
+            full_name = (
+                r.reviewer.userprofile.full_name
+                if hasattr(r.reviewer, "userprofile") and r.reviewer.userprofile.full_name
+                else r.reviewer.username
+            )
+            r.reviewer_display_name = full_name
+            r.reviewer_initial = full_name[0].upper() if full_name else "U"
+            r.relative_time = format_relative_time_id(r.created_at)
+
+        all_user_items_qs = Item.objects.filter(owner=user).order_by("-created_at")
+        owned_items_total = all_user_items_qs.count()
+        user_items = list(all_user_items_qs[:6])
+        borrowed_loans_count = LoanRequest.objects.filter(borrower=user).count()
+
+        trust_desc = {
+            "new": "Belum cukup riwayat transaksi untuk menghitung Trust Score.",
+            "excellent": "Pengguna memiliki reputasi luar biasa dan rekam jejak yang sangat terpercaya.",
+            "trusted": "Pengguna terpercaya dengan riwayat transaksi yang konsisten dan baik.",
+            "fair": "Pengguna aktif yang sedang membangun reputasi positif di komunitas.",
+            "low": "Pengguna memiliki catatan transaksi atau ulasan yang perlu diperhatikan.",
+        }.get(reputation.level.key, "Status reputasi pengguna di komunitas.")
+
+        return {
+            "reputation": reputation,
+            "reviews": reviews,
+            "reviews_count": reputation.review_count,
+            "average_rating": reputation.average_rating,
+            "completed_loans_count": reputation.completed_count,
+            "borrowed_loans_count": borrowed_loans_count,
+            "user_items": user_items,
+            "owned_items_count": owned_items_total,
+            "trust_score": reputation.score,
+            "trust_level": reputation.level.label,
+            "trust_description": trust_desc,
+        }
+
+
+reputation_service = ReviewModuleReputationProvider()
 
 
 # Create your views here.
@@ -29,6 +138,7 @@ def register(request):
 
     context = {
         "form": form,
+        "google_client_id": getattr(settings, "GOOGLE_CLIENT_ID", ""),
     }
     return render(request, "register.html", context)
 
@@ -48,6 +158,7 @@ def login_user(request):
 
     context = {
         "form": form,
+        "google_client_id": getattr(settings, "GOOGLE_CLIENT_ID", ""),
     }
     return render(request, "login.html", context)
 
@@ -61,10 +172,12 @@ def logout_user(request):
 
 def build_profile_context(request, profile):
     last_login = request.COOKIES.get("last_login", "Belum ada sesi login / Cookie tidak ditemukan")
+    reputation_ctx = reputation_service.get_reputation_context(profile.user)
 
     return {
         "profile": profile,
         "last_login": last_login,
+        **reputation_ctx,
     }
 
 
@@ -137,10 +250,167 @@ def public_profile(request, username):
 
     # Profil publik hanya menampilkan identitas, nomor telepon dan alamat tidak ikut dikirim ke template
     profile = UserProfile.objects.filter(user=target_user).first()
+    reputation_ctx = reputation_service.get_reputation_context(target_user)
 
     context = {
         "target_user": target_user,
         "profile": profile,
+        **reputation_ctx,
     }
     return render(request, "public_profile.html", context)
+
+
+@require_http_methods(["POST"])
+def google_login(request):
+    """
+    Endpoint autentikasi Google Identity Services (GSI).
+    Menerima ID token credential via POST form atau JSON payload dengan proteksi CSRF standar.
+    """
+    if request.user.is_authenticated:
+        if request.content_type == "application/json":
+            return JsonResponse({"status": "success", "redirect_url": reverse("landing_page")})
+        return redirect("landing_page")
+
+    is_json = request.content_type == "application/json"
+    credential = request.POST.get("credential")
+    if not credential and is_json:
+        try:
+            body = json.loads(request.body)
+            credential = body.get("credential")
+        except Exception as e:
+            credential = None
+
+    if not credential:
+        if is_json:
+            return JsonResponse({"status": "error", "message": "Kredensial Google tidak ditemukan."}, status=400)
+        messages.error(request, "Kredensial Google tidak ditemukan.")
+        return redirect("authentication:login")
+
+    user = authenticate(request, google_credential=credential)
+
+    if not user:
+        if is_json:
+            return JsonResponse({"status": "error", "message": "Autentikasi Google gagal atau token tidak valid."}, status=400)
+        messages.error(request, "Autentikasi Google gagal atau token tidak valid.")
+        return redirect("authentication:login")
+
+    login(request, user)
+    messages.success(request, f"Selamat datang, {user.username}! Berhasil masuk via Google.")
+
+    if is_json:
+        response = JsonResponse({"status": "success", "redirect_url": reverse("landing_page")})
+    else:
+        response = redirect("landing_page")
+
+    response.set_cookie(
+        "last_login",
+        str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    )
+    return response
+
+
+@require_http_methods(["GET"])
+def sso_ui_login(request):
+    """
+    Mengarahkan pengguna ke halaman login CAS SSO UI.
+    """
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
+    service_url = request.build_absolute_uri(reverse("authentication:sso_ui_callback"))
+    return redirect(SSOUIAuthBackend.get_login_url(service_url))
+
+
+@require_http_methods(["GET"])
+def sso_ui_callback(request):
+    """
+    Callback handler dari CAS SSO UI setelah pengguna berhasil login.
+    """
+    if request.user.is_authenticated:
+        return redirect("landing_page")
+
+    ticket = request.GET.get("ticket")
+    if not ticket:
+        messages.error(request, "Tiket otorisasi SSO UI tidak ditemukan.")
+        return redirect("authentication:login")
+
+    service_url = request.build_absolute_uri(reverse("authentication:sso_ui_callback"))
+    user = authenticate(request, sso_ticket=ticket, service_url=service_url)
+
+    if not user:
+        messages.error(request, "Autentikasi SSO UI gagal. Silakan coba kembali.")
+        return redirect("authentication:login")
+
+    login(request, user)
+    messages.success(request, f"Selamat datang civitas UI, {user.username}! Berhasil masuk via SSO UI.")
+    response = redirect("landing_page")
+    response.set_cookie(
+        "last_login",
+        str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    )
+    return response
+
+
+@require_GET
+@login_required
+def profile_reputation_api(request, username=None):
+    """
+    Endpoint AJAX JSON yang mengembalikan metrik reputasi, Trust Score,
+    dan daftar ulasan komunitas untuk profil pengguna.
+    """
+    if username:
+        target_user = get_object_or_404(User, username=username, is_active=True)
+    else:
+        target_user = request.user
+
+    reputation_ctx = reputation_service.get_reputation_context(target_user)
+
+    reviews_data = [
+        {
+            "id": str(r.pk),
+            "reviewer_username": r.reviewer.username,
+            "reviewer_name": r.reviewer_display_name,
+            "reviewer_initial": r.reviewer_initial,
+            "reviewer_role": r.reviewer_role,
+            "reviewer_role_display": "Peminjam" if r.reviewer_role == "borrower" else "Pemilik Barang",
+            "item_name": r.loan.item.name if r.loan and r.loan.item else "",
+            "rating": r.rating,
+            "comment": r.comment,
+            "relative_time": r.relative_time,
+            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for r in reputation_ctx["reviews"]
+    ]
+
+    items_data = [
+        {
+            "id": item.pk,
+            "name": item.name,
+            "image_url": item.image_url or "",
+            "is_available": item.is_available,
+            "detail_url": reverse("items:detail", args=[item.pk]),
+        }
+        for item in reputation_ctx["user_items"]
+    ]
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "username": target_user.username,
+            "trust_score": reputation_ctx["trust_score"],
+            "trust_level": reputation_ctx["trust_level"],
+            "trust_description": reputation_ctx["trust_description"],
+            "average_rating": (
+                round(reputation_ctx["average_rating"], 1)
+                if reputation_ctx["average_rating"] is not None
+                else None
+            ),
+            "reviews_count": reputation_ctx["reviews_count"],
+            "completed_loans_count": reputation_ctx["completed_loans_count"],
+            "borrowed_loans_count": reputation_ctx["borrowed_loans_count"],
+            "owned_items_count": reputation_ctx["owned_items_count"],
+            "reviews": reviews_data,
+            "user_items": items_data,
+        }
+    )
 

@@ -1,14 +1,28 @@
+import datetime
+
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
+from authentication.views import (
+    BaseProfileReputationProvider,
+    ReviewModuleReputationProvider,
+    reputation_service,
+)
+from items.models import Item
+from loans.models import LoanRequest
+from review.models import Report, Review
 
 
 # Create your tests here.
 class AuthenticationTest(TestCase):
     def setUp(self):
+        self._orig_google_verify = GoogleAuthBackend.verify_token
+        self._orig_sso_validate = SSOUIAuthBackend.validate_ticket
         self.username = "frieren"
         self.password = "PasswordnyaFrieren69."
         self.user = User.objects.create_user(
@@ -21,6 +35,10 @@ class AuthenticationTest(TestCase):
             phone_number="081234567890",
             address="Depok Realm",
         )
+
+    def tearDown(self):
+        GoogleAuthBackend.verify_token = self._orig_google_verify
+        SSOUIAuthBackend.validate_ticket = self._orig_sso_validate
 
     def test_login_page_accessible(self):
         response = self.client.get(reverse("authentication:login"))
@@ -62,6 +80,22 @@ class AuthenticationTest(TestCase):
 
     def test_user_profile_str(self):
         self.assertEqual(str(self.profile), f"{self.username}'s Profile")
+
+    def test_user_profile_defaults(self):
+        self.assertEqual(self.profile.auth_provider, UserProfile.AuthProvider.LOCAL)
+        self.assertFalse(self.profile.is_verified)
+        self.assertEqual(self.profile.npm, "")
+        self.assertFalse(self.profile.is_external_auth)
+
+    def test_user_profile_external_auth_property(self):
+        self.profile.auth_provider = UserProfile.AuthProvider.GOOGLE
+        self.assertTrue(self.profile.is_external_auth)
+
+        self.profile.auth_provider = UserProfile.AuthProvider.SSO_UI
+        self.assertTrue(self.profile.is_external_auth)
+
+        self.profile.auth_provider = UserProfile.AuthProvider.LOCAL
+        self.assertFalse(self.profile.is_external_auth)
 
     def test_user_profile_form_valid(self):
         form = UserProfileForm(
@@ -110,17 +144,53 @@ class AuthenticationTest(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("profile_picture_url", form.errors)
 
+    def test_user_profile_form_valid_npm(self):
+        form = UserProfileForm(
+            data={
+                "full_name": "Fern",
+                "npm": "2506123456",
+                "phone_number": "08123456789",
+            }
+        )
+        self.assertTrue(form.is_valid())
+        self.assertEqual(form.cleaned_data["npm"], "2506123456")
+
+    def test_user_profile_form_invalid_npm(self):
+        form = UserProfileForm(
+            data={
+                "full_name": "Fern",
+                "npm": "2506ABCDEF",
+                "phone_number": "08123456789",
+            }
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("npm", form.errors)
+
+    def test_user_profile_form_sso_ui_disabled_npm(self):
+        self.profile.auth_provider = UserProfile.AuthProvider.SSO_UI
+        self.profile.npm = "2506999999"
+        self.profile.save()
+        form = UserProfileForm(instance=self.profile)
+        self.assertTrue(form.fields["npm"].disabled)
+
     def test_profile_page_redirect_anonymous(self):
         response = self.client.get(reverse("authentication:profile"))
         self.assertEqual(response.status_code, 302)
         self.assertIn("/auth/login/", response.url)
 
     def test_profile_page_accessible_authenticated(self):
+        self.profile.is_verified = True
+        self.profile.npm = "2506123456"
+        self.profile.save()
         self.client.login(username=self.username, password=self.password)
         response = self.client.get(reverse("authentication:profile"))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "profile.html")
         self.assertContains(response, "Frieren The Slayer")
+        self.assertContains(response, "✓ Terverifikasi")
+        self.assertContains(response, "2506123456")
+        self.assertContains(response, reverse("review:my_reports"))
+        self.assertContains(response, "Laporan saya")
 
     def test_profile_page_htmx_partial(self):
         self.client.login(username=self.username, password=self.password)
@@ -320,4 +390,580 @@ class AuthenticationTest(TestCase):
         response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
         self.assertEqual(response.status_code, 404)
 
+    def test_profile_renders_trust_score_and_reviews_empty(self):
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Trust Score")
+        self.assertContains(response, "★ – / 5.0")
+        self.assertContains(response, "Pengguna baru")
+        self.assertContains(response, "Ulasan Komunitas (0)")
+        self.assertContains(response, "Belum ada ulasan")
+
+    def test_profile_renders_reviews_when_available(self):
+        other_user = self.create_other_user()
+        item = Item.objects.create(
+            owner=self.user,
+            name="Tenda Camping",
+            description="Tenda dome kapasitas empat orang dalam kondisi bersih.",
+            category=Item.Category.OUTDOOR,
+            condition=Item.Condition.GOOD,
+        )
+        loan = LoanRequest.objects.create(
+            borrower=other_user,
+            item=item,
+            start_date=datetime.date.today(),
+            due_date=datetime.date.today() + datetime.timedelta(days=2),
+            status=LoanRequest.Status.COMPLETED,
+        )
+        Review.objects.create(
+            loan=loan,
+            reviewer=other_user,
+            reviewee=self.user,
+            reviewer_role=Review.Role.BORROWER,
+            rating=5,
+            comment="Peminjam yang sangat bertanggung jawab, barang mulus.",
+        )
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:profile"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "★ 5.0 / 5.0")
+        self.assertContains(response, "Ulasan Komunitas (1)")
+        self.assertContains(response, "Fern Mage")
+        self.assertContains(response, "Peminjam yang sangat bertanggung jawab, barang mulus.")
+        self.assertContains(response, "Barang yang Sedang Dipinjamkan (1)")
+        self.assertContains(response, "Tenda Camping")
+        self.assertContains(response, "Tersedia")
+        self.assertContains(response, "Barang Dipinjamkan")
+        self.assertContains(response, "Barang Dipinjam")
+        self.assertContains(response, "Transaksi Selesai")
+
+    def test_public_profile_renders_trust_score_and_reviews(self):
+        other_user = self.create_other_user()
+        Item.objects.create(
+            owner=other_user,
+            name="Ransel Gunung 60L",
+            description="Ransel kapasitas enam puluh liter cocok untuk hiking.",
+            category=Item.Category.OUTDOOR,
+            condition=Item.Condition.LIKE_NEW,
+        )
+        self.client.login(username=self.username, password=self.password)
+        response = self.client.get(reverse("authentication:public_profile", args=["fern"]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Trust Score")
+        self.assertContains(response, "★ – / 5.0")
+        self.assertContains(response, "Ulasan Komunitas (0)")
+        self.assertContains(response, "Belum ada ulasan")
+        self.assertContains(response, "Barang yang Sedang Dipinjamkan (1)")
+        self.assertContains(response, "Ransel Gunung 60L")
+
+    def test_login_page_renders_external_auth_buttons(self):
+        response = self.client.get(reverse("authentication:login"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Masuk dengan SSO UI")
+        self.assertContains(response, "Masuk dengan Google")
+
+    def test_register_page_renders_external_auth_buttons(self):
+        response = self.client.get(reverse("authentication:register"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Daftar dengan SSO UI")
+        self.assertContains(response, "Daftar dengan Google")
+
+    def test_google_login_missing_credential(self):
+        response = self.client.post(reverse("authentication:google_login"), {})
+        self.assertRedirects(response, reverse("authentication:login"))
+
+    def test_google_login_success(self):
+        GoogleAuthBackend.verify_token = lambda self, token: {
+            "email": "himmel@hero.com",
+            "name": "Himmel The Hero",
+            "email_verified": True,
+            "picture": "https://img.com/himmel.jpg",
+        }
+
+        response = self.client.post(
+            reverse("authentication:google_login"),
+            {"credential": "valid_mock_token"},
+        )
+        self.assertRedirects(response, reverse("landing_page"))
+        self.assertIn("last_login", response.cookies)
+
+        user = User.objects.get(email="himmel@hero.com")
+        self.assertEqual(user.username, "himmel")
+        self.assertFalse(user.userprofile.is_verified)
+        self.assertEqual(user.userprofile.auth_provider, UserProfile.AuthProvider.GOOGLE)
+        self.assertEqual(user.userprofile.full_name, "Himmel The Hero")
+        self.assertEqual(user.userprofile.profile_picture_url, "https://img.com/himmel.jpg")
+
+    def test_google_login_json_success(self):
+        GoogleAuthBackend.verify_token = lambda self, token: {
+            "email": "eisen@dwarf.com",
+            "name": "Eisen The Warrior",
+            "email_verified": True,
+            "picture": "https://img.com/eisen.jpg",
+        }
+
+        response = self.client.post(
+            reverse("authentication:google_login"),
+            {"credential": "valid_mock_token"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("last_login", response.cookies)
+        self.assertTrue(User.objects.filter(email="eisen@dwarf.com").exists())
+
+    def test_google_login_invalid_token(self):
+        GoogleAuthBackend.verify_token = lambda self, token: None
+
+        response = self.client.post(
+            reverse("authentication:google_login"),
+            {"credential": "invalid_mock_token"},
+        )
+        self.assertRedirects(response, reverse("authentication:login"))
+        self.assertFalse(User.objects.filter(email="invalid@mock.com").exists())
+
+    def test_sso_ui_login_redirect(self):
+        response = self.client.get(reverse("authentication:sso_ui_login"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("sso.ui.ac.id/cas2/login", response.url)
+        self.assertIn("service=", response.url)
+
+    def test_sso_ui_callback_missing_ticket(self):
+        response = self.client.get(reverse("authentication:sso_ui_callback"))
+        self.assertRedirects(response, reverse("authentication:login"))
+
+    def test_sso_ui_callback_success(self):
+        SSOUIAuthBackend.validate_ticket = lambda self, ticket, service_url: {
+            "username": "azka.nur",
+            "nama": "Azka Nur Jauhar",
+            "npm": "2506123456",
+        }
+
+        response = self.client.get(
+            reverse("authentication:sso_ui_callback") + "?ticket=ST-123456-valid",
+        )
+        self.assertRedirects(response, reverse("landing_page"))
+        self.assertIn("last_login", response.cookies)
+
+        user = User.objects.get(username="azka.nur")
+        self.assertEqual(user.email, "azka.nur@ui.ac.id")
+        self.assertTrue(user.userprofile.is_verified)
+        self.assertEqual(user.userprofile.auth_provider, UserProfile.AuthProvider.SSO_UI)
+        self.assertEqual(user.userprofile.npm, "2506123456")
+        self.assertEqual(user.userprofile.full_name, "Azka Nur Jauhar")
+
+    def test_sso_ui_callback_failure(self):
+        SSOUIAuthBackend.validate_ticket = lambda self, ticket, service_url: None
+
+        response = self.client.get(
+            reverse("authentication:sso_ui_callback") + "?ticket=ST-expired-ticket",
+        )
+        self.assertRedirects(response, reverse("authentication:login"))
+        self.assertFalse(User.objects.filter(username="azka.nur").exists())
+
+    def test_google_login_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("authentication:google_login"), {"credential": "dummy"})
+        self.assertRedirects(response, reverse("landing_page"))
+
+        response_json = self.client.post(
+            reverse("authentication:google_login"),
+            data='{"credential": "dummy"}',
+            content_type="application/json",
+        )
+        self.assertEqual(response_json.status_code, 200)
+        self.assertEqual(response_json.json()["status"], "success")
+
+    def test_sso_ui_login_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("authentication:sso_ui_login"))
+        self.assertRedirects(response, reverse("landing_page"))
+
+    def test_sso_ui_callback_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("authentication:sso_ui_callback") + "?ticket=ST-expired-or-consumed")
+        self.assertRedirects(response, reverse("landing_page"))
+
+
+class AuthBackendsTest(TestCase):
+    def test_sso_ui_parse_cas_xml_success(self):
+        backend = SSOUIAuthBackend()
+        cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
+            <cas:authenticationSuccess>
+                <cas:user>azka.nur</cas:user>
+                <cas:attributes>
+                    <cas:nama>Azka Nur Jauhar</cas:nama>
+                    <cas:npm>2506123456</cas:npm>
+                </cas:attributes>
+            </cas:authenticationSuccess>
+        </cas:serviceResponse>"""
+        user_info = backend.parse_cas_xml(cas_xml)
+        self.assertEqual(user_info["username"], "azka.nur")
+        self.assertEqual(user_info["npm"], "2506123456")
+        self.assertEqual(user_info["nama"], "Azka Nur Jauhar")
+
+    def test_sso_ui_parse_cas_xml_failure(self):
+        backend = SSOUIAuthBackend()
+        cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
+            <cas:authenticationFailure code="INVALID_TICKET">Ticket expired</cas:authenticationFailure>
+        </cas:serviceResponse>"""
+        self.assertIsNone(backend.parse_cas_xml(cas_xml))
+
+    def test_auth_provider_get_or_create_user(self):
+        backend = GoogleAuthBackend()
+        user = backend.get_or_create_user(
+            username="heiter",
+            email="heiter@priest.com",
+            full_name="Heiter The Priest",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+            npm="",
+            profile_picture_url="https://img.com/heiter.jpg",
+        )
+        self.assertEqual(user.username, "heiter")
+        self.assertEqual(user.email, "heiter@priest.com")
+        self.assertEqual(user.userprofile.full_name, "Heiter The Priest")
+        self.assertEqual(user.userprofile.auth_provider, UserProfile.AuthProvider.GOOGLE)
+        self.assertFalse(user.userprofile.is_verified)
+
+    def test_sso_ui_get_login_url(self):
+        backend = SSOUIAuthBackend()
+        url = backend.get_login_url("http://example.com/callback")
+        self.assertIn("sso.ui.ac.id/cas2/login", url)
+        self.assertIn("service=http", url)
+
+    def test_sso_ui_parse_cas_xml_syntax_error(self):
+        backend = SSOUIAuthBackend()
+        self.assertIsNone(backend.parse_cas_xml("<<<invalid xml"))
+
+    def test_google_authenticate_empty_credential(self):
+        backend = GoogleAuthBackend()
+        self.assertIsNone(backend.authenticate(None, google_credential=""))
+
+    def test_sso_ui_authenticate_empty_params(self):
+        backend = SSOUIAuthBackend()
+        self.assertIsNone(backend.authenticate(None, sso_ticket="", service_url=""))
+
+    def test_auth_provider_username_collision(self):
+        backend = GoogleAuthBackend()
+        user1 = backend.get_or_create_user(
+            username="claud",
+            email="claud1@test.com",
+            full_name="Claud One",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+        )
+        user2 = backend.get_or_create_user(
+            username="claud",
+            email="claud2@test.com",
+            full_name="Claud Two",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+        )
+        self.assertEqual(user1.username, "claud")
+        self.assertEqual(user2.username, "claud1")
+
+    def test_auth_backend_get_user(self):
+        backend = GoogleAuthBackend()
+        user = backend.get_or_create_user(
+            username="frieren_mage",
+            email="frieren_mage@test.com",
+            full_name="Frieren",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+        )
+        self.assertEqual(backend.get_user(user.id), user)
+        self.assertIsNone(backend.get_user(999999))
+
+    def test_sso_ui_parse_cas_xml_missing_username(self):
+        backend = SSOUIAuthBackend()
+        cas_xml = """<cas:serviceResponse xmlns:cas="http://www.yale.edu/tp/cas">
+            <cas:authenticationSuccess>
+                <cas:attributes>
+                    <cas:nama>Tanpa Username</cas:nama>
+                </cas:attributes>
+            </cas:authenticationSuccess>
+        </cas:serviceResponse>"""
+        self.assertIsNone(backend.parse_cas_xml(cas_xml))
+
+    def test_google_authenticate_unverified_email(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {"email": "test@gmail.com", "email_verified": False}
+        self.assertIsNone(backend.authenticate(None, google_credential="unverified_token"))
+    def test_google_verify_token_empty_client_id_fails_closed(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID=""):
+            self.assertIsNone(backend.verify_token("some_token"))
+
+    def test_google_verify_token_wrong_audience_rejected(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID="expected_client_id_123"):
+            import unittest.mock as mock
+            mock_response = mock.MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "aud": "wrong_other_app_client_id",
+                "iss": "https://accounts.google.com",
+                "email": "test@gmail.com",
+                "email_verified": True,
+            }
+            with mock.patch("requests.get", return_value=mock_response):
+                self.assertIsNone(backend.verify_token("fake_valid_token"))
+
+    def test_google_verify_token_invalid_issuer_rejected(self):
+        backend = GoogleAuthBackend()
+        with self.settings(GOOGLE_CLIENT_ID="expected_client_id_123"):
+            import unittest.mock as mock
+            mock_response = mock.MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "aud": "expected_client_id_123",
+                "iss": "https://evil-attacker.com",
+                "email": "test@gmail.com",
+                "email_verified": True,
+            }
+            with mock.patch("requests.get", return_value=mock_response):
+                self.assertIsNone(backend.verify_token("fake_token"))
+
+    def test_google_authenticate_deactivated_user_rejected(self):
+        deactivated_user = User.objects.create_user(
+            username="deactivated_user",
+            email="deactivated@gmail.com",
+            password="Password123.",
+            is_active=False,
+        )
+        UserProfile.objects.create(user=deactivated_user)
+
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "deactivated@gmail.com",
+            "email_verified": True,
+            "aud": getattr(settings, "GOOGLE_CLIENT_ID", ""),
+            "iss": "https://accounts.google.com",
+        }
+        self.assertIsNone(backend.authenticate(None, google_credential="valid_token"))
+
+    def test_sso_ui_authenticate_deactivated_user_rejected(self):
+        deactivated_user = User.objects.create_user(
+            username="deactivated_ui",
+            email="deactivated_ui@ui.ac.id",
+            password="Password123.",
+            is_active=False,
+        )
+        UserProfile.objects.create(user=deactivated_user)
+
+        backend = SSOUIAuthBackend()
+        backend.validate_ticket = lambda ticket, service_url: {
+            "username": "deactivated_ui",
+            "nama": "Deactivated UI",
+            "npm": "1234567890",
+        }
+        self.assertIsNone(backend.authenticate(None, sso_ticket="valid_ticket", service_url="http://testserver"))
+
+    def test_get_user_deactivated_user_returns_none(self):
+        deactivated_user = User.objects.create_user(
+            username="inactive_target",
+            email="inactive_target@test.com",
+            password="Password123.",
+            is_active=False,
+        )
+        backend = GoogleAuthBackend()
+        self.assertIsNone(backend.get_user(deactivated_user.id))
+
+    def test_google_auth_user_is_not_verified_by_default(self):
+        backend = GoogleAuthBackend()
+        user = backend.get_or_create_user(
+            username="regular_google_user",
+            email="regular_google_user@gmail.com",
+            full_name="Regular Google",
+            auth_provider=UserProfile.AuthProvider.GOOGLE,
+            is_verified=False,
+        )
+        self.assertFalse(user.userprofile.is_verified)
+
+    def test_google_authenticate_with_ui_email_is_verified(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "mahasiswa@ui.ac.id",
+            "email_verified": True,
+            "name": "Mahasiswa UI",
+            "picture": "https://img.com/ui.png",
+        }
+        user = backend.authenticate(None, google_credential="mock_token")
+        self.assertIsNotNone(user)
+        self.assertTrue(user.userprofile.is_verified)
+
+    def test_google_authenticate_with_office_ui_email_is_verified(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "dosen@office.ui.ac.id",
+            "email_verified": True,
+            "name": "Dosen UI",
+            "picture": "https://img.com/office.png",
+        }
+        user = backend.authenticate(None, google_credential="mock_token")
+        self.assertIsNotNone(user)
+        self.assertTrue(user.userprofile.is_verified)
+
+    def test_google_authenticate_with_regular_gmail_is_not_verified(self):
+        backend = GoogleAuthBackend()
+        backend.verify_token = lambda token: {
+            "email": "umum@gmail.com",
+            "email_verified": True,
+            "name": "Pengguna Umum",
+            "picture": "https://img.com/umum.png",
+        }
+        user = backend.authenticate(None, google_credential="mock_token")
+        self.assertIsNotNone(user)
+        self.assertFalse(user.userprofile.is_verified)
+
+    def test_sso_ui_authenticate_with_inactive_local_user_with_same_username_allowed(self):
+        deactivated_local = User.objects.create_user(
+            username="student_ui",
+            email="other@local.com",
+            password="Password123.",
+            is_active=False,
+        )
+        UserProfile.objects.create(user=deactivated_local)
+
+        backend = SSOUIAuthBackend()
+        backend.validate_ticket = lambda ticket, service_url: {
+            "username": "student_ui",
+            "nama": "Student UI Asli",
+            "npm": "9876543210",
+        }
+        user = backend.authenticate(None, sso_ticket="valid_ticket", service_url="http://testserver")
+        self.assertIsNotNone(user)
+        self.assertEqual(user.email, "student_ui@ui.ac.id")
+        self.assertEqual(user.username, "student_ui1")
+        self.assertTrue(user.is_active)
+
+    def test_user_profile_db_defaults(self):
+        from django.db import connection
+        user = User.objects.create_user(username="db_default_test", password="Password123.")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO authentication_userprofile (user_id, full_name, phone_number, address) VALUES (%s, %s, %s, %s)",
+                [user.id, "DB Default User", "0812345", "Depok"],
+            )
+        profile = UserProfile.objects.get(user=user)
+        self.assertEqual(profile.auth_provider, UserProfile.AuthProvider.LOCAL)
+        self.assertFalse(profile.is_verified)
+        self.assertEqual(profile.npm, "")
+
+
+class ProfileReputationProviderTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="test_rep_user", password="Password123.")
+        self.other_user = User.objects.create_user(username="other_rep_user", password="Password123.")
+        UserProfile.objects.create(user=self.user, full_name="Rep User")
+        UserProfile.objects.create(user=self.other_user, full_name="Other Rep User")
+
+    def test_base_provider_not_implemented(self):
+        base = BaseProfileReputationProvider()
+        with self.assertRaises(NotImplementedError):
+            base.get_reputation_context(self.user)
+
+    def test_provider_inheritance_and_polymorphism(self):
+        provider = ReviewModuleReputationProvider()
+        self.assertIsInstance(provider, BaseProfileReputationProvider)
+
+    def test_provider_context_empty(self):
+        ctx = reputation_service.get_reputation_context(self.user)
+        self.assertEqual(ctx["reviews_count"], 0)
+        self.assertIsNone(ctx["average_rating"])
+        self.assertEqual(ctx["completed_loans_count"], 0)
+        self.assertEqual(ctx["borrowed_loans_count"], 0)
+        self.assertEqual(ctx["owned_items_count"], 0)
+        self.assertIsNone(ctx["trust_score"])
+        self.assertEqual(ctx["trust_level"], "Pengguna baru")
+        self.assertEqual(len(ctx["reviews"]), 0)
+        self.assertEqual(len(ctx["user_items"]), 0)
+
+    def test_provider_context_with_loans_and_reviews(self):
+        item = Item.objects.create(
+            owner=self.user,
+            name="Kamera DSLR",
+            description="Kamera DSLR untuk fotografi pemula hingga pro.",
+            category=Item.Category.ELECTRONICS,
+            condition=Item.Condition.LIKE_NEW,
+        )
+        loan = LoanRequest.objects.create(
+            borrower=self.other_user,
+            item=item,
+            start_date=datetime.date.today(),
+            due_date=datetime.date.today() + datetime.timedelta(days=3),
+            status=LoanRequest.Status.COMPLETED,
+        )
+        Review.objects.create(
+            loan=loan,
+            reviewer=self.other_user,
+            reviewee=self.user,
+            reviewer_role=Review.Role.BORROWER,
+            rating=5,
+            comment="Barang sangat bagus dan pemilik ramah!",
+        )
+        Report.objects.create(
+            reporter=self.other_user,
+            target_user=self.user,
+            reason=Report.Reason.OTHER,
+            description="Laporan pengetesan deskripsi minimal dua puluh karakter.",
+            status=Report.Status.RESOLVED,
+        )
+
+        ctx = reputation_service.get_reputation_context(self.user)
+        self.assertEqual(ctx["reviews_count"], 1)
+        self.assertEqual(ctx["average_rating"], 5.0)
+        self.assertEqual(ctx["completed_loans_count"], 1)
+        self.assertEqual(ctx["owned_items_count"], 1)
+        self.assertEqual(len(ctx["user_items"]), 1)
+        self.assertEqual(ctx["borrowed_loans_count"], 0)
+        self.assertIsNotNone(ctx["trust_score"])
+        self.assertEqual(len(ctx["reviews"]), 1)
+        self.assertEqual(ctx["reviews"][0].reviewer_initial, "O")
+        self.assertEqual(ctx["reviews"][0].reviewer_display_name, "Other Rep User")
+        self.assertTrue(len(ctx["reviews"][0].relative_time) > 0)
+
+
+class ProfileReputationApiTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="api_user", password="Password123.")
+        self.other_user = User.objects.create_user(username="other_api_user", password="Password123.")
+        UserProfile.objects.create(user=self.user, full_name="API User")
+        UserProfile.objects.create(user=self.other_user, full_name="Other API User")
+
+    def test_api_redirect_anonymous(self):
+        response = self.client.get(reverse("authentication:profile_reputation_api"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_api_authenticated_own(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("authentication:profile_reputation_api"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["username"], "api_user")
+        self.assertIn("trust_score", data)
+        self.assertIn("reviews", data)
+        self.assertIn("user_items", data)
+
+    def test_api_public_user(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("authentication:public_profile_reputation_api", args=["other_api_user"])
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["username"], "other_api_user")
+
+    def test_api_unknown_user_404(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("authentication:public_profile_reputation_api", args=["unknown_ghost"])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_api_post_method_not_allowed(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("authentication:profile_reputation_api"))
+        self.assertEqual(response.status_code, 405)
 

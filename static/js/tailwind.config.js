@@ -17,12 +17,14 @@ if (window.tailwind) tailwind.config = {
         line: 'var(--line)',
         surface: 'var(--surface)',
         'surface-muted': 'var(--surface-muted)',
+        'surface-soft': 'var(--surface-soft)',
         'on-primary': 'var(--on-primary)',
         primary: {
           DEFAULT: 'var(--green)',
           dark: 'var(--green-dark)',
         },
         accent: 'var(--lime)',
+        amber: 'var(--amber)',
       },
       fontFamily: {
         heading: 'var(--font-heading)',
