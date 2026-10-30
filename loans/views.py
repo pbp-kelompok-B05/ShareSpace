@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -7,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from .models import LoanRequest
 from .forms import LoanRequestForm
+from .recaptcha import verify_recaptcha
 from items.models import Item
 
 LOGIN_URL = "authentication:login"
@@ -136,6 +138,13 @@ def loan_create(request, item_id):
     form = LoanRequestForm(request.POST)
     if not form.is_valid():
         return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+
+    if not settings.RECAPTCHA_SITE_KEY or not settings.RECAPTCHA_SECRET_KEY:
+        return JsonResponse({"message": "reCAPTCHA belum dikonfigurasi."}, status=503)
+
+    token = request.POST.get("g-recaptcha-response", "").strip()
+    if not token or not verify_recaptcha(token):
+        return JsonResponse({"message": "Verifikasi reCAPTCHA gagal. Silakan coba lagi."}, status=400)
 
     with transaction.atomic():
         item = get_object_or_404(Item.objects.select_for_update(), pk=item_id)

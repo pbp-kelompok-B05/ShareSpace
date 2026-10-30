@@ -324,3 +324,15 @@
         transition: none;
     }
 }
+
+/* Google reCAPTCHA */
+.loan-recaptcha {
+    margin-top: 12px;
+    min-height: 78px;
+}
+
+.loan-recaptcha-message {
+    margin: 8px 0;
+    color: var(--danger);
+    font-size: 13px;
+}
