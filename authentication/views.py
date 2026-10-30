@@ -8,7 +8,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 from django.http import JsonResponse
-from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
@@ -216,15 +215,14 @@ class UserDeletionValidator:
         reasons = []
 
         # 1. Transaksi peminjaman aktif (sebagai peminjam atau sebagai pemilik barang)
-        active_loans = LoanRequest.objects.filter(
-            Q(borrower=user) | Q(item__owner=user),
-            status__in=[
-                LoanRequest.Status.PENDING,
-                LoanRequest.Status.APPROVED,
-                LoanRequest.Status.BORROWED,
-            ],
-        )
-        if active_loans.exists():
+        active_statuses = [
+            LoanRequest.Status.PENDING,
+            LoanRequest.Status.APPROVED,
+            LoanRequest.Status.BORROWED,
+        ]
+        has_borrowed_loans = LoanRequest.objects.filter(borrower=user, status__in=active_statuses).exists()
+        has_lent_loans = LoanRequest.objects.filter(item__owner=user, status__in=active_statuses).exists()
+        if has_borrowed_loans or has_lent_loans:
             reasons.append("Pengguna masih memiliki transaksi peminjaman aktif.")
 
         # 2. Barang aktif (belum di-soft delete)
@@ -233,11 +231,9 @@ class UserDeletionValidator:
             reasons.append("Pengguna masih memiliki barang yang aktif di katalog.")
 
         # 3. Laporan aktif (sebagai pelapor atau terlapor)
-        active_reports = Report.objects.filter(
-            Q(reporter=user) | Q(target_user=user),
-            status__in=Report.ACTIVE_STATUSES,
-        )
-        if active_reports.exists():
+        has_filed_reports = Report.objects.filter(reporter=user, status__in=Report.ACTIVE_STATUSES).exists()
+        has_targeted_reports = Report.objects.filter(target_user=user, status__in=Report.ACTIVE_STATUSES).exists()
+        if has_filed_reports or has_targeted_reports:
             reasons.append("Pengguna masih terlibat dalam laporan yang sedang diproses.")
 
         return reasons
@@ -520,7 +516,7 @@ def admin_delete_user(request, username):
         target_user.delete()
         messages.success(request, f"Akun pengguna {deleted_username} berhasil dihapus.")
         return redirect("landing_page")
-    except ProtectedError as e:
+    except Exception as e:
         messages.error(
             request,
             f"Gagal menghapus pengguna karena masih ada relasi data yang dilindungi: {e}",
