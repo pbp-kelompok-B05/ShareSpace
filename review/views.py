@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from items.models import Item
+from loans.models import LoanRequest
 from review.forms import ReportForm
 from review.htmx import render_list
 from review.models import Report
@@ -14,6 +15,7 @@ from review.models import Report
 User = get_user_model()
 
 REPORTS_PER_PAGE = 10
+TARGET_RELATED = Report.TARGET_RELATED
 
 
 def _get_own_report(request, pk, editable=False):
@@ -66,10 +68,21 @@ def report_user_create(request, username):
 
 
 @login_required
-def my_reports(request):
-    reports = Report.objects.filter(reporter=request.user).select_related(
-        "target_item", "target_user"
+@require_http_methods(["GET", "POST"])
+def report_loan_create(request, loan_id):
+    loan = get_object_or_404(
+        LoanRequest.objects.select_related("item", "item__owner", "borrower"), pk=loan_id
     )
+    if request.user.pk not in (loan.borrower_id, loan.item.owner_id):
+        raise PermissionDenied("Hanya pihak dalam transaksi ini yang dapat melaporkannya.")
+    if loan.status not in Report.REPORTABLE_LOAN_STATUSES:
+        raise PermissionDenied("Transaksi ini belum dapat dilaporkan.")
+    return _create_report(request, {"target_loan": loan})
+
+
+@login_required
+def my_reports(request):
+    reports = Report.objects.filter(reporter=request.user).select_related(*TARGET_RELATED)
     current_status = request.GET.get("status", "")
     if current_status not in Report.Status.values:
         current_status = ""
@@ -91,7 +104,7 @@ def my_reports(request):
 @login_required
 def report_detail(request, pk):
     report = get_object_or_404(
-        Report.objects.select_related("reporter", "target_item", "target_user"), pk=pk
+        Report.objects.select_related("reporter", "target_item__owner", *TARGET_RELATED), pk=pk
     )
     if report.reporter_id != request.user.pk and not request.user.is_staff:
         raise PermissionDenied("Kamu tidak punya akses ke laporan ini.")

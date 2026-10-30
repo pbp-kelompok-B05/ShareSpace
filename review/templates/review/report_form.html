@@ -26,6 +26,8 @@
                 </div>
                 {% if report.target_item_id %}
                     <p class="card-meta m-0">Pemilik: {{ report.target_item.owner.username }}</p>
+                {% elif report.target_loan_id %}
+                    <p class="card-meta m-0">Peminjam: {{ report.target_loan.borrower.username }} · Pemilik: {{ report.target_loan.item.owner.username }}</p>
                 {% endif %}
             </div>
         </div>
