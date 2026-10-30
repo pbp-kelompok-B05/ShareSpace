@@ -20,7 +20,7 @@
         </div>
     </div>
 
-    {% if request.user.is_staff %}
+    {% if can_moderate %}
     <!-- Panel Moderasi Admin -->
     <div class="mb-6 rounded-2xl border-2 border-line bg-surface p-6 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
@@ -33,7 +33,7 @@
                     Login helpdesk
                 </a>
                 <a href="{% url 'admin:auth_user_change' target_user.pk %}" class="button button-secondary button-sm" target="_blank" rel="noopener">
-                    Kelola Lengkap di Django Admin ↗
+                    Kelola Lengkap di Django Admin
                 </a>
             </div>
         </div>

@@ -1,6 +1,4 @@
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 from django.forms import EmailInput, ModelForm, Select, TextInput, Textarea, URLInput
 from django.utils.html import strip_tags
 
@@ -155,10 +153,7 @@ class LoginHelpRequestForm(ModelForm):
         }
 
     def clean_email_or_username(self):
-        val = strip_tags(self.cleaned_data.get("email_or_username", "")).strip()
-        if val and not User.objects.filter(Q(username__iexact=val) | Q(email__iexact=val)).exists():
-            raise ValidationError("Akun dengan username atau email tersebut tidak ditemukan di ShareSpace.")
-        return val
+        return strip_tags(self.cleaned_data.get("email_or_username", "")).strip()
 
     def clean_contact_email(self):
         contact_email = self.cleaned_data.get("contact_email", "")
