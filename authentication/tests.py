@@ -737,3 +737,37 @@ class AuthBackendsTest(TestCase):
         self.assertIsNotNone(user)
         self.assertFalse(user.userprofile.is_verified)
 
+    def test_sso_ui_authenticate_with_inactive_local_user_with_same_username_allowed(self):
+        deactivated_local = User.objects.create_user(
+            username="student_ui",
+            email="other@local.com",
+            password="Password123.",
+            is_active=False,
+        )
+        UserProfile.objects.create(user=deactivated_local)
+
+        backend = SSOUIAuthBackend()
+        backend.validate_ticket = lambda ticket, service_url: {
+            "username": "student_ui",
+            "nama": "Student UI Asli",
+            "npm": "9876543210",
+        }
+        user = backend.authenticate(None, sso_ticket="valid_ticket", service_url="http://testserver")
+        self.assertIsNotNone(user)
+        self.assertEqual(user.email, "student_ui@ui.ac.id")
+        self.assertEqual(user.username, "student_ui1")
+        self.assertTrue(user.is_active)
+
+    def test_user_profile_db_defaults(self):
+        from django.db import connection
+        user = User.objects.create_user(username="db_default_test", password="Password123.")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO authentication_userprofile (user_id, full_name, phone_number, address) VALUES (%s, %s, %s, %s)",
+                [user.id, "DB Default User", "0812345", "Depok"],
+            )
+        profile = UserProfile.objects.get(user=user)
+        self.assertEqual(profile.auth_provider, UserProfile.AuthProvider.LOCAL)
+        self.assertFalse(profile.is_verified)
+        self.assertEqual(profile.npm, "")
+

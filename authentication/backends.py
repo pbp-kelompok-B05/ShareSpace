@@ -37,8 +37,6 @@ class BaseExternalAuthBackend(BaseBackend):
         user = None
         if email:
             user = User.objects.filter(email__iexact=email).first()
-        elif username:
-            user = User.objects.filter(username__iexact=username).first()
 
         if user:
             # Tolak login jika akun pengguna telah dinonaktifkan
@@ -212,15 +210,14 @@ class SSOUIAuthBackend(BaseExternalAuthBackend):
             return None
 
         username = data["username"].lower()
-
-        # Tolak jika pengguna dengan username ini sudah ada namun dalam status nonaktif
-        existing_user = User.objects.filter(username__iexact=username).first()
-        if existing_user and not existing_user.is_active:
-            return None
-
         full_name = data.get("nama") or username
         npm = data.get("npm", "")
         email = f"{username}@ui.ac.id"
+
+        # Tolak jika pengguna dengan email UI ini sudah ada namun dalam status nonaktif
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user and not existing_user.is_active:
+            return None
 
         return self.get_or_create_user(
             username=username,

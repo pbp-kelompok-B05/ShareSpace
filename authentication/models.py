@@ -20,15 +20,19 @@ class UserProfile(models.Model):
         max_length=20,
         choices=AuthProvider.choices,
         default=AuthProvider.LOCAL,
+        db_default=AuthProvider.LOCAL,
         help_text="Penyedia autentikasi akun (Lokal, Google, atau SSO UI).",
     )
     is_verified = models.BooleanField(
         default=False,
+        db_default=False,
         help_text="Status verifikasi pengguna (misal civitas UI atau akun terverifikasi).",
     )
     npm = models.CharField(
         max_length=20,
         blank=True,
+        default="",
+        db_default="",
         help_text="Nomor Pokok Mahasiswa (khusus pengguna SSO UI).",
     )
 
