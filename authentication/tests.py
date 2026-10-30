@@ -6,8 +6,11 @@ from django.test import TestCase
 from django.urls import reverse
 
 from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
-from authentication.forms import UserProfileForm
-from authentication.models import UserProfile
+from django.contrib.admin.sites import AdminSite
+
+from authentication.admin import LoginHelpRequestAdmin
+from authentication.forms import LoginHelpRequestForm, UserProfileForm
+from authentication.models import LoginHelpRequest, UserProfile
 from authentication.views import (
     BaseProfileReputationProvider,
     ReviewModuleReputationProvider,
@@ -966,4 +969,327 @@ class ProfileReputationApiTest(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(reverse("authentication:profile_reputation_api"))
         self.assertEqual(response.status_code, 405)
+
+class LoginHelpRequestTest(TestCase):
+    def setUp(self):
+        self.client_guest = self.client_class()
+        self.help_url = reverse("authentication:login_help_request")
+
+    def test_login_help_page_accessible_by_guest(self):
+        """Tamu unauthenticated dapat mengakses halaman bantuan kendala login."""
+        response = self.client_guest.get(self.help_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "login_help_form.html")
+        self.assertContains(response, "Bantuan Kendala Login")
+        self.assertContains(response, "Catatan untuk Pengguna SSO UI &amp; Google:")
+
+    def test_login_help_page_redirect_if_authenticated(self):
+        """Pengguna yang sudah login dialihkan ke landing page saat mengakses form bantuan."""
+        user = User.objects.create_user(username="already_logged_in_user", password="Password123.")
+        self.client.force_login(user)
+        response = self.client.get(self.help_url)
+        self.assertRedirects(response, reverse("landing_page"))
+
+    def test_login_help_submission_success(self):
+        """Tamu dapat mengirimkan permohonan bantuan dan tersimpan dengan benar."""
+        data = {
+            "email_or_username": "frieren_lost",
+            "contact_email": "frieren_contact@example.com",
+            "issue_type": "forgot_password",
+            "message": "Saya lupa kata sandi akun lokal saya, mohon bantuan reset.",
+        }
+        response = self.client_guest.post(self.help_url, data)
+        self.assertRedirects(response, reverse("authentication:login"))
+
+        req = LoginHelpRequest.objects.filter(email_or_username="frieren_lost").first()
+        self.assertIsNotNone(req)
+        self.assertEqual(req.contact_email, "frieren_contact@example.com")
+        self.assertEqual(req.issue_type, LoginHelpRequest.IssueType.FORGOT_PASSWORD)
+        self.assertEqual(req.status, LoginHelpRequest.Status.PENDING)
+        self.assertIn("lupa kata sandi", req.message)
+
+    def test_login_help_form_validation(self):
+        """Form bantuan memvalidasi field yang wajib diisi."""
+        form = LoginHelpRequestForm(data={})
+        self.assertFalse(form.is_valid())
+        self.assertIn("email_or_username", form.errors)
+        self.assertIn("contact_email", form.errors)
+        self.assertIn("message", form.errors)
+
+    def test_login_help_form_sanitization(self):
+        """Form bantuan membersihkan tag HTML berbahaya."""
+        form = LoginHelpRequestForm(
+            data={
+                "email_or_username": "<b>user_hack</b>",
+                "contact_email": "hack@example.com",
+                "issue_type": "other",
+                "message": "<script>alert('xss')</script>Butuh bantuan login.",
+            }
+        )
+        self.assertTrue(form.is_valid())
+        cleaned = form.save(commit=False)
+        self.assertEqual(cleaned.email_or_username, "user_hack")
+        self.assertEqual(cleaned.message, "alert('xss')Butuh bantuan login.")
+
+    def test_login_help_admin_mark_as_resolved(self):
+        """Admin action mark_as_resolved mengubah status permohonan menjadi resolved."""
+        req = LoginHelpRequest.objects.create(
+            email_or_username="stark",
+            contact_email="stark@example.com",
+            issue_type=LoginHelpRequest.IssueType.ACCOUNT_LOCKED,
+            message="Akun saya dinonaktifkan.",
+            status=LoginHelpRequest.Status.PENDING,
+        )
+        admin = LoginHelpRequestAdmin(LoginHelpRequest, AdminSite())
+        qs = LoginHelpRequest.objects.filter(pk=req.pk)
+
+        class DummyRequest:
+            def __init__(self):
+                self._messages = []
+
+        dummy_req = DummyRequest()
+        admin.message_user = lambda request, msg: dummy_req._messages.append(msg)
+        admin.mark_as_resolved(dummy_req, qs)
+
+        req.refresh_from_db()
+        self.assertEqual(req.status, LoginHelpRequest.Status.RESOLVED)
+
+    def test_login_page_contains_help_link(self):
+        """Halaman login menyediakan tautan bantuan untuk kendala lupa password."""
+        response = self.client.get(reverse("authentication:login"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.help_url)
+        self.assertContains(response, "Hubungi Bantuan Admin")
+
+
+class AdminModerationActionsTest(TestCase):
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="admin_staff", password="AdminPassword123.", is_staff=True
+        )
+        self.normal_user = User.objects.create_user(
+            username="normal_user", password="UserPassword123.", is_staff=False
+        )
+        self.target_user = User.objects.create_user(
+            username="target_user", password="TargetPassword123.", is_staff=False
+        )
+        self.staff_profile = UserProfile.objects.create(user=self.staff_user, full_name="Admin Staff")
+        self.normal_profile = UserProfile.objects.create(user=self.normal_user, full_name="Normal User")
+        self.target_profile = UserProfile.objects.create(user=self.target_user, full_name="Target User")
+
+    def test_non_staff_cannot_toggle_verify(self):
+        """Pengguna non-staff dilarang mengubah status verifikasi (403 Forbidden)."""
+        self.client.force_login(self.normal_user)
+        response = self.client.post(
+            reverse("authentication:admin_toggle_verify", args=[self.target_user.username])
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_anonymous_cannot_toggle_verify(self):
+        """Tamu unauthenticated dialihkan ke halaman login saat mencoba aksi admin."""
+        response = self.client.post(
+            reverse("authentication:admin_toggle_verify", args=[self.target_user.username])
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("authentication:login"), response.url)
+
+    def test_non_staff_cannot_toggle_active(self):
+        """Pengguna non-staff dilarang mengubah status aktif (403 Forbidden)."""
+        self.client.force_login(self.normal_user)
+        response = self.client.post(
+            reverse("authentication:admin_toggle_active", args=[self.target_user.username])
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_non_staff_cannot_delete_user(self):
+        """Pengguna non-staff dilarang menghapus akun pengguna (403 Forbidden)."""
+        self.client.force_login(self.normal_user)
+        response = self.client.post(
+            reverse("authentication:admin_delete_user", args=[self.target_user.username])
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_can_toggle_verify(self):
+        """Staf berhasil mengubah status verifikasi pengguna lain."""
+        self.client.force_login(self.staff_user)
+        self.assertFalse(self.target_profile.is_verified)
+
+        # Toggle jadi True
+        response = self.client.post(
+            reverse("authentication:admin_toggle_verify", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target_profile.refresh_from_db()
+        self.assertTrue(self.target_profile.is_verified)
+
+        # Toggle kembali jadi False
+        response = self.client.post(
+            reverse("authentication:admin_toggle_verify", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target_profile.refresh_from_db()
+        self.assertFalse(self.target_profile.is_verified)
+
+    def test_staff_can_toggle_active(self):
+        """Staf berhasil mengubah status aktif pengguna lain."""
+        self.client.force_login(self.staff_user)
+        self.assertTrue(self.target_user.is_active)
+
+        # Deaktivasi
+        response = self.client.post(
+            reverse("authentication:admin_toggle_active", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target_user.refresh_from_db()
+        self.assertFalse(self.target_user.is_active)
+
+        # Aktivasi kembali
+        response = self.client.post(
+            reverse("authentication:admin_toggle_active", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.target_user.refresh_from_db()
+        self.assertTrue(self.target_user.is_active)
+
+    def test_staff_cannot_deactivate_self(self):
+        """Staf tidak dapat menonaktifkan akun staf miliknya sendiri."""
+        self.client.force_login(self.staff_user)
+        response = self.client.post(
+            reverse("authentication:admin_toggle_active", args=[self.staff_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.staff_user.refresh_from_db()
+        self.assertTrue(self.staff_user.is_active)
+
+    def test_staff_cannot_delete_self(self):
+        """Staf tidak dapat menghapus akun miliknya sendiri."""
+        self.client.force_login(self.staff_user)
+        response = self.client.post(
+            reverse("authentication:admin_delete_user", args=[self.staff_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(pk=self.staff_user.pk).exists())
+
+    def test_staff_cannot_delete_user_with_active_loans(self):
+        """Penghapusan user ditolak jika memiliki transaksi peminjaman aktif."""
+        self.client.force_login(self.staff_user)
+        item = Item.objects.create(
+            owner=self.staff_user,
+            name="Kamera DSLR",
+            description="Kamera DSLR untuk dipinjam.",
+            category=Item.Category.ELECTRONICS,
+            condition=Item.Condition.GOOD,
+        )
+        LoanRequest.objects.create(
+            borrower=self.target_user,
+            item=item,
+            start_date=datetime.date.today(),
+            due_date=datetime.date.today() + datetime.timedelta(days=2),
+            status=LoanRequest.Status.APPROVED,
+        )
+
+        response = self.client.post(
+            reverse("authentication:admin_delete_user", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(pk=self.target_user.pk).exists())
+
+    def test_staff_cannot_delete_user_with_active_items(self):
+        """Penghapusan user ditolak jika pengguna masih memiliki barang aktif di katalog."""
+        self.client.force_login(self.staff_user)
+        Item.objects.create(
+            owner=self.target_user,
+            name="Tenda Dome Camping",
+            description="Tenda camping kapasitas 4 orang.",
+            category=Item.Category.OUTDOOR,
+            condition=Item.Condition.LIKE_NEW,
+            is_deleted=False,
+        )
+
+        response = self.client.post(
+            reverse("authentication:admin_delete_user", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(pk=self.target_user.pk).exists())
+
+    def test_staff_cannot_delete_user_with_active_reports(self):
+        """Penghapusan user ditolak jika pengguna terlibat dalam laporan yang sedang aktif."""
+        self.client.force_login(self.staff_user)
+        Report.objects.create(
+            reporter=self.staff_user,
+            target_user=self.target_user,
+            reason=Report.Reason.MISCONDUCT,
+            description="Perilaku tidak sopan saat transaksi COD barang.",
+            status=Report.Status.PENDING,
+        )
+
+        response = self.client.post(
+            reverse("authentication:admin_delete_user", args=[self.target_user.username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(pk=self.target_user.pk).exists())
+
+    def test_staff_can_delete_clean_user(self):
+        """Staf berhasil menghapus pengguna yang tidak memiliki transaksi atau relasi data aktif."""
+        self.client.force_login(self.staff_user)
+        target_username = self.target_user.username
+        target_pk = self.target_user.pk
+
+        response = self.client.post(
+            reverse("authentication:admin_delete_user", args=[target_username]),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(pk=target_pk).exists())
+
+    def test_staff_sees_moderation_panel_in_public_profile(self):
+        """Staf melihat komponen Panel Moderasi Admin di profil publik pengguna lain."""
+        self.client.force_login(self.staff_user)
+        response = self.client.get(
+            reverse("authentication:public_profile", args=[self.target_user.username])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Panel Moderasi Admin")
+        self.assertContains(response, "Beri Verifikasi UI")
+        self.assertContains(response, "Nonaktifkan Akun Ini")
+        self.assertContains(response, "Kelola Lengkap di Django Admin ↗")
+
+    def test_non_staff_does_not_see_moderation_panel(self):
+        """Pengguna non-staff tidak melihat Panel Moderasi Admin di profil publik."""
+        self.client.force_login(self.normal_user)
+        response = self.client.get(
+            reverse("authentication:public_profile", args=[self.target_user.username])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Panel Moderasi Admin")
+        self.assertNotContains(response, "Kelola Lengkap di Django Admin ↗")
+
+    def test_staff_can_view_inactive_user_public_profile(self):
+        """Staf dapat melihat profil publik user yang dinonaktifkan untuk melakukan re-aktivasi."""
+        self.target_user.is_active = False
+        self.target_user.save()
+
+        # Staff can view
+        self.client.force_login(self.staff_user)
+        staff_response = self.client.get(
+            reverse("authentication:public_profile", args=[self.target_user.username])
+        )
+        self.assertEqual(staff_response.status_code, 200)
+        self.assertContains(staff_response, "Aktifkan Kembali")
+
+        # Non-staff receives 404
+        self.client.force_login(self.normal_user)
+        normal_response = self.client.get(
+            reverse("authentication:public_profile", args=[self.target_user.username])
+        )
+        self.assertEqual(normal_response.status_code, 404)
 
