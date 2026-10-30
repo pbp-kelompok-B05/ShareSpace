@@ -1,5 +1,8 @@
 from django.urls import path
 from authentication.views import (
+    admin_delete_user,
+    admin_toggle_active,
+    admin_toggle_verify,
     deactivate_account,
     edit_profile,
     google_login,
@@ -29,6 +32,9 @@ urlpatterns = [
     path('deactivate/', deactivate_account, name='deactivate_account'),
     path('user/<str:username>/', public_profile, name='public_profile'),
     path('help/', login_help_request, name='login_help_request'),
+    path('admin/users/<str:username>/toggle-verify/', admin_toggle_verify, name='admin_toggle_verify'),
+    path('admin/users/<str:username>/toggle-active/', admin_toggle_active, name='admin_toggle_active'),
+    path('admin/users/<str:username>/delete/', admin_delete_user, name='admin_delete_user'),
     path('api/profile/reputation/', profile_reputation_api, name='profile_reputation_api'),
     path('api/profile/<str:username>/reputation/', profile_reputation_api, name='public_profile_reputation_api'),
 ]

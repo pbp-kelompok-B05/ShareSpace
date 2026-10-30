@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 from django.http import JsonResponse
+from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
@@ -15,7 +16,8 @@ from django.views.decorators.http import require_GET, require_http_methods
 from django.utils.timesince import timesince
 from items.models import Item
 from loans.models import LoanRequest
-from review.models import Review
+from review.moderation import staff_required
+from review.models import Report, Review
 from review.reputation import get_reputation
 
 from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
@@ -205,9 +207,48 @@ def deactivate_account(request):
     return render(request, "deactivate_account.html")
 
 
+class UserDeletionValidator:
+    """Validator untuk memeriksa kelayakan penghapusan akun pengguna (OOP SOLID)."""
+
+    @staticmethod
+    def get_blocking_reasons(user):
+        """Mengembalikan list alasan mengapa akun pengguna belum dapat dihapus."""
+        reasons = []
+
+        # 1. Transaksi peminjaman aktif (sebagai peminjam atau sebagai pemilik barang)
+        active_loans = LoanRequest.objects.filter(
+            Q(borrower=user) | Q(item__owner=user),
+            status__in=[
+                LoanRequest.Status.PENDING,
+                LoanRequest.Status.APPROVED,
+                LoanRequest.Status.BORROWED,
+            ],
+        )
+        if active_loans.exists():
+            reasons.append("Pengguna masih memiliki transaksi peminjaman aktif.")
+
+        # 2. Barang aktif (belum di-soft delete)
+        active_items = Item.objects.filter(owner=user, is_deleted=False)
+        if active_items.exists():
+            reasons.append("Pengguna masih memiliki barang yang aktif di katalog.")
+
+        # 3. Laporan aktif (sebagai pelapor atau terlapor)
+        active_reports = Report.objects.filter(
+            Q(reporter=user) | Q(target_user=user),
+            status__in=Report.ACTIVE_STATUSES,
+        )
+        if active_reports.exists():
+            reasons.append("Pengguna masih terlibat dalam laporan yang sedang diproses.")
+
+        return reasons
+
+
 @login_required
 def public_profile(request, username):
-    target_user = get_object_or_404(User, username=username, is_active=True)
+    if request.user.is_staff:
+        target_user = get_object_or_404(User, username=username)
+    else:
+        target_user = get_object_or_404(User, username=username, is_active=True)
 
     if target_user.pk == request.user.pk:
         return redirect("authentication:profile")
@@ -216,9 +257,15 @@ def public_profile(request, username):
     profile = UserProfile.objects.filter(user=target_user).first()
     reputation_ctx = reputation_service.get_reputation_context(target_user)
 
+    deletion_reasons = []
+    if request.user.is_staff:
+        deletion_reasons = UserDeletionValidator.get_blocking_reasons(target_user)
+
     context = {
         "target_user": target_user,
         "profile": profile,
+        "can_be_deleted": len(deletion_reasons) == 0 and target_user.pk != request.user.pk,
+        "deletion_reasons": deletion_reasons,
         **reputation_ctx,
     }
     return render(request, "public_profile.html", context)
@@ -403,4 +450,80 @@ def login_help_request(request):
         "form": form,
     }
     return render(request, "login_help_form.html", context)
+
+
+@staff_required
+@require_http_methods(["POST"])
+def admin_toggle_verify(request, username):
+    """
+    Mengubah status verifikasi profil pengguna (is_verified).
+    Hanya dapat diakses oleh staff/admin.
+    """
+    target_user = get_object_or_404(User, username=username)
+    profile, _ = UserProfile.objects.get_or_create(user=target_user)
+    profile.is_verified = not profile.is_verified
+    profile.save()
+
+    status_str = "terverifikasi" if profile.is_verified else "tidak terverifikasi"
+    messages.success(
+        request,
+        f"Status verifikasi akun {target_user.username} berhasil diubah menjadi {status_str}.",
+    )
+    return redirect("authentication:public_profile", username=username)
+
+
+@staff_required
+@require_http_methods(["POST"])
+def admin_toggle_active(request, username):
+    """
+    Mengubah status aktif akun pengguna (is_active).
+    Admin tidak diizinkan menonaktifkan akunnya sendiri.
+    """
+    target_user = get_object_or_404(User, username=username)
+
+    if target_user.pk == request.user.pk:
+        messages.error(request, "Anda tidak dapat menonaktifkan akun admin Anda sendiri.")
+        return redirect("authentication:public_profile", username=username)
+
+    target_user.is_active = not target_user.is_active
+    target_user.save()
+
+    status_str = "aktif" if target_user.is_active else "nonaktif"
+    messages.success(
+        request,
+        f"Status akun {target_user.username} berhasil diubah menjadi {status_str}.",
+    )
+    return redirect("authentication:public_profile", username=username)
+
+
+@staff_required
+@require_http_methods(["POST"])
+def admin_delete_user(request, username):
+    """
+    Menghapus akun pengguna secara aman setelah memeriksa ketiadaan relasi data aktif.
+    Admin tidak diizinkan menghapus akunnya sendiri.
+    """
+    target_user = get_object_or_404(User, username=username)
+
+    if target_user.pk == request.user.pk:
+        messages.error(request, "Anda tidak dapat menghapus akun admin Anda sendiri.")
+        return redirect("authentication:public_profile", username=username)
+
+    reasons = UserDeletionValidator.get_blocking_reasons(target_user)
+    if reasons:
+        error_msg = "Akun tidak dapat dihapus: " + " ".join(reasons)
+        messages.error(request, error_msg)
+        return redirect("authentication:public_profile", username=username)
+
+    try:
+        deleted_username = target_user.username
+        target_user.delete()
+        messages.success(request, f"Akun pengguna {deleted_username} berhasil dihapus.")
+        return redirect("landing_page")
+    except ProtectedError as e:
+        messages.error(
+            request,
+            f"Gagal menghapus pengguna karena masih ada relasi data yang dilindungi: {e}",
+        )
+        return redirect("authentication:public_profile", username=username)
 
