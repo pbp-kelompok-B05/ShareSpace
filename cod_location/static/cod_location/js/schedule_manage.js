@@ -305,6 +305,8 @@
   const locationSelect = document.getElementById("cod-location");
   const scheduleType = document.getElementById("schedule-type");
   const scheduledTime = document.getElementById("scheduled-time");
+  const locationLabel = document.getElementById("cod-location-label");
+  const locationHint = document.getElementById("cod-location-hint");
   const notes = document.getElementById("schedule-notes");
   const submitButton = document.getElementById("schedule-submit-btn");
   const cancelEdit = document.getElementById("cancel-edit-btn");
@@ -481,6 +483,25 @@
     markers.get(String(id))?.openPopup();
   }
 
+  function updateLocationField() {
+    const isReturn = scheduleType.value === "return";
+
+    locationLabel.textContent = isReturn
+        ? "Lokasi Pengembalian"
+        : "Lokasi Pengambilan";
+
+    locationHint.textContent = isReturn
+        ? "Pilih lokasi pengembalian barang. Lokasi boleh berbeda dari lokasi pengambilan."
+        : "Pilih lokasi pengambilan barang.";
+
+    // Kosongkan pilihan sebelumnya agar pengguna memilih lokasi
+    // secara khusus untuk jenis jadwal yang baru.
+    locationSelect.value = "";
+    focusLocation("");
+  }
+
+scheduleType?.addEventListener("change", updateLocationField);
+
   async function loadLocations() {
     const data = await requestJSON(config.dataset.locationsUrl);
     const locationList = Array.isArray(data.locations) ? data.locations : [];
@@ -580,6 +601,15 @@
     if (!form) return;
     editId = String(schedule.id);
     scheduleType.value = schedule.schedule_type;
+    const isReturn = schedule.schedule_type === "return";
+
+    locationLabel.textContent = isReturn
+        ? "Lokasi Pengembalian"
+        : "Lokasi Pengambilan";
+
+    locationHint.textContent = isReturn
+        ? "Pilih lokasi pengembalian barang. Lokasi boleh berbeda dari lokasi pengambilan."
+        : "Pilih lokasi pengambilan barang.";
     locationSelect.value = String(schedule.cod_location);
     scheduledTime.value = localInputDate(schedule.scheduled_time);
     notes.value = schedule.notes || "";

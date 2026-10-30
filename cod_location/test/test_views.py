@@ -10,6 +10,7 @@ from cod_location.models import CODLocation, PickupSchedule, Place
 from cod_location.views import overpass_search
 from items.models import Item
 from loans.models import LoanRequest
+from django.template import Context, Template
 
 User = get_user_model()
 
@@ -438,7 +439,42 @@ class OverpassViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([place["name"] for place in response.json()["places"]], ["Perpustakaan UI"])
 
-   
+class CODScheduleSummaryTests(CODViewTestBase):
 
-   
-    
+    def render_summary(self):
+        template = Template(
+            "{% load cod_schedule_tags %}"
+            "{% cod_schedule_summary loan %}"
+        )
+        return template.render(Context({"loan": self.loan}))
+
+    def test_no_schedules(self):
+        html = self.render_summary()
+
+        self.assertIn("Pengambilan", html)
+        self.assertIn("Pengembalian", html)
+        self.assertEqual(
+            html.count("Belum dijadwalkan"), 2
+        )
+
+    def test_pickup_schedule_summary(self):
+        self.create_schedule()
+
+        html = self.render_summary()
+
+        self.assertIn("Perpustakaan UI", html)
+        self.assertIn("Pengambilan", html)
+        self.assertIn("Belum dijadwalkan", html)
+
+    def test_pickup_and_return_schedule_summary(self):
+        self.create_schedule()
+
+        self.create_schedule(
+            schedule_type=PickupSchedule.ScheduleType.RETURN
+        )
+
+        html = self.render_summary()
+
+        self.assertIn("Pengambilan", html)
+        self.assertIn("Pengembalian", html)
+        self.assertNotIn("Belum dijadwalkan", html)

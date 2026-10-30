@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load cod_schedule_tags %}
 {% load review_tags %}
 {% block title %}Detail Transaksi — ShareSpace{% endblock %}
 
@@ -26,6 +27,7 @@
         <p><strong>Tanggal Pengembalian:</strong> {{ loan.due_date }}</p>
         <p><strong>Status:</strong> {{ loan.get_status_display }}</p>
         <p><strong>Catatan:</strong> {{ loan.notes|default:"-" }}</p>
+        {% cod_schedule_summary loan %}
 
         {% if loan.return_requested_at %}
             <p><strong>Permintaan Pengembalian:</strong>{{ loan.return_requested_at }}</p>
