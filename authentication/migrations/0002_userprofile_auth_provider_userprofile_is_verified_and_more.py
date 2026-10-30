@@ -13,16 +13,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='userprofile',
             name='auth_provider',
-            field=models.CharField(choices=[('local', 'Lokal'), ('google', 'Google'), ('sso_ui', 'SSO UI')], default='local', help_text='Penyedia autentikasi akun (Lokal, Google, atau SSO UI).', max_length=20),
+            field=models.CharField(blank=True, choices=[('local', 'Lokal'), ('google', 'Google'), ('sso_ui', 'SSO UI')], default='local', help_text='Penyedia autentikasi akun (Lokal, Google, atau SSO UI).', max_length=20, null=True),
         ),
         migrations.AddField(
             model_name='userprofile',
             name='is_verified',
-            field=models.BooleanField(default=False, help_text='Status verifikasi pengguna (misal civitas UI atau akun terverifikasi).'),
+            field=models.BooleanField(blank=True, default=False, help_text='Status verifikasi pengguna (misal civitas UI atau akun terverifikasi).', null=True),
         ),
         migrations.AddField(
             model_name='userprofile',
             name='npm',
-            field=models.CharField(blank=True, help_text='Nomor Pokok Mahasiswa (khusus pengguna SSO UI).', max_length=20),
+            field=models.CharField(blank=True, default='', help_text='Nomor Pokok Mahasiswa (khusus pengguna SSO UI).', max_length=20, null=True),
         ),
     ]

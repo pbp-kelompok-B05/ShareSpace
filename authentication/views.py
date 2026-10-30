@@ -10,11 +10,81 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods
+
+from django.utils.timesince import timesince
+from items.models import Item
+from loans.models import LoanRequest
+from review.models import Review
+from review.reputation import get_reputation
 
 from authentication.backends import GoogleAuthBackend, SSOUIAuthBackend
 from authentication.forms import UserProfileForm
 from authentication.models import UserProfile
+
+
+class BaseProfileReputationProvider:
+    """Kelas dasar abstrak penyedia reputasi profil pengguna."""
+
+    def get_reputation_context(self, user):
+        """Mengumpulkan context reputasi pengguna untuk profil."""
+        raise NotImplementedError("Subclass harus mengimplementasikan get_reputation_context.")
+
+
+class ReviewModuleReputationProvider(BaseProfileReputationProvider):
+    """
+    Penyedia reputasi profil yang mengintegrasikan modul resmi review.reputation milik Max.
+    Menerapkan konsep Inheritance, Polymorphism, dan SOLID.
+    """
+
+    def get_reputation_context(self, user):
+        reputation = get_reputation(user)
+
+        reviews_qs = (
+            Review.objects.visible()
+            .filter(reviewee=user)
+            .select_related("reviewer", "reviewer__userprofile", "loan", "loan__item")
+            .order_by("-created_at")
+        )
+        reviews = list(reviews_qs)
+
+        for r in reviews:
+            full_name = (
+                r.reviewer.userprofile.full_name
+                if hasattr(r.reviewer, "userprofile") and r.reviewer.userprofile.full_name
+                else r.reviewer.username
+            )
+            r.reviewer_display_name = full_name
+            r.reviewer_initial = full_name[0].upper() if full_name else "U"
+            r.relative_time = f"{timesince(r.created_at)} yang lalu"
+
+        user_items = list(Item.objects.filter(owner=user).order_by("-created_at"))
+        borrowed_loans_count = LoanRequest.objects.filter(borrower=user).count()
+
+        trust_desc = {
+            "new": "Belum cukup riwayat transaksi untuk menghitung Trust Score.",
+            "excellent": "Pengguna memiliki reputasi luar biasa dan rekam jejak yang sangat terpercaya.",
+            "trusted": "Pengguna terpercaya dengan riwayat transaksi yang konsisten dan baik.",
+            "fair": "Pengguna aktif yang sedang membangun reputasi positif di komunitas.",
+            "low": "Pengguna memiliki catatan transaksi atau ulasan yang perlu diperhatikan.",
+        }.get(reputation.level.key, "Status reputasi pengguna di komunitas.")
+
+        return {
+            "reputation": reputation,
+            "reviews": reviews,
+            "reviews_count": reputation.review_count,
+            "average_rating": reputation.average_rating,
+            "completed_loans_count": reputation.completed_count,
+            "borrowed_loans_count": borrowed_loans_count,
+            "user_items": user_items,
+            "owned_items_count": len(user_items),
+            "trust_score": reputation.score,
+            "trust_level": reputation.level.label,
+            "trust_description": trust_desc,
+        }
+
+
+reputation_service = ReviewModuleReputationProvider()
 
 
 # Create your views here.
@@ -66,10 +136,12 @@ def logout_user(request):
 
 def build_profile_context(request, profile):
     last_login = request.COOKIES.get("last_login", "Belum ada sesi login / Cookie tidak ditemukan")
+    reputation_ctx = reputation_service.get_reputation_context(profile.user)
 
     return {
         "profile": profile,
         "last_login": last_login,
+        **reputation_ctx,
     }
 
 
@@ -142,10 +214,12 @@ def public_profile(request, username):
 
     # Profil publik hanya menampilkan identitas, nomor telepon dan alamat tidak ikut dikirim ke template
     profile = UserProfile.objects.filter(user=target_user).first()
+    reputation_ctx = reputation_service.get_reputation_context(target_user)
 
     context = {
         "target_user": target_user,
         "profile": profile,
+        **reputation_ctx,
     }
     return render(request, "public_profile.html", context)
 
@@ -228,4 +302,68 @@ def sso_ui_callback(request):
         str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
     )
     return response
+
+
+@require_GET
+@login_required
+def profile_reputation_api(request, username=None):
+    """
+    Endpoint AJAX JSON yang mengembalikan metrik reputasi, Trust Score,
+    dan daftar ulasan komunitas untuk profil pengguna.
+    """
+    if username:
+        target_user = get_object_or_404(User, username=username, is_active=True)
+    else:
+        target_user = request.user
+
+    reputation_ctx = reputation_service.get_reputation_context(target_user)
+
+    reviews_data = [
+        {
+            "id": str(r.pk),
+            "reviewer_username": r.reviewer.username,
+            "reviewer_name": r.reviewer_display_name,
+            "reviewer_initial": r.reviewer_initial,
+            "reviewer_role": r.reviewer_role,
+            "reviewer_role_display": "Peminjam" if r.reviewer_role == "borrower" else "Pemilik Barang",
+            "item_name": r.loan.item.name if r.loan and r.loan.item else "",
+            "rating": r.rating,
+            "comment": r.comment,
+            "relative_time": r.relative_time,
+            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for r in reputation_ctx["reviews"]
+    ]
+
+    items_data = [
+        {
+            "id": item.pk,
+            "name": item.name,
+            "image_url": item.image_url or "",
+            "is_available": item.is_available,
+            "detail_url": reverse("items:detail", args=[item.pk]),
+        }
+        for item in reputation_ctx["user_items"]
+    ]
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "username": target_user.username,
+            "trust_score": reputation_ctx["trust_score"],
+            "trust_level": reputation_ctx["trust_level"],
+            "trust_description": reputation_ctx["trust_description"],
+            "average_rating": (
+                round(reputation_ctx["average_rating"], 1)
+                if reputation_ctx["average_rating"] is not None
+                else None
+            ),
+            "reviews_count": reputation_ctx["reviews_count"],
+            "completed_loans_count": reputation_ctx["completed_loans_count"],
+            "borrowed_loans_count": reputation_ctx["borrowed_loans_count"],
+            "owned_items_count": reputation_ctx["owned_items_count"],
+            "reviews": reviews_data,
+            "user_items": items_data,
+        }
+    )
 
