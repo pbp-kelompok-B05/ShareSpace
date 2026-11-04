@@ -279,7 +279,7 @@ Setiap push ke branch `main` menjalankan GitHub Actions (`.github/workflows/depl
 
 ## 🔗 Tautan Penting
 
-* **Tautan Deployment (PWS):** `[https://maximus-quinn-sharespace.pws.cs.ui.ac.id/](https://maximus-quinn-sharespace.pws.cs.ui.ac.id/)`
+* **Tautan Deployment (PWS):** `https://maximus-quinn-sharespace.pws.cs.ui.ac.id/`
 * **Tautan Desain (Figma):** `https://www.figma.com/files/folder/655547835`
 
 ---
