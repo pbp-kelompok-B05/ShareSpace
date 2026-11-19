@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -20,15 +21,23 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# PRODUCTION=true di PWS: PostgreSQL, DEBUG mati, cookie hanya lewat HTTPS.
+PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z$iec965&b&tij)6lpuh$0av^(9di&9u0=s&4z25xp8x$(u#(!'
+# Di production wajib diisi lewat environment variable SECRET_KEY; kunci di bawah hanya untuk lokal.
+SECRET_KEY = os.getenv('SECRET_KEY', '')
+if not SECRET_KEY:
+    if PRODUCTION:
+        raise ImproperlyConfigured("SECRET_KEY wajib diset sebagai environment variable di production.")
+    SECRET_KEY = 'django-insecure-z$iec965&b&tij)6lpuh$0av^(9di&9u0=s&4z25xp8x$(u#(!'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = not PRODUCTION
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "maximus-quinn-sharespace.pws.cs.ui.ac.id"]
 
@@ -38,7 +47,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
-PRODUCTION = os.getenv('PRODUCTION', 'False').lower() == 'true'
+# Situs PWS selalu diakses lewat HTTPS, jadi cookie sesi dan CSRF tidak boleh terkirim lewat HTTP.
+SESSION_COOKIE_SECURE = PRODUCTION
+CSRF_COOKIE_SECURE = PRODUCTION
 
 # Application definition
 

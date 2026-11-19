@@ -266,10 +266,11 @@ Link modul diambil dengan `{% url ... as var %}` dan hanya tampil jika URL-nya a
 | Link | Nama URL | Tampil untuk |
 |---|---|---|
 | Katalog Komunitas (badge "Baru") | `items:catalog` | Semua |
-| Lokasi COD | `cod_location:location_list` | Semua |
+| Lokasi COD | `cod_location:map` | Semua |
 | Profil saya | `authentication:profile` (tanpa argumen) | User login (menu akun, item pertama) |
 | Barang saya | `items:my_items` | User login (menu akun) |
 | Peminjaman saya | `loans:list` | User login (menu akun) |
+| Ulasan saya | `review:my_reviews` | User login (menu akun) |
 | Laporan saya | `review:my_reports` | User login (menu akun) |
 | Laporan | `review:report_list` | Staff (menu akun) |
 | Admin | `admin:index` | Staff (menu akun) |
