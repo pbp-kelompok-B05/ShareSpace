@@ -25,6 +25,7 @@ urlpatterns = [
     path('loans/', include('loans.urls')),
     path('auth/', include('authentication.urls')),
     path('katalog/', include('items.urls')),
+    path('api/v1/items/', include('items.api_urls')),
     path('cod/', include('cod_location.urls')),
     path('review/', include('review.urls')),
     path("api/loans/", include("loans.api_urls")),
