@@ -7,12 +7,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from math import atan2, cos, radians, sin, sqrt
 from rest_framework.response import Response
+from django.db.models.deletion import ProtectedError
+from rest_framework import status
 
 from loans.models import LoanRequest
 
-from .models import CODLocation, PickupSchedule, Place
-from .serializers import CODLocationSerializer, PickupScheduleSerializer, PlaceSerializer
-from .permissions import IsLocationCreatorOrStaff
+from cod_location.models import CODLocation, PickupSchedule, Place
+from cod_location.serializers import CODLocationSerializer, PickupScheduleSerializer, PlaceSerializer
+from cod_location.permissions import IsLocationCreatorOrStaff
+from cod_location.pagination import CODPlacesPagination
 
 
 # ==================================================
@@ -52,6 +55,7 @@ class CODLocationListCreateAPIView(generics.ListCreateAPIView):
         serializer.save(created_by=self.request.user)
 
 
+
 class CODLocationDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CODLocation.objects.select_related("created_by").all()
     serializer_class = CODLocationSerializer
@@ -59,6 +63,25 @@ class CODLocationDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         IsAuthenticated,
         IsLocationCreatorOrStaff,
     ]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "Lokasi masih digunakan dalam jadwal COD."
+                    ),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 
 # ==================================================
@@ -157,6 +180,7 @@ class PickupScheduleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 class PlaceListAPIView(generics.ListAPIView):
     serializer_class = PlaceSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = CODPlacesPagination
 
     def get_search_params(self):
         params = self.request.query_params
