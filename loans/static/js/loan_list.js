@@ -74,6 +74,12 @@ async function loadLoans() {
             return;
         }
 
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+            loanList.textContent = "Gagal memuat transaksi (HTTP " + response.status + "). Periksa log server Django.";
+            return;
+        }
+
         const data = await response.json();
 
         if (!response.ok) {
@@ -226,13 +232,13 @@ async function loadLoans() {
                 ));
             }
 
-            // Contact owner
-            if (isBorrower && loan.contact_url) {
+            // Contact owner or borrower
+            if (loan.contact_url) {
                 const contactLink = document.createElement("a");
 
                 contactLink.href = loan.contact_url;
                 contactLink.className = "loan-action loan-action-secondary";
-                contactLink.textContent = "Hubungi Pemilik";
+                contactLink.textContent = isBorrower ? "Hubungi Pemilik" : "Hubungi Peminjam";
 
                 actions.appendChild(contactLink);
             }

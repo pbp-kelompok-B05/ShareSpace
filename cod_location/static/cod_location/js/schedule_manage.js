@@ -622,7 +622,20 @@ scheduleType?.addEventListener("change", updateLocationField);
   }
 
   async function deleteSchedule(schedule) {
-    if (!window.confirm(`Hapus jadwal ${schedule.schedule_type_label || schedule.schedule_type} ini?`)) return;
+    const result = await Swal.fire({
+        title: "Hapus jadwal ini?",
+        text: `Yakin ingin menghapus jadwal ${schedule.schedule_type_label || schedule.schedule_type} di "${schedule.location_name}"?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Ya, Hapus",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#a51d20",
+        cancelButtonColor: "#718077",
+        reverseButtons: true
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await requestJSON(config.dataset.deleteUrl.replace("00000000-0000-0000-0000-000000000000", String(schedule.id)), {
         method: "POST", headers: { "X-CSRFToken": csrfToken },
