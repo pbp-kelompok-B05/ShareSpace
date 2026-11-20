@@ -1,3 +1,6 @@
+from functools import wraps
+import math
+
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -19,6 +22,35 @@ from authentication.serializers import (
     UserProfileSerializer,
 )
 from authentication.views import reputation_service
+from items.decorators import rate_limit
+
+
+def _drf_rate_limit(scope, limit, period):
+    """Menyamakan rate limit API DRF dengan @rate_limit web, dengan respons JSON 429."""
+
+    def decorator(view_func):
+        limited_view = rate_limit(scope=scope, limit=limit, period=period)(view_func)
+
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            response = limited_view(request, *args, **kwargs)
+            if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+                retry_after = int(response.get("Retry-After", "60"))
+                minutes = math.ceil(retry_after / 60)
+                return Response(
+                    {
+                        "detail": (
+                            f"Terlalu banyak permintaan. Coba lagi dalam {minutes} menit."
+                        )
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                    headers={"Retry-After": str(retry_after)},
+                )
+            return response
+
+        return wrapper
+
+    return decorator
 
 
 def _build_reputation_summary(user):
@@ -101,6 +133,7 @@ def profile_detail(request, username):
 @api_view(["POST"])
 @authentication_classes([SessionAuthentication])
 @permission_classes([IsUnauthenticatedOnly])
+@_drf_rate_limit(scope="login_help", limit=5, period=60)
 def login_help_list_create(request):
     serializer = LoginHelpRequestSerializer(
         data=request.data, context={"request": request}

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
@@ -8,6 +9,7 @@ from authentication.models import LoginHelpRequest, UserProfile
 
 class AuthenticationAPITest(APITestCase):
     def setUp(self):
+        cache.clear()
         self.password = "TestPass123!"
         self.user = User.objects.create_user(
             username="azka",
@@ -242,6 +244,25 @@ class AuthenticationAPITest(APITestCase):
             self.client.get(self.help_url).status_code,
             status.HTTP_405_METHOD_NOT_ALLOWED,
         )
+
+    def test_login_help_request_rate_limit_returns_429(self):
+        payload = {
+            "email_or_username": "azka",
+            "contact_email": "azka.help@example.com",
+            "issue_type": LoginHelpRequest.IssueType.FORGOT_PASSWORD,
+            "message": "Lupa kata sandi akun lokal.",
+        }
+        for _ in range(5):
+            response = self.client.post(self.help_url, payload, format="json")
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        limited_res = self.client.post(self.help_url, payload, format="json")
+        self.assertEqual(
+            limited_res.status_code, status.HTTP_429_TOO_MANY_REQUESTS
+        )
+        self.assertIn("Retry-After", limited_res)
+        self.assertIn("detail", limited_res.data)
+        self.assertEqual(LoginHelpRequest.objects.count(), 5)
 
     def test_session_write_without_csrf_is_rejected(self):
         client = APIClient(enforce_csrf_checks=True)
