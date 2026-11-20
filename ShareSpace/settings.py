@@ -66,7 +66,6 @@ INSTALLED_APPS = [
     'items',
     'cod_location',
     'review',
-    'rest_framework',
 ]
 
 MIDDLEWARE = [
