@@ -13,6 +13,7 @@ def verify_recaptcha(token):
             timeout=5
         )
         response.raise_for_status()
-        return response.json().get("success") is True
+        result = response.json()
+        return isinstance(result, dict) and result.get("success") is True
     except (requests.RequestException, ValueError):
         return False
