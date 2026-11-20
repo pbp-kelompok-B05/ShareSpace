@@ -27,4 +27,5 @@ urlpatterns = [
     path('katalog/', include('items.urls')),
     path('cod/', include('cod_location.urls')),
     path('review/', include('review.urls')),
+    path("api/cod/", include("cod_location.api_urls")),
 ]
