@@ -19,6 +19,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 from django.core.exceptions import ValidationError
+from django.db.models.deletion import ProtectedError
 
 from loans.models import LoanRequest
 from .models import CODLocation, PickupSchedule
@@ -293,6 +294,7 @@ def location_update(request, pk):
     })
 
 
+
 @login_required
 @require_POST
 def location_delete(request, pk):
@@ -307,18 +309,20 @@ def location_delete(request, pk):
             "message": "Tidak memiliki izin menghapus lokasi.",
         }, status=403)
 
-    if location.pickup_schedules.exists():
+    try:
+        location.delete()
+
+    except ProtectedError:
         return JsonResponse({
             "success": False,
             "message": "Lokasi masih digunakan dalam jadwal COD.",
         }, status=409)
 
-    location.delete()
-
     return JsonResponse({
         "success": True,
         "message": "Lokasi COD berhasil dihapus.",
     })
+
 
 
 # CRUD PICKUP SCHEDULE
