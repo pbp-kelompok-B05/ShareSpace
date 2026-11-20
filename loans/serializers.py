@@ -20,7 +20,6 @@ class LoanRequestSerializer(serializers.ModelSerializer):
     return_requested = serializers.SerializerMethodField()
     contact_url = serializers.SerializerMethodField()
     available_actions = serializers.SerializerMethodField()
-    initial = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
     class Meta:
         model = LoanRequest
@@ -36,7 +35,6 @@ class LoanRequestSerializer(serializers.ModelSerializer):
             "start_date", 
             "due_date", 
             "notes", 
-            "initial", 
             "status", 
             "status_label", 
             "return_requested_at",
@@ -128,4 +126,3 @@ class LoanRequestSerializer(serializers.ModelSerializer):
                 return ["complete"]
 
         return []
-    

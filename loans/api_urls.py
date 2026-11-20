@@ -1,15 +1,15 @@
 from django.urls import path
-from .api_views import LoanRequestViewSet
+from . import api_views
 
 app_name = "loans_api"
 
 urlpatterns = [
-    path("", LoanRequestViewSet.as_view({"get": "list", "post": "create"}), name="loan-list"),
-    path("<uuid:pk>/", LoanRequestViewSet.as_view({"get": "retrieve", "patch": "partial_update"}), name="loan-detail"),
-    path("<uuid:pk>/cancel/", LoanRequestViewSet.as_view({"post": "cancel"}), name="loan-cancel"),
-    path("<uuid:pk>/approve/", LoanRequestViewSet.as_view({"post": "approve"}), name="loan-approve"),
-    path("<uuid:pk>/reject/", LoanRequestViewSet.as_view({"post": "reject"}), name="loan-reject"),
-    path("<uuid:pk>/mark-borrowed/", LoanRequestViewSet.as_view({"post": "mark_borrowed"}), name="loan-mark-borrowed"),
-    path("<uuid:pk>/request-return/", LoanRequestViewSet.as_view({"post": "request_return"}), name="loan-request-return"),
-    path("<uuid:pk>/complete/", LoanRequestViewSet.as_view({"post": "complete"}), name="loan-complete"),
+    path("", api_views.loan_list, name="loan-list"),
+    path("<uuid:pk>/", api_views.loan_detail, name="loan-detail"),
+    path("<uuid:pk>/cancel/", api_views.loan_cancel, name="loan-cancel"),
+    path("<uuid:pk>/approve/", api_views.loan_approve, name="loan-approve"),
+    path("<uuid:pk>/reject/", api_views.loan_reject, name="loan-reject"),
+    path("<uuid:pk>/mark-borrowed/", api_views.loan_mark_borrowed, name="loan-mark-borrowed"),
+    path("<uuid:pk>/request-return/", api_views.loan_request_return, name="loan-request-return"),
+    path("<uuid:pk>/complete/", api_views.loan_complete, name="loan-complete"),
 ]
