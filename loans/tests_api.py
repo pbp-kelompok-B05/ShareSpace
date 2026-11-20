@@ -1,5 +1,7 @@
 import uuid
 from datetime import timedelta
+from unittest import mock
+import requests
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
@@ -8,10 +10,19 @@ from rest_framework.test import APIClient, APITestCase
 from authentication.models import UserProfile
 from items.models import Item
 from loans.models import LoanRequest
+from loans.recaptcha import verify_recaptcha
 
 # Loan REST API tests
-@override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
+@override_settings(
+    PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"],
+    RECAPTCHA_SITE_KEY="test", RECAPTCHA_SECRET_KEY="test",
+)
 class LoanRESTAPITests(APITestCase):
+    def setUp(self):
+        patcher = mock.patch("loans.api_views.verify_recaptcha", return_value=True)
+        self.recaptcha_mock = patcher.start()
+        self.addCleanup(patcher.stop)
+
     @classmethod
     def setUpTestData(cls):
         user = get_user_model()
@@ -29,7 +40,10 @@ class LoanRESTAPITests(APITestCase):
         return reverse(f"loans_api:loan-{action}", args=[loan.pk] if loan else None)
 
     def data(self, **changes):
-        data = {"item": self.item.pk, "start_date": self.start.isoformat(), "due_date": self.due.isoformat()}
+        data = {
+            "item": self.item.pk, "start_date": self.start.isoformat(), "due_date": self.due.isoformat(),
+            "g-recaptcha-response": "test-token",
+        }
         data.update(changes)
 
         return data
@@ -122,7 +136,7 @@ class LoanRESTAPITests(APITestCase):
         response = self.client.get(reverse("loans_api:loan-detail", args=[uuid.uuid4()]))
         self.assertEqual(response.status_code, 404)
 
-    # Pengajuan menyimpan catatan serta menetapkan peminjam dan status dari server.
+    # Pengajuan menyimpan JSON dan tidak menerima pemalsuan peminjam atau status.
     def test_create_saves_json_and_ignores_forged_status_or_borrower(self):
         self.login_as(self.borrower)
         response = self.client.post(self.url(), self.data(
@@ -130,21 +144,140 @@ class LoanRESTAPITests(APITestCase):
         ), format="json")
 
         self.assertEqual(response.status_code, 201, response.data)
-
         loan = LoanRequest.objects.get(pk=response.data["id"])
         self.assertEqual(loan.borrower_id, self.borrower.pk)
         self.assertEqual(loan.status, "pending")
         self.assertEqual(loan.notes, "Untuk dokumentasi")
         self.assertEqual(response.data["available_actions"], ["edit", "cancel"])
 
-    # API mobile tidak bergantung pada konfigurasi reCAPTCHA web.
-    def test_create_without_recaptcha_configuration(self):
+    # Konfigurasi reCAPTCHA wajib lengkap seperti pengajuan pada web.
+    def test_create_requires_recaptcha_configuration(self):
         self.login_as(self.borrower)
 
-        with override_settings(RECAPTCHA_SITE_KEY="", RECAPTCHA_SECRET_KEY=""):
-            response = self.client.post(self.url(), self.data(), format="json")
+        for site_key, secret_key in (("", ""), ("", "test"), ("test", "")):
+            with self.subTest(site_key=site_key, secret_key=secret_key):
+                with override_settings(RECAPTCHA_SITE_KEY=site_key, RECAPTCHA_SECRET_KEY=secret_key):
+                    response = self.client.post(self.url(), self.data(), format="json")
+
+                self.assertEqual(response.status_code, 503)
+                self.assertFalse(LoanRequest.objects.exists())
+
+        self.recaptcha_mock.assert_not_called()
+
+    # Token yang hilang, kosong, atau bertipe salah ditolak sebelum verifikasi.
+    def test_create_rejects_missing_or_malformed_recaptcha_token(self):
+        self.login_as(self.borrower)
+        missing = self.data()
+        missing.pop("g-recaptcha-response")
+        payloads = [missing] + [self.data(**{"g-recaptcha-response": value}) for value in (
+            "", "   ", None, 123, True, [], {}, ["test-token"],
+        )]
+
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                response = self.client.post(self.url(), payload, format="json")
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(LoanRequest.objects.exists())
+
+        self.recaptcha_mock.assert_not_called()
+
+    # Token yang gagal diverifikasi tidak boleh membuat pengajuan.
+    def test_create_rejects_invalid_recaptcha_token(self):
+        self.login_as(self.borrower)
+        self.recaptcha_mock.return_value = False
+
+        response = self.client.post(self.url(), self.data(), format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+        self.recaptcha_mock.assert_called_once_with("test-token")
+
+    # Token diverifikasi server dan tidak ikut disimpan atau ditampilkan.
+    def test_create_verifies_recaptcha_with_shared_web_helper(self):
+        self.login_as(self.borrower)
+        self.recaptcha_mock.side_effect = verify_recaptcha
+
+        with mock.patch("loans.recaptcha.requests.post") as verification:
+            verification.return_value.json.return_value = {"success": True}
+            response = self.client.post(
+                self.url(), self.data(**{"g-recaptcha-response": " test-token "}), format="json",
+            )
 
         self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(LoanRequest.objects.count(), 1)
+        self.assertNotIn("g-recaptcha-response", response.data)
+        self.recaptcha_mock.assert_called_once_with("test-token")
+        verification.assert_called_once_with(
+            "https://www.google.com/recaptcha/api/siteverify",
+            data={"secret": "test", "response": "test-token"}, timeout=5,
+        )
+
+    # Timeout dan kegagalan HTTP dari layanan verifikasi menolak pengajuan.
+    def test_create_rejects_recaptcha_network_and_http_errors(self):
+        self.login_as(self.borrower)
+        self.recaptcha_mock.side_effect = verify_recaptcha
+
+        for error in (requests.Timeout(), requests.ConnectionError(), requests.HTTPError()):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch("loans.recaptcha.requests.post") as verification:
+                    if isinstance(error, requests.HTTPError):
+                        verification.return_value.raise_for_status.side_effect = error
+                    else:
+                        verification.side_effect = error
+                    response = self.client.post(self.url(), self.data(), format="json")
+
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(LoanRequest.objects.exists())
+
+        self.item.refresh_from_db()
+        self.assertTrue(self.item.is_available)
+
+    # JSON verifikasi yang rusak atau tidak menyatakan sukses harus ditolak.
+    def test_create_rejects_invalid_recaptcha_service_response(self):
+        self.login_as(self.borrower)
+        self.recaptcha_mock.side_effect = verify_recaptcha
+
+        for result in (None, [], "invalid", {}, {"success": False}, {"success": "true"}, {"success": 1}):
+            with self.subTest(result=result):
+                with mock.patch("loans.recaptcha.requests.post") as verification:
+                    verification.return_value.json.return_value = result
+                    response = self.client.post(self.url(), self.data(), format="json")
+
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(LoanRequest.objects.exists())
+
+        with mock.patch("loans.recaptcha.requests.post") as verification:
+            verification.return_value.json.side_effect = ValueError("Invalid JSON")
+            response = self.client.post(self.url(), self.data(), format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+
+    # Pengajuan lewat form-data mendapat proteksi yang sama dengan JSON.
+    def test_form_data_create_requires_recaptcha(self):
+        self.login_as(self.borrower)
+        response = self.client.post(
+            self.url(), self.data(**{"g-recaptcha-response": ""}), format="multipart",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+
+        response = self.client.post(self.url(), self.data(), format="multipart")
+        self.assertEqual(response.status_code, 201, response.data)
+        self.recaptcha_mock.assert_called_once_with("test-token")
+
+    # Membaca, mengedit, dan membatalkan pengajuan tidak meminta CAPTCHA baru.
+    def test_recaptcha_is_only_required_when_creating_a_loan(self):
+        loan = self.loan()
+        self.login_as(self.borrower)
+        self.recaptcha_mock.return_value = False
+
+        self.assertEqual(self.client.get(self.url()).status_code, 200)
+        self.assertEqual(self.client.get(self.url("detail", loan)).status_code, 200)
+        response = self.client.patch(self.url("detail", loan), {"notes": "Catatan baru"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.post(self.url("cancel", loan)).status_code, 200)
+        self.recaptcha_mock.assert_not_called()
 
     # Barang sendiri dan pengajuan pending ganda tidak diperbolehkan.
     def test_self_borrowing_and_duplicate_pending_are_rejected(self):
@@ -178,7 +311,7 @@ class LoanRESTAPITests(APITestCase):
         self.owner.save()
         self.assertEqual(self.client.post(self.url(), self.data(), format="json").status_code, 400)
 
-    # Validasi tanggal, field wajib.
+    # Validasi tanggal dan field wajib.
     def test_date_validation_and_required_fields(self):
         self.login_as(self.borrower)
         bad_payloads = [
@@ -186,13 +319,11 @@ class LoanRESTAPITests(APITestCase):
             self.data(due_date=(self.start - timedelta(days=1)).isoformat()),
             self.data(start_date="bad-date"),
             {"item": self.item.pk},
-            self.data(due_date=None),
         ]
 
         for data in bad_payloads:
             with self.subTest(data=data):
-                response = self.client.post(self.url(), data, format="json")
-                self.assertEqual(response.status_code, 400)
+                self.assertEqual(self.client.post(self.url(), data, format="json").status_code, 400)
 
         self.assertFalse(LoanRequest.objects.exists())
 
@@ -376,7 +507,7 @@ class LoanRESTAPITests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.client.get(self.url("detail", loan)).data["status"], "approved")
 
-    # POST dengan sesi login tetap membutuhkan token CSRF.
+    # POST dengan sesi login membutuhkan CSRF dan reCAPTCHA yang valid.
     def test_session_csrf_required_for_writes(self):
         client = APIClient(enforce_csrf_checks=True)
         client.force_login(self.borrower)
@@ -386,6 +517,13 @@ class LoanRESTAPITests(APITestCase):
 
         client.get(reverse("loans:list"))
         token = client.cookies["csrftoken"].value
+        response = client.post(
+            self.url(), self.data(**{"g-recaptcha-response": ""}), format="json", HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(LoanRequest.objects.exists())
+        self.recaptcha_mock.assert_not_called()
+
         response = client.post(self.url(), self.data(), format="json", HTTP_X_CSRFTOKEN=token)
 
         self.assertEqual(response.status_code, 201, response.data)
@@ -505,3 +643,4 @@ class LoanRESTAPITests(APITestCase):
 
         loan.refresh_from_db()
         self.assertEqual(loan.status, LoanRequest.Status.CANCELLED)
+        

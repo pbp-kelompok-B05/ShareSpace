@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -10,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from items.models import Item
 from loans.models import LoanRequest
+from loans.recaptcha import verify_recaptcha
 from loans.serializers import LoanRequestSerializer
 
 # Transactions accessible to the current user
@@ -61,6 +63,13 @@ def loan_list(request):
 
     serializer = LoanRequestSerializer(data=request.data, context={"request": request})
     serializer.is_valid(raise_exception=True)
+
+    if not settings.RECAPTCHA_SITE_KEY or not settings.RECAPTCHA_SECRET_KEY:
+        return Response({"detail": "reCAPTCHA belum dikonfigurasi."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    token = request.data.get("g-recaptcha-response", "")
+    if not isinstance(token, str) or not token.strip() or not verify_recaptcha(token.strip()):
+        return Response({"detail": "Verifikasi reCAPTCHA gagal. Silakan coba lagi."}, status=status.HTTP_400_BAD_REQUEST)
 
     with transaction.atomic():
         item = get_object_or_404(
