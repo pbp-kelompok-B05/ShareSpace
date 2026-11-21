@@ -25,6 +25,12 @@ urlpatterns = [
     path('loans/', include('loans.urls')),
     path('auth/', include('authentication.urls')),
     path('katalog/', include('items.urls')),
+    path('api/v1/items/', include('items.api_urls')),
     path('cod/', include('cod_location.urls')),
     path('review/', include('review.urls')),
+    path("api/loans/", include("loans.api_urls")),
+    path("api/cod/", include("cod_location.api_urls")),
+    path('api/review/', include('review.api_urls')),
+    path('api/v1/auth/', include('authentication.api_urls')),
+    path('api-auth/', include('rest_framework.urls')),
 ]
